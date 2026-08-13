@@ -15,6 +15,8 @@ pub fn parse1(tokens: &mut Vec<(String, usize)>, exprs: &mut Vec<Expr>) {
         }
         tokens.remove(0);
         exprs.insert(index, Expr::FlatList(size));
+    } else if first_char == '"' {
+        exprs.push(Expr::String(token.0.chars().skip(1).take(token.0.chars().count() - 2).collect()))
     } else {
         exprs.push(Expr::Symbol(token.0));
     }
