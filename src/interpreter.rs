@@ -10,14 +10,42 @@ pub fn lookup(symbol: &String, env: &Env) -> Option<Expr> {
     }
 }
 
+pub fn define(symbol: &String, value: Expr, env: &mut Env) {
+    env.defines.insert(symbol.to_string(), value);
+}
+
+pub fn expect_flat_list_size(actual: usize, expected: usize) {
+    if actual != expected {
+        panic!("expected {} arguments, got {}", expected - 1, actual - 1)
+    }
+}
+
+pub fn quote_next(tree: &Vec<Expr>, i: &mut usize, env: &mut Env) -> Expr {
+    *i += 1; tree[*i - 1].clone()
+}
+
 pub fn eval_next(tree: &Vec<Expr>, i: &mut usize, env: &mut Env) -> Expr {
     let expr = &tree[*i];
     match expr {
         Expr::Symbol(symbol) => { *i += 1; lookup(&symbol, env).expect(&format!("'{}' is not defined", symbol).to_string()) },
         Expr::FlatList(size) => {
-            let symbol = tree[*i + 1].clone().expect_symbol();
+            *i += 1;
+
+            let symbol = tree[*i].clone().expect_symbol();
+            *i += 1;
+
+            match symbol.as_str() {
+                "define" => {
+                    expect_flat_list_size(*size, 3);
+                    let name = quote_next(tree, i, env).expect_symbol();
+                    let value = eval_next(tree, i, env);
+                    define(&name, value, env);
+                    return lookup(&String::from("nil"), env).unwrap();
+                }
+                _ => {}
+            }
+
             let func = lookup(&symbol, env).expect("function not found");
-            *i += 2;
 
             let mut args = Vec::<Expr>::new();
             for _ in 0..size - 1 {

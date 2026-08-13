@@ -12,6 +12,8 @@ fn plus(args: Vec<Expr>) -> Expr {
 pub fn std_env() -> Env {
     let mut defines = HashMap::new();
 
+    defines.insert("nil".to_string(), Expr::Symbol(String::from("nil")));
+
     defines.insert("+".to_string(), Expr::NativeFunction(plus));
 
     Env {
