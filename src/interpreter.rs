@@ -14,12 +14,6 @@ pub fn define(symbol: &String, value: Expr, env: &mut Env) {
     env.defines.insert(symbol.to_string(), value);
 }
 
-pub fn expect_flat_list_size(actual: usize, expected: usize) {
-    if actual != expected {
-        panic!("expected {} arguments, got {}", expected - 1, actual - 1)
-    }
-}
-
 pub fn eval(expr: Expr, env: &mut Env) -> Expr {
     match expr.clone() {
         Expr::Symbol(symbol) => lookup(&symbol, env).expect(&format!("'{}' is not defined", symbol).to_string()),

@@ -9,7 +9,8 @@ pub enum Expr {
     String(String),
     List(Vec<Expr>),
     NativeFunction(fn(Vec<Expr>) -> Expr),
-    LazyFrame(LazyFrame)
+    LazyFrame(LazyFrame),
+    PolarsExpr(polars::prelude::Expr)
 }
 
 impl Expr {
@@ -40,6 +41,20 @@ impl Expr {
             other => panic!("expected list, found {other:?}")
         }
     }
+    
+    pub fn expect_lazy_frame(self) -> LazyFrame {
+        match self {
+            Expr::LazyFrame(lf) => lf,
+            other => panic!("expected lazy frame, found {other:?}")
+        }
+    } 
+
+    pub fn expect_polars_expr(self) -> polars::prelude::Expr {
+        match self {
+            Expr::PolarsExpr(pe) => pe,
+            other => panic!("expected polars expr, found {other:?}")
+        }
+    }
 }
 
 impl fmt::Display for Expr {
@@ -59,7 +74,8 @@ impl fmt::Display for Expr {
                 write!(f, ")")
             },
             Expr::NativeFunction(_) => write!(f, "<NativeFunction>"),
-            Expr::LazyFrame(lf) => write!(f, "{}", lf.clone().collect().unwrap())
+            Expr::LazyFrame(lf) => write!(f, "{}", lf.clone().collect().unwrap()),
+            Expr::PolarsExpr(pe) => write!(f, "{}", pe)
         }
     }
 }
@@ -71,12 +87,9 @@ impl fmt::Debug for Expr {
             Expr::Number(n) => f.debug_tuple("Number").field(n).finish(),
             Expr::String(s) => f.debug_tuple("String").field(s).finish(),
             Expr::List(items) => f.debug_tuple("List").field(items).finish(),
-            Expr::NativeFunction(_) => {
-                f.write_str("NativeFunction")
-            }
-            Expr::LazyFrame(_) => {
-                f.write_str("LazyFrame")
-            }
+            Expr::NativeFunction(_) => { f.write_str("NativeFunction") },
+            Expr::LazyFrame(_) => { f.write_str("LazyFrame") },
+            Expr::PolarsExpr(_) => { f.write_str("PolarsExpr") }
         }
     }
 }

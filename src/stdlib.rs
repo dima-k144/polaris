@@ -18,6 +18,19 @@ fn read_csv(args: Vec<Expr>) -> Expr {
     Expr::LazyFrame(lf)
 }
 
+fn col_(args: Vec<Expr>) -> Expr {
+    Expr::PolarsExpr(col(args[0].clone().expect_string()))
+}
+
+fn select(args: Vec<Expr>) -> Expr {
+    let lf = args[0].clone().expect_lazy_frame();
+    let mut exprs = Vec::<polars::prelude::Expr>::new();
+    for arg in args.iter().skip(1) {
+        exprs.push(arg.clone().expect_polars_expr());
+    }
+    Expr::LazyFrame(lf.select(exprs))
+}
+
 pub fn std_env() -> Env {
     let mut defines = HashMap::new();
 
@@ -26,6 +39,8 @@ pub fn std_env() -> Env {
     defines.insert("+".to_string(), Expr::NativeFunction(plus));
 
     defines.insert("read-csv".to_string(), Expr::NativeFunction(read_csv));
+    defines.insert("col".to_string(), Expr::NativeFunction(col_));
+    defines.insert("select".to_string(), Expr::NativeFunction(select));
 
     Env {
         defines: defines,
