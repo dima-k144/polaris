@@ -20,25 +20,15 @@ pub fn expect_flat_list_size(actual: usize, expected: usize) {
     }
 }
 
-pub fn quote_next(tree: &Vec<Expr>, i: &mut usize, env: &mut Env) -> Expr {
-    *i += 1; tree[*i - 1].clone()
-}
-
-pub fn eval_next(tree: &Vec<Expr>, i: &mut usize, env: &mut Env) -> Expr {
-    let expr = &tree[*i];
-    match expr {
-        Expr::Symbol(symbol) => { *i += 1; lookup(&symbol, env).expect(&format!("'{}' is not defined", symbol).to_string()) },
-        Expr::FlatList(size) => {
-            *i += 1;
-
-            let symbol = tree[*i].clone().expect_symbol();
-            *i += 1;
-
+pub fn eval(expr: Expr, env: &mut Env) -> Expr {
+    match expr.clone() {
+        Expr::Symbol(symbol) => lookup(&symbol, env).expect(&format!("'{}' is not defined", symbol).to_string()),
+        Expr::List(list) => {
+            let symbol = list[0].clone().expect_symbol();
             match symbol.as_str() {
-                "define" => {
-                    expect_flat_list_size(*size, 3);
-                    let name = quote_next(tree, i, env).expect_symbol();
-                    let value = eval_next(tree, i, env);
+                "define" => { 
+                    let name = list[1].clone().expect_symbol();
+                    let value = eval(list[2].clone(), env);
                     define(&name, value, env);
                     return lookup(&String::from("nil"), env).unwrap();
                 }
@@ -48,8 +38,8 @@ pub fn eval_next(tree: &Vec<Expr>, i: &mut usize, env: &mut Env) -> Expr {
             let func = lookup(&symbol, env).expect("function not found");
 
             let mut args = Vec::<Expr>::new();
-            for _ in 0..size - 1 {
-                args.push(eval_next(tree, i, env));
+            for j in 1..list.len() {
+                args.push(eval(list[j].clone(), env));
             }
 
             match func {
@@ -59,8 +49,6 @@ pub fn eval_next(tree: &Vec<Expr>, i: &mut usize, env: &mut Env) -> Expr {
                 _ => panic!("{} is not callable", symbol)
             }
         },
-        _ => {
-            *i += 1; expr.clone()
-        }
+        _ => expr
     }
 }

@@ -7,7 +7,7 @@ pub enum Expr {
     Symbol(String),
     Number(f64),
     String(String),
-    FlatList(usize),
+    List(Vec<Expr>),
     NativeFunction(fn(Vec<Expr>) -> Expr),
     LazyFrame(LazyFrame)
 }
@@ -41,7 +41,16 @@ impl fmt::Display for Expr {
             Expr::Symbol(s) => write!(f, "{s}"),
             Expr::Number(n) => write!(f, "{n}"),
             Expr::String(s) => write!(f, "{s}"),
-            Expr::FlatList(id) => write!(f, "<FlatList {id}>"),
+            Expr::List(items) => {
+                write!(f, "(")?;
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, " ")?;
+                    }
+                    write!(f, "{item}")?;
+                }
+                write!(f, ")")
+            },
             Expr::NativeFunction(_) => write!(f, "<NativeFunction>"),
             Expr::LazyFrame(lf) => write!(f, "{}", lf.clone().collect().unwrap())
         }
@@ -54,7 +63,7 @@ impl fmt::Debug for Expr {
             Expr::Symbol(s) => f.debug_tuple("Symbol").field(s).finish(),
             Expr::Number(n) => f.debug_tuple("Number").field(n).finish(),
             Expr::String(s) => f.debug_tuple("String").field(s).finish(),
-            Expr::FlatList(n) => f.debug_tuple("FlatList").field(n).finish(),
+            Expr::List(items) => f.debug_tuple("List").field(items).finish(),
             Expr::NativeFunction(_) => {
                 f.write_str("NativeFunction")
             }

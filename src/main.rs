@@ -19,10 +19,9 @@ fn repl() {
         //for (n, expr) in exprs.iter().enumerate() {
         //    println!("{} {:?}", n, expr);
         //}
-        let mut i = 0;
         let mut result = None;
-        while i < exprs.len() {
-            result = Some(crate::interpreter::eval_next(&exprs, &mut i, &mut env));
+        for expr in exprs {
+            result = Some(crate::interpreter::eval(expr, &mut env));
         }
         if let Some(res) = result {
             println!("{res}");
