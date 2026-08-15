@@ -33,6 +33,13 @@ impl Expr {
             other => panic!("expected string, found {other:?}")
         }
     }
+    
+    pub fn expect_list(self) -> Vec<Expr> {
+        match self {
+            Expr::List(l) => l,
+            other => panic!("expected list, found {other:?}")
+        }
+    }
 }
 
 impl fmt::Display for Expr {

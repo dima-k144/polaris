@@ -25,12 +25,22 @@ pub fn eval(expr: Expr, env: &mut Env) -> Expr {
         Expr::Symbol(symbol) => lookup(&symbol, env).expect(&format!("'{}' is not defined", symbol).to_string()),
         Expr::List(list) => {
             let symbol = list[0].clone().expect_symbol();
+
             match symbol.as_str() {
                 "define" => { 
                     let name = list[1].clone().expect_symbol();
                     let value = eval(list[2].clone(), env);
                     define(&name, value, env);
                     return lookup(&String::from("nil"), env).unwrap();
+                },
+                "->" => {
+                    let mut var = eval(list[1].clone(), env);
+                    for i in 2..list.len() {
+                        let mut expr2 = list[i].clone().expect_list();
+                        expr2.insert(1, var.clone());
+                        var = eval(Expr::List(expr2), env);
+                    }
+                    return var;
                 }
                 _ => {}
             }
