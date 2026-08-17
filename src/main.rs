@@ -21,11 +21,17 @@ fn repl() {
         //    println!("{} {:?}", n, expr);
         //}
         let mut result = None;
+        let mut state = interpreter::State {
+            line: 0,
+        };
         for expr in exprs {
-            result = Some(crate::interpreter::eval(expr, &mut env));
+            result = Some(crate::interpreter::eval(expr, &mut env, &mut state));
         }
         if let Some(res) = result {
-            println!("{res}");
+            match res {
+                Ok(val) => println!("{val}"),
+                Err(err) => println!("{}", crate::types::format_error(err)),
+            }
         }
     }
 }
@@ -40,11 +46,17 @@ fn main() {
             let mut tokens = lexer::scan(&contents); 
             let exprs = parser::parse(&mut tokens);
             let mut result = None;
+            let mut state = interpreter::State {
+                line: 0,
+            };
             for expr in exprs {
-                result = Some(crate::interpreter::eval(expr, &mut env));
+                result = Some(crate::interpreter::eval(expr, &mut env, &mut state));
             }
             if let Some(res) = result {
-                println!("{res}");
+                match res {
+                    Ok(val) => println!("{val}"),
+                    Err(err) => println!("{}", crate::types::format_error(err)),
+                }
             }
         }
     }

@@ -4,8 +4,9 @@ pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Expr {
     let token = tokens.remove(0);
     let mut chars = token.0.chars();
     let first_char = chars.next().unwrap();
+    let line = token.1;
     if first_char.is_numeric() {
-        Expr::Number(token.0.parse::<f64>().expect("Failed to parse a number"))
+        Expr::SourceInfo(Box::new(Expr::Number(token.0.parse::<f64>().expect("Failed to parse a number"))), line)
     } else if token.0 == "(" {
         let mut items = Vec::<Expr>::new();
         while tokens[0].0 != ")" {

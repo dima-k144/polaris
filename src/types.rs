@@ -8,51 +8,65 @@ pub enum Expr {
     Number(f64),
     String(String),
     List(Vec<Expr>),
-    NativeFunction(fn(Vec<Expr>) -> Expr),
+    NativeFunction(fn(Vec<Expr>) -> Result<Expr, Error>),
     LazyFrame(LazyFrame),
-    PolarsExpr(polars::prelude::Expr)
+    PolarsExpr(polars::prelude::Expr),
+    SourceInfo(Box<Expr>, usize)
 }
 
 impl Expr {
-    pub fn expect_symbol(self) -> String {
+    pub fn expect_symbol(self) -> Result<String, Error> {
         match self {
-            Expr::Symbol(s) => s,
-            other => panic!("expected symbol, found {other:?}"),
+            Expr::Symbol(s) => Ok(s),
+            other => Err(Error::WrongType { expected: String::from("symbol"), got: other }),
         }
     }
 
-    pub fn expect_number(self) -> f64 {
+    pub fn expect_number(self) -> Result<f64, Error> {
         match self {
-            Expr::Number(n) => n,
-            other => panic!("expected number, found {other:?}")
+            Expr::Number(n) => Ok(n),
+            other => Err(Error::WrongType { expected: String::from("number"), got: other }),
         }
     }
 
-    pub fn expect_string(self) -> String {
+    pub fn expect_string(self) -> Result<String, Error> {
         match self {
-            Expr::String(s) => s,
-            other => panic!("expected string, found {other:?}")
+            Expr::String(s) => Ok(s),
+            other => Err(Error::WrongType { expected: String::from("string"), got: other }),
         }
     }
     
-    pub fn expect_list(self) -> Vec<Expr> {
+    pub fn expect_list(self) -> Result<Vec<Expr>, Error> {
         match self {
-            Expr::List(l) => l,
-            other => panic!("expected list, found {other:?}")
+            Expr::List(l) => Ok(l),
+            other => Err(Error::WrongType { expected: String::from("list"), got: other }),
         }
     }
     
-    pub fn expect_lazy_frame(self) -> LazyFrame {
+    pub fn expect_lazy_frame(self) -> Result<LazyFrame, Error> {
         match self {
-            Expr::LazyFrame(lf) => lf,
-            other => panic!("expected lazy frame, found {other:?}")
+            Expr::LazyFrame(lf) => Ok(lf),
+            other => Err(Error::WrongType { expected: String::from("lazy frame"), got: other }),
         }
     } 
 
-    pub fn expect_polars_expr(self) -> polars::prelude::Expr {
+    pub fn expect_polars_expr(self) -> Result<polars::prelude::Expr, Error> {
         match self {
-            Expr::PolarsExpr(pe) => pe,
-            other => panic!("expected polars expr, found {other:?}")
+            Expr::PolarsExpr(pe) => Ok(pe),
+            other => Err(Error::WrongType { expected: String::from("polars expr"), got: other }),
+        }
+    }
+
+    pub fn type_to_str(self) -> &'static str {
+        match self {
+            Expr::Symbol(_) => "symbol",
+            Expr::Number(_) => "number",
+            Expr::String(_) => "string",
+            Expr::List(_) => "list",
+            Expr::NativeFunction(_) => "native function",
+            Expr::LazyFrame(_) => "lazy frame",
+            Expr::PolarsExpr(_) => "polars expr",
+            Expr::SourceInfo(_, _) => "source info",
         }
     }
 }
@@ -75,7 +89,8 @@ impl fmt::Display for Expr {
             },
             Expr::NativeFunction(_) => write!(f, "<NativeFunction>"),
             Expr::LazyFrame(lf) => write!(f, "{}", lf.clone().collect().unwrap()),
-            Expr::PolarsExpr(pe) => write!(f, "{}", pe)
+            Expr::PolarsExpr(pe) => write!(f, "{}", pe),
+            Expr::SourceInfo(expr, line) => write!(f, "<SourceInfo>")
         }
     }
 }
@@ -89,7 +104,8 @@ impl fmt::Debug for Expr {
             Expr::List(items) => f.debug_tuple("List").field(items).finish(),
             Expr::NativeFunction(_) => { f.write_str("NativeFunction") },
             Expr::LazyFrame(_) => { f.write_str("LazyFrame") },
-            Expr::PolarsExpr(_) => { f.write_str("PolarsExpr") }
+            Expr::PolarsExpr(_) => { f.write_str("PolarsExpr") },
+            Expr::SourceInfo(expr, line) => { f.write_str("SourceInfo") }
         }
     }
 }
@@ -97,4 +113,21 @@ impl fmt::Debug for Expr {
 pub struct Env {
     pub defines: HashMap<String, Expr>,
     pub outer: Option<Box<Env>>
+}
+
+pub enum Error {
+    WrongType {
+        expected: String,
+        got: Expr
+    },
+    LookupNotFound {
+        symbol: String
+    }
+}
+
+pub fn format_error(error: Error) -> String {
+    match error {
+        Error::WrongType { expected, got } => format!("Error: expected {0}, got {1}", expected, got.type_to_str()),
+        Error::LookupNotFound { symbol } => format!("Error: symbol '{symbol}' is not defined"),
+    }
 }

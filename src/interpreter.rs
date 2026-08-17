@@ -1,4 +1,8 @@
-use crate::types::{Env, Expr};
+use crate::types::{Env, Expr, Error};
+
+pub struct State {
+    pub line: usize
+}
 
 pub fn lookup(symbol: &String, env: &Env) -> Option<Expr> {
     if env.defines.contains_key(symbol) {
@@ -14,45 +18,52 @@ pub fn define(symbol: &String, value: Expr, env: &mut Env) {
     env.defines.insert(symbol.to_string(), value);
 }
 
-pub fn eval(expr: Expr, env: &mut Env) -> Expr {
+pub fn eval(expr: Expr, env: &mut Env, state: &mut State) -> Result<Expr, Error> {
     match expr.clone() {
-        Expr::Symbol(symbol) => lookup(&symbol, env).expect(&format!("'{}' is not defined", symbol).to_string()),
+        Expr::SourceInfo(expr, line) => { state.line = line; eval(*expr, env, state) },
+        Expr::Symbol(symbol) => match lookup(&symbol, env) {
+            Some(value) => Ok(value),
+            None => Err(Error::LookupNotFound { symbol }),
+        },
         Expr::List(list) => {
-            let symbol = list[0].clone().expect_symbol();
+            let symbol = list[0].clone().expect_symbol()?;
 
             match symbol.as_str() {
                 "define" => { 
-                    let name = list[1].clone().expect_symbol();
-                    let value = eval(list[2].clone(), env);
+                    let name = list[1].clone().expect_symbol()?;
+                    let value = eval(list[2].clone(), env, state)?;
                     define(&name, value, env);
-                    return lookup(&String::from("nil"), env).unwrap();
+                    return Ok(lookup(&String::from("nil"), env).unwrap());
                 },
                 "->" => {
-                    let mut var = eval(list[1].clone(), env);
+                    let mut var = eval(list[1].clone(), env, state)?;
                     for i in 2..list.len() {
-                        let mut expr2 = list[i].clone().expect_list();
+                        let mut expr2 = list[i].clone().expect_list()?;
                         expr2.insert(1, var.clone());
-                        var = eval(Expr::List(expr2), env);
+                        var = eval(Expr::List(expr2), env, state)?;
                     }
-                    return var;
+                    return Ok(var);
                 }
                 _ => {}
             }
 
-            let func = lookup(&symbol, env).expect("function not found");
+            let func = match lookup(&symbol, env) {
+                Some(val) => val,
+                None => { return Err(Error::LookupNotFound { symbol }) },
+            };
 
             let mut args = Vec::<Expr>::new();
             for j in 1..list.len() {
-                args.push(eval(list[j].clone(), env));
+                args.push(eval(list[j].clone(), env, state)?);
             }
 
             match func {
                 Expr::NativeFunction(native_func) => {
                     return native_func(args);
                 },
-                _ => panic!("{} is not callable", symbol)
+                _ => Err(Error::WrongType { expected: String::from("callable"), got: func })
             }
         },
-        _ => expr
+        _ => Ok(expr)
     }
 }
