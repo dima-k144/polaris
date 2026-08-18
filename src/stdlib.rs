@@ -12,8 +12,12 @@ fn print(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 fn plus(args: Vec<Expr>) -> Result<Expr, Error> {
-    if args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(expr))) {
-        todo!()
+    if args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(_))) {
+        let mut expr = args[0].clone().expect_polars_expr()?;
+        for arg in args.iter().skip(1) {
+            expr = expr + arg.clone().expect_polars_expr()?;
+        }
+        Ok(Expr::PolarsExpr(expr))
     } else {
         let mut sum = 0.0;
         for arg in args {
@@ -24,8 +28,12 @@ fn plus(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 fn minus(args: Vec<Expr>) -> Result<Expr, Error> {
-    if args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(expr))) {
-        todo!()
+    if args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(_))) {
+        let mut expr = args[0].clone().expect_polars_expr()?;
+        for arg in args.iter().skip(1) {
+            expr = expr - arg.clone().expect_polars_expr()?;
+        }
+        Ok(Expr::PolarsExpr(expr))
     } else {
         let mut value = args[0].clone().expect_number()?;
         for arg in args.iter().skip(1) {
@@ -36,8 +44,12 @@ fn minus(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 fn mult(args: Vec<Expr>) -> Result<Expr, Error> {
-    if args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(expr))) {
-        todo!()
+    if args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(_))) {
+        let mut expr = args[0].clone().expect_polars_expr()?;
+        for arg in args.iter().skip(1) {
+            expr = expr * arg.clone().expect_polars_expr()?;
+        }
+        Ok(Expr::PolarsExpr(expr))
     } else {
         let mut value = args[0].clone().expect_number()?;
         for arg in args.iter().skip(1) {
@@ -48,8 +60,12 @@ fn mult(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 fn divide(args: Vec<Expr>) -> Result<Expr, Error> {
-    if args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(expr))) {
-        todo!()
+    if args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(_))) {
+        let mut expr = args[0].clone().expect_polars_expr()?;
+        for arg in args.iter().skip(1) {
+            expr = expr / arg.clone().expect_polars_expr()?;
+        }
+        Ok(Expr::PolarsExpr(expr))
     } else {
         let mut value = args[0].clone().expect_number()?;
         for arg in args.iter().skip(1) {

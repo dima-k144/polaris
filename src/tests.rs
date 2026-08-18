@@ -510,4 +510,104 @@ mod tests {
 
         assert_eq!(res, 25.0);
     }
+
+    #[test]
+    fn test_polars_plus() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (with-column (select (read-csv "data1.csv") $"id" $"age") $"age_plus_5" (+ $"age" 5))
+        "#.to_string();
+
+        let res = eval_string(code, &mut env, &mut state)
+            .expect("eval plus failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "age" => &[25i64, 30, 22, 28, 35],
+            "age_plus_5" => &[30i64, 35, 27, 33, 40],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_polars_minus() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (with-column (select (read-csv "data1.csv") $"id" $"age") $"age_minus_2" (- $"age" 2))
+        "#.to_string();
+
+        let res = eval_string(code, &mut env, &mut state)
+            .expect("eval minus failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "age" => &[25i64, 30, 22, 28, 35],
+            "age_minus_2" => &[23i64, 28, 20, 26, 33],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_polars_mult() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (with-column (select (read-csv "data1.csv") $"id" $"age") $"age_double" (* $"age" 2))
+        "#.to_string();
+
+        let res = eval_string(code, &mut env, &mut state)
+            .expect("eval multiply failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "age" => &[25i64, 30, 22, 28, 35],
+            "age_double" => &[50i64, 60, 44, 56, 70],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_polars_divide() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (with-column (select (read-csv "data1.csv") $"id" $"age") $"age_half" (/ $"age" 2))
+        "#.to_string();
+
+        let res = eval_string(code, &mut env, &mut state)
+            .expect("eval divide failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "age" => &[25i64, 30, 22, 28, 35],
+            "age_half" => &[12.5f64, 15.0, 11.0, 14.0, 17.5],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
 }
