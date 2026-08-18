@@ -231,6 +231,58 @@ fn agg(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(Expr::LazyFrame(lf.select(exprs)))
 }
 
+fn join(args: Vec<Expr>) -> Result<Expr, Error> {
+    let left_lf = args[0].clone().expect_lazy_frame()?;
+    let right_lf = args[1].clone().expect_lazy_frame()?;
+    
+    // Parse left key(s)
+    let left_on = match &args[2] {
+        Expr::List(cols) => {
+            let mut exprs = Vec::new();
+            for c in cols {
+                exprs.push(c.clone().expect_polars_expr()?);
+            }
+            exprs
+        }
+        _ => vec![args[2].clone().expect_polars_expr()?],
+    };
+
+    // Parse right key(s)
+    let right_on = match &args[3] {
+        Expr::List(cols) => {
+            let mut exprs = Vec::new();
+            for c in cols {
+                exprs.push(c.clone().expect_polars_expr()?);
+            }
+            exprs
+        }
+        _ => vec![args[3].clone().expect_polars_expr()?],
+    };
+
+    // Determine join type (defaults to Inner)
+    let how = if args.len() > 4 {
+        match args[4].clone().expect_symbol()?.as_str() {
+            ":left" => JoinType::Left,
+            ":outer" | ":full" => JoinType::Full,
+            ":cross" => JoinType::Cross,
+            ":semi" => JoinType::Semi,
+            ":anti" => JoinType::Anti,
+            _ => JoinType::Inner,
+        }
+    } else {
+        JoinType::Inner
+    };
+
+    let joined = left_lf.join(
+        right_lf,
+        left_on,
+        right_on,
+        JoinArgs::new(how),
+    );
+
+    Ok(Expr::LazyFrame(joined))
+}
+
 pub fn std_env() -> Env {
     let mut defines = HashMap::new();
 
@@ -267,6 +319,7 @@ pub fn std_env() -> Env {
     defines.insert("group-by".to_string(), Expr::NativeFunction(group_by));
     defines.insert("alias".to_string(), Expr::NativeFunction(alias));
     defines.insert("agg".to_string(), Expr::NativeFunction(agg));
+    defines.insert("join".to_string(), Expr::NativeFunction(join));
 
     Env {
         defines: defines,

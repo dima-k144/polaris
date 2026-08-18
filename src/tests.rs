@@ -393,25 +393,53 @@ mod tests {
     fn test_agg_multiple() {
         let mut env = std_env();
         let mut state = State { line: 0 };
-    
+
         let code = r#"
             (agg (read-csv "data1.csv") 
                  (alias (sum $"age") "total_age") 
                  (alias (mean $"age") "mean_age"))
         "#.to_string();
-    
+
         let res = eval_string(code, &mut env, &mut state)
             .expect("eval agg failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
-    
+
         let df = res.collect().expect("failed to collect DataFrame");
-    
+
         let expected_df = df!(
             "total_age" => &[140i64],
             "mean_age" => &[28.0f64],
         ).expect("failed to construct expected DataFrame");
-    
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_join_inner() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (sort (join (read-csv "data1.csv") (read-csv "data2.csv") $"id" $"id" :inner) $"id")
+        "#.to_string();
+
+        let res = eval_string(code, &mut env, &mut state)
+            .expect("eval inner join failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3],
+            "name" => &["Alice", "Bob", "Charlie"],
+            "age" => &[25i64, 30, 22],
+            "city" => &["London", "Paris", "Berlin"],
+            "department" => &["Engineering", "Marketing", "Engineering"],
+            "salary" => &[75000i64, 65000, 60000],
+        ).expect("failed to construct expected DataFrame");
+
         assert_eq!(df, expected_df);
     }
 }
