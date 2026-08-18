@@ -218,6 +218,19 @@ fn alias(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(Expr::PolarsExpr(expr.alias(&name)))
 }
 
+fn agg(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args[0].clone().expect_lazy_frame()?;
+    let mut exprs = Vec::<polars::prelude::Expr>::new();
+    
+    // Collect all expression arguments passed to agg
+    for arg in args.iter().skip(1) {
+        exprs.push(arg.clone().expect_polars_expr()?);
+    }
+    
+    // Polars aggregates entire lazy frames via select
+    Ok(Expr::LazyFrame(lf.select(exprs)))
+}
+
 pub fn std_env() -> Env {
     let mut defines = HashMap::new();
 
@@ -252,6 +265,8 @@ pub fn std_env() -> Env {
     defines.insert("with-column".to_string(), Expr::NativeFunction(with_column));
     defines.insert("sort".to_string(), Expr::NativeFunction(sort));
     defines.insert("group-by".to_string(), Expr::NativeFunction(group_by));
+    defines.insert("alias".to_string(), Expr::NativeFunction(alias));
+    defines.insert("agg".to_string(), Expr::NativeFunction(agg));
 
     Env {
         defines: defines,
