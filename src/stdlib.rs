@@ -188,6 +188,36 @@ fn sort(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(Expr::LazyFrame(lf.sort_by_exprs(vec![by_expr], options)))
 }
 
+fn group_by(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args[0].clone().expect_lazy_frame()?;
+
+    // Support either a single grouping column or a list of grouping columns
+    let group_keys = match &args[1] {
+        Expr::List(cols) => {
+            let mut exprs = Vec::new();
+            for col_expr in cols {
+                exprs.push(col_expr.clone().expect_polars_expr()?);
+            }
+            exprs
+        }
+        _ => vec![args[1].clone().expect_polars_expr()?],
+    };
+
+    // Collect all trailing expressions as aggregations
+    let mut agg_exprs = Vec::<polars::prelude::Expr>::new();
+    for arg in args.iter().skip(2) {
+        agg_exprs.push(arg.clone().expect_polars_expr()?);
+    }
+
+    Ok(Expr::LazyFrame(lf.group_by(group_keys).agg(agg_exprs)))
+}
+
+fn alias(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    let name = args[1].clone().expect_string()?;
+    Ok(Expr::PolarsExpr(expr.alias(&name)))
+}
+
 pub fn std_env() -> Env {
     let mut defines = HashMap::new();
 
@@ -221,6 +251,7 @@ pub fn std_env() -> Env {
     defines.insert("filter".to_string(), Expr::NativeFunction(filter));
     defines.insert("with-column".to_string(), Expr::NativeFunction(with_column));
     defines.insert("sort".to_string(), Expr::NativeFunction(sort));
+    defines.insert("group-by".to_string(), Expr::NativeFunction(group_by));
 
     Env {
         defines: defines,

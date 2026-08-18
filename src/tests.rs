@@ -359,4 +359,33 @@ mod tests {
     
         assert_eq!(df, expected_df);
     }
+
+    #[test]
+    fn test_group_by() {
+        use crate::interpreter::{eval_string, State};
+        use crate::stdlib::std_env;
+        use polars::prelude::*;
+    
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+    
+        // Group by city and compute mean age, then sort by city to ensure deterministic order
+        let code = r#"
+            (sort (group-by (read-csv "data1.csv") $"city" (mean $"age")) $"city")
+        "#.to_string();
+    
+        let res = eval_string(code, &mut env, &mut state)
+            .expect("eval group-by failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+    
+        let df = res.collect().expect("failed to collect DataFrame");
+    
+        let expected_df = df!(
+            "city" => &["Berlin", "London", "Madrid", "Paris", "Rome"],
+            "age" => &[22.0f64, 25.0, 35.0, 30.0, 28.0],
+        ).expect("failed to construct expected DataFrame");
+    
+        assert_eq!(df, expected_df);
+    }
 }
