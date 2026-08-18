@@ -216,23 +216,92 @@ mod tests {
     fn test_filter_not() {
         let mut env = std_env();
         let mut state = State { line: 0 };
-    
+
         let code = r#"
             (filter (read-csv "data1.csv") (not (> (col "age") (lit 25))))
         "#.to_string();
-    
+
         let res = eval_string(code, &mut env, &mut state)
             .expect("eval filter with 'not' failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 3],
+            "name" => &["Alice", "Charlie"],
+            "age" => &[25i64, 22],
+            "city" => &["London", "Berlin"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_select_sum() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (select (read-csv "data1.csv") (sum (col "age")))
+        "#.to_string();
+
+        let res = eval_string(code, &mut env, &mut state)
+            .expect("eval select with 'sum' failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "age" => &[140i64],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_select_mean() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (select (read-csv "data1.csv") (mean (col "age")))
+        "#.to_string();
+
+        let res = eval_string(code, &mut env, &mut state)
+            .expect("eval select with 'mean' failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "age" => &[28.0f64],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_select_median() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+    
+        let code = r#"
+            (select (read-csv "data1.csv") (median (col "age")))
+        "#.to_string();
+    
+        let res = eval_string(code, &mut env, &mut state)
+            .expect("eval select with 'median' failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
     
         let df = res.collect().expect("failed to collect DataFrame");
     
         let expected_df = df!(
-            "id" => &[1i64, 3],
-            "name" => &["Alice", "Charlie"],
-            "age" => &[25i64, 22],
-            "city" => &["London", "Berlin"],
+            "age" => &[28.0f64],
         ).expect("failed to construct expected DataFrame");
     
         assert_eq!(df, expected_df);

@@ -127,6 +127,21 @@ fn or(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(Expr::PolarsExpr(expr1.or(expr2)))
 }
 
+fn sum(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    Ok(Expr::PolarsExpr(expr.sum()))
+}
+
+fn mean(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    Ok(Expr::PolarsExpr(expr.mean()))
+}
+
+fn median(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    Ok(Expr::PolarsExpr(expr.median()))
+}
+
 fn select(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let mut exprs = Vec::<polars::prelude::Expr>::new();
@@ -168,6 +183,9 @@ pub fn std_env() -> Env {
     defines.insert("not".to_string(), Expr::NativeFunction(not));
     defines.insert("and".to_string(), Expr::NativeFunction(and));
     defines.insert("or".to_string(), Expr::NativeFunction(or));
+    defines.insert("sum".to_string(), Expr::NativeFunction(sum));
+    defines.insert("mean".to_string(), Expr::NativeFunction(mean));
+    defines.insert("median".to_string(), Expr::NativeFunction(median));
     defines.insert("select".to_string(), Expr::NativeFunction(select));
     defines.insert("filter".to_string(), Expr::NativeFunction(filter));
 
