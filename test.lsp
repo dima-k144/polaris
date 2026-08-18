@@ -8,13 +8,13 @@
 
 (print (-> df
     (filter 
-        (= $"age" (lit 25))
+        (= $"age" 25)
     )
 ))
 
 (print (-> df
     (filter 
-        (= $"name" (lit "Bob"))
+        (= $"name" "Bob")
     )
 ))
 

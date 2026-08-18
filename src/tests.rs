@@ -10,7 +10,7 @@ mod tests {
         let mut state = State { line: 0 };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (= $"age" (lit 30)))
+            (filter (read-csv "data1.csv") (= $"age" 30))
         "#.to_string();
 
         let res = eval_string(code, &mut env, &mut state)
@@ -36,7 +36,7 @@ mod tests {
         let mut state = State { line: 0 };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (!= $"age" (lit 30)))
+            (filter (read-csv "data1.csv") (!= $"age" 30))
         "#.to_string();
 
         let res = eval_string(code, &mut env, &mut state)
@@ -62,7 +62,7 @@ mod tests {
         let mut state = State { line: 0 };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (> $"age" (lit 25)))
+            (filter (read-csv "data1.csv") (> $"age" 25))
         "#.to_string();
 
         let res = eval_string(code, &mut env, &mut state)
@@ -88,7 +88,7 @@ mod tests {
         let mut state = State { line: 0 };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (< $"age" (lit 28)))
+            (filter (read-csv "data1.csv") (< $"age" 28))
         "#.to_string();
 
         let res = eval_string(code, &mut env, &mut state)
@@ -114,7 +114,7 @@ mod tests {
         let mut state = State { line: 0 };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (>= $"age" (lit 28)))
+            (filter (read-csv "data1.csv") (>= $"age" 28))
         "#.to_string();
 
         let res = eval_string(code, &mut env, &mut state)
@@ -140,7 +140,7 @@ mod tests {
         let mut state = State { line: 0 };
     
         let code = r#"
-            (filter (read-csv "data1.csv") (<= $"age" (lit 28)))
+            (filter (read-csv "data1.csv") (<= $"age" 28))
         "#.to_string();
     
         let res = eval_string(code, &mut env, &mut state)
@@ -166,7 +166,7 @@ mod tests {
         let mut state = State { line: 0 };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (and (> $"age" (lit 22)) (< $"age" (lit 35))))
+            (filter (read-csv "data1.csv") (and (> $"age" 22) (< $"age" 35)))
         "#.to_string();
 
         let res = eval_string(code, &mut env, &mut state)
@@ -192,7 +192,7 @@ mod tests {
         let mut state = State { line: 0 };
     
         let code = r#"
-            (filter (read-csv "data1.csv") (or (< $"age" (lit 25)) (>= $"age" (lit 35))))
+            (filter (read-csv "data1.csv") (or (< $"age" 25) (>= $"age" 35)))
         "#.to_string();
     
         let res = eval_string(code, &mut env, &mut state)
@@ -218,7 +218,7 @@ mod tests {
         let mut state = State { line: 0 };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (not (> $"age" (lit 25))))
+            (filter (read-csv "data1.csv") (not (> $"age" 25)))
         "#.to_string();
 
         let res = eval_string(code, &mut env, &mut state)

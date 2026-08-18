@@ -53,6 +53,8 @@ impl Expr {
     pub fn expect_polars_expr(self) -> Result<polars::prelude::Expr, Error> {
         match self {
             Expr::PolarsExpr(pe) => Ok(pe),
+            Expr::Number(num) => Ok(polars::prelude::lit(num)),
+            Expr::String(str) => Ok(polars::prelude::lit(str)),
             other => Err(Error::WrongType { expected: String::from("polars expr"), got: other }),
         }
     }
