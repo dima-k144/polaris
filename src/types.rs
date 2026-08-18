@@ -115,6 +115,7 @@ pub struct Env {
     pub outer: Option<Box<Env>>
 }
 
+#[derive(Debug)]
 pub enum Error {
     WrongType {
         expected: String,

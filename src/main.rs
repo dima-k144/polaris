@@ -6,6 +6,7 @@ mod parser;
 mod types;
 mod interpreter;
 mod stdlib;
+mod tests;
 
 fn repl() {
     let mut env = crate::stdlib::std_env();

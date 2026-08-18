@@ -67,3 +67,13 @@ pub fn eval(expr: Expr, env: &mut Env, state: &mut State) -> Result<Expr, Error>
         _ => Ok(expr)
     }
 }
+
+pub fn eval_string(source: String, env: &mut Env, state: &mut State) -> Result<Expr, Error> {
+    let mut tokens = crate::lexer::scan(&source); 
+    let exprs = crate::parser::parse(&mut tokens);
+    let mut result = None;
+    for expr in exprs {
+        result = Some(crate::interpreter::eval(expr, env, state));
+    }
+    result.unwrap()
+}

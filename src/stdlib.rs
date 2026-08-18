@@ -67,6 +67,49 @@ fn col_(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(Expr::PolarsExpr(col(args[0].clone().expect_string()?)))
 }
 
+fn lit_(args: Vec<Expr>) -> Result<Expr, Error> {
+    match args[0] {
+        Expr::Number(num) => Ok(Expr::PolarsExpr(lit(num))),
+        _ => Err(Error::WrongType { expected: String::from("number"), got: args[0].clone() })
+    }
+}
+
+fn eq(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    let lit = args[1].clone().expect_polars_expr()?;
+    Ok(Expr::PolarsExpr(expr.eq(lit)))
+}
+
+fn neq(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    let lit = args[1].clone().expect_polars_expr()?;
+    Ok(Expr::PolarsExpr(expr.neq(lit)))
+}
+
+fn gt(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    let lit = args[1].clone().expect_polars_expr()?;
+    Ok(Expr::PolarsExpr(expr.gt(lit)))
+}
+
+fn lt(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    let lit = args[1].clone().expect_polars_expr()?;
+    Ok(Expr::PolarsExpr(expr.lt(lit)))
+}
+
+fn gt_eq(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    let lit = args[1].clone().expect_polars_expr()?;
+    Ok(Expr::PolarsExpr(expr.gt_eq(lit)))
+}
+
+fn lt_eq(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    let lit = args[1].clone().expect_polars_expr()?;
+    Ok(Expr::PolarsExpr(expr.lt_eq(lit)))
+}
+
 fn select(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let mut exprs = Vec::<polars::prelude::Expr>::new();
@@ -74,6 +117,12 @@ fn select(args: Vec<Expr>) -> Result<Expr, Error> {
         exprs.push(arg.clone().expect_polars_expr()?);
     }
     Ok(Expr::LazyFrame(lf.select(exprs)))
+}
+
+fn filter(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args[0].clone().expect_lazy_frame()?;
+    let expr = args[1].clone().expect_polars_expr()?;
+    Ok(Expr::LazyFrame(lf.filter(expr)))
 }
 
 pub fn std_env() -> Env {
@@ -92,7 +141,15 @@ pub fn std_env() -> Env {
     defines.insert("schema".to_string(), Expr::NativeFunction(schema));
     defines.insert("shape".to_string(), Expr::NativeFunction(shape));
     defines.insert("col".to_string(), Expr::NativeFunction(col_));
+    defines.insert("lit".to_string(), Expr::NativeFunction(lit_));
+    defines.insert("=".to_string(), Expr::NativeFunction(eq));
+    defines.insert("!=".to_string(), Expr::NativeFunction(neq));
+    defines.insert(">".to_string(), Expr::NativeFunction(gt));
+    defines.insert("<".to_string(), Expr::NativeFunction(lt));
+    defines.insert(">=".to_string(), Expr::NativeFunction(gt_eq));
+    defines.insert("<=".to_string(), Expr::NativeFunction(lt_eq));
     defines.insert("select".to_string(), Expr::NativeFunction(select));
+    defines.insert("filter".to_string(), Expr::NativeFunction(filter));
 
     Env {
         defines: defines,
