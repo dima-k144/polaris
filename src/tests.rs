@@ -442,4 +442,72 @@ mod tests {
 
         assert_eq!(df, expected_df);
     }
+
+    #[test]
+    fn test_arithmetic_plus() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+
+        let res = eval_string("(+ 1 2 3 4)".to_string(), &mut env, &mut state)
+            .expect("eval failed")
+            .expect_number()
+            .expect("expected number");
+
+        assert_eq!(res, 10.0);
+    }
+
+    #[test]
+    fn test_arithmetic_minus() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+
+        let res = eval_string("(- 20 5 3 2)".to_string(), &mut env, &mut state)
+            .expect("eval failed")
+            .expect_number()
+            .expect("expected number");
+
+        assert_eq!(res, 10.0);
+    }
+
+    #[test]
+    fn test_arithmetic_mult() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+
+        let res = eval_string("(* 2 3 4)".to_string(), &mut env, &mut state)
+            .expect("eval failed")
+            .expect_number()
+            .expect("expected number");
+
+        assert_eq!(res, 24.0);
+    }
+
+    #[test]
+    fn test_arithmetic_divide() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+
+        let res = eval_string("(/ 100 2 5)".to_string(), &mut env, &mut state)
+            .expect("eval failed")
+            .expect_number()
+            .expect("expected number");
+
+        assert_eq!(res, 10.0);
+    }
+
+    #[test]
+    fn test_arithmetic_nested() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+
+        // Evaluates: ((10 + 5) * 2) - (20 / 4) = (15 * 2) - 5 = 30 - 5 = 25
+        let code = "(- (* (+ 10 5) 2) (/ 20 4))".to_string();
+
+        let res = eval_string(code, &mut env, &mut state)
+            .expect("eval failed")
+            .expect_number()
+            .expect("expected number");
+
+        assert_eq!(res, 25.0);
+    }
 }

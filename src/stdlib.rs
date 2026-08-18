@@ -12,11 +12,51 @@ fn print(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 fn plus(args: Vec<Expr>) -> Result<Expr, Error> {
-    let mut sum = 0.0;
-    for arg in args {
-        sum += arg.expect_number()?;
+    if args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(expr))) {
+        todo!()
+    } else {
+        let mut sum = 0.0;
+        for arg in args {
+            sum += arg.expect_number()?;
+        }
+        Ok(Expr::Number(sum))
     }
-    Ok(Expr::Number(sum))
+}
+
+fn minus(args: Vec<Expr>) -> Result<Expr, Error> {
+    if args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(expr))) {
+        todo!()
+    } else {
+        let mut value = args[0].clone().expect_number()?;
+        for arg in args.iter().skip(1) {
+            value -= arg.clone().expect_number()?;
+        }
+        Ok(Expr::Number(value))
+    }
+}
+
+fn mult(args: Vec<Expr>) -> Result<Expr, Error> {
+    if args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(expr))) {
+        todo!()
+    } else {
+        let mut value = args[0].clone().expect_number()?;
+        for arg in args.iter().skip(1) {
+            value *= arg.clone().expect_number()?;
+        }
+        Ok(Expr::Number(value))
+    }
+}
+
+fn divide(args: Vec<Expr>) -> Result<Expr, Error> {
+    if args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(expr))) {
+        todo!()
+    } else {
+        let mut value = args[0].clone().expect_number()?;
+        for arg in args.iter().skip(1) {
+            value /= arg.clone().expect_number()?;
+        }
+        Ok(Expr::Number(value))
+    }
 }
 
 fn read_csv(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -291,6 +331,9 @@ pub fn std_env() -> Env {
     defines.insert("print".to_string(), Expr::NativeFunction(print));
 
     defines.insert("+".to_string(), Expr::NativeFunction(plus));
+    defines.insert("-".to_string(), Expr::NativeFunction(minus));
+    defines.insert("*".to_string(), Expr::NativeFunction(mult));
+    defines.insert("/".to_string(), Expr::NativeFunction(divide));
 
     defines.insert("read-csv".to_string(), Expr::NativeFunction(read_csv));
     defines.insert("head".to_string(), Expr::NativeFunction(head));
