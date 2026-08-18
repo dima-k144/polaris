@@ -158,6 +158,19 @@ fn filter(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(Expr::LazyFrame(lf.filter(expr)))
 }
 
+fn with_column(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args[0].clone().expect_lazy_frame()?;
+    let alias_expr = args[1].clone().expect_polars_expr()?;
+    let value = args[2].clone().expect_polars_expr()?;
+    let alias = match alias_expr {
+        polars::prelude::Expr::Column(name) => name.to_string(),
+        _ => {
+            panic!("Shouldnt happen");
+        }
+    };
+    Ok(Expr::LazyFrame(lf.with_column(value.alias(&alias))))
+}
+
 pub fn std_env() -> Env {
     let mut defines = HashMap::new();
 
@@ -189,6 +202,7 @@ pub fn std_env() -> Env {
     defines.insert("median".to_string(), Expr::NativeFunction(median));
     defines.insert("select".to_string(), Expr::NativeFunction(select));
     defines.insert("filter".to_string(), Expr::NativeFunction(filter));
+    defines.insert("with-column".to_string(), Expr::NativeFunction(with_column));
 
     Env {
         defines: defines,

@@ -18,3 +18,6 @@
     )
 ))
 
+(with-column df $"is_adult" (>= $"age" 18))
+(with-column df $"is_old" (>= $"age" 30))
+

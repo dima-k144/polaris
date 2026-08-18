@@ -306,4 +306,31 @@ mod tests {
 
         assert_eq!(df, expected_df);
     }
+
+    #[test]
+    fn test_with_column_computed() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+    
+        let code = r#"
+            (with-column (read-csv "data1.csv") $"is_over_25" (> $"age" 25))
+        "#.to_string();
+    
+        let res = eval_string(code, &mut env, &mut state)
+            .expect("eval with-column failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+    
+        let df = res.collect().expect("failed to collect DataFrame");
+    
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
+            "age" => &[25i64, 30, 22, 28, 35],
+            "city" => &["London", "Paris", "Berlin", "Rome", "Madrid"],
+            "is_over_25" => &[false, true, false, true, true],
+        ).expect("failed to construct expected DataFrame");
+    
+        assert_eq!(df, expected_df);
+    }
 }
