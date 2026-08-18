@@ -171,6 +171,23 @@ fn with_column(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(Expr::LazyFrame(lf.with_column(value.alias(&alias))))
 }
 
+fn sort(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args[0].clone().expect_lazy_frame()?;
+    let by_expr = args[1].clone().expect_polars_expr()?;
+    
+    let descending = if args.len() > 2 {
+        match args[2].clone().expect_symbol()?.as_str() {
+            ":desc" => true,
+            _ => false,
+        }
+    } else {
+        false
+    };
+
+    let options = SortMultipleOptions::new().with_order_descending(descending);
+    Ok(Expr::LazyFrame(lf.sort_by_exprs(vec![by_expr], options)))
+}
+
 pub fn std_env() -> Env {
     let mut defines = HashMap::new();
 
@@ -203,6 +220,7 @@ pub fn std_env() -> Env {
     defines.insert("select".to_string(), Expr::NativeFunction(select));
     defines.insert("filter".to_string(), Expr::NativeFunction(filter));
     defines.insert("with-column".to_string(), Expr::NativeFunction(with_column));
+    defines.insert("sort".to_string(), Expr::NativeFunction(sort));
 
     Env {
         defines: defines,

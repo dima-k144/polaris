@@ -21,3 +21,5 @@
 (with-column df $"is_adult" (>= $"age" 18))
 (with-column df $"is_old" (>= $"age" 30))
 
+(print (sort df $"age"))
+(print (sort df $"age" :desc))

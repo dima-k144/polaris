@@ -21,10 +21,16 @@ pub fn define(symbol: &String, value: Expr, env: &mut Env) {
 pub fn eval(expr: Expr, env: &mut Env, state: &mut State) -> Result<Expr, Error> {
     match expr.clone() {
         Expr::SourceInfo(expr, line) => { state.line = line; eval(*expr, env, state) },
-        Expr::Symbol(symbol) => match lookup(&symbol, env) {
-            Some(value) => Ok(value),
-            None => Err(Error::LookupNotFound { symbol }),
-        },
+        Expr::Symbol(symbol) => {
+            if symbol.starts_with(":") {
+                Ok(expr)
+            } else {
+                match lookup(&symbol, env) {
+                    Some(value) => Ok(value),
+                    None => Err(Error::LookupNotFound { symbol }),
+                }
+            }
+        }
         Expr::List(list) => {
             let symbol = list[0].clone().expect_symbol()?;
 
