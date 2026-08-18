@@ -77,10 +77,12 @@ fn divide(args: Vec<Expr>) -> Result<Expr, Error> {
 
 fn read_csv(args: Vec<Expr>) -> Result<Expr, Error> {
     let path = args[0].clone().expect_string()?;
-    let lf = LazyCsvReader::new(path.as_str().into())
+    match LazyCsvReader::new(path.as_str().into())
         .with_has_header(true)
-        .finish().unwrap();
-    Ok(Expr::LazyFrame(lf))
+        .finish() {
+            Ok(lf) => Ok(Expr::LazyFrame(lf)),
+            Err(err) => Err(Error::PolarsError(err)),
+        }
 }
 
 fn head(args: Vec<Expr>) -> Result<Expr, Error> {

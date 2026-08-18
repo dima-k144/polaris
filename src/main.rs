@@ -30,7 +30,12 @@ fn repl() {
         }
         if let Some(res) = result {
             match res {
-                Ok(val) => println!("{val}"),
+                Ok(val) => {
+                    match val.to_string() {
+                        Ok(str) => println!("{str}"),
+                        Err(err) => println!("{}", crate::types::format_error(err)),
+                    }
+                },
                 Err(err) => println!("{}", crate::types::format_error(err)),
             }
         }
@@ -55,7 +60,12 @@ fn main() {
             }
             if let Some(res) = result {
                 match res {
-                    Ok(val) => println!("{val}"),
+                    Ok(val) => {
+                        match val.to_string() {
+                            Ok(str) => println!("{str}"),
+                            Err(err) => println!("{}", crate::types::format_error(err)),
+                        }
+                    },
                     Err(err) => println!("{}", crate::types::format_error(err)),
                 }
             }

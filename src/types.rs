@@ -71,6 +71,17 @@ impl Expr {
             Expr::SourceInfo(_, _) => "source info",
         }
     }
+
+    pub fn to_string(self) -> Result<String, Error> {
+        match self {
+            Expr::LazyFrame(lf) => {
+                let df = lf.clone().collect().map_err(Error::PolarsError)?;
+                Ok(format!("{}", df))
+            }
+            // For others, fall back to standard Display or format manually
+            other => Ok(format!("{}", other)),
+        }
+    }
 }
 
 impl fmt::Display for Expr {
@@ -90,7 +101,10 @@ impl fmt::Display for Expr {
                 write!(f, ")")
             },
             Expr::NativeFunction(_) => write!(f, "<NativeFunction>"),
-            Expr::LazyFrame(lf) => write!(f, "{}", lf.clone().collect().unwrap()),
+            Expr::LazyFrame(lf) => match lf.clone().collect() {
+                Ok(df) => write!(f, "{df}"),
+                Err(err) => write!(f, "<Failed to collect LazyFrame: {err}>"),
+            },
             Expr::PolarsExpr(pe) => write!(f, "{}", pe),
             Expr::SourceInfo(expr, line) => write!(f, "<SourceInfo>")
         }
@@ -125,12 +139,14 @@ pub enum Error {
     },
     LookupNotFound {
         symbol: String
-    }
+    },
+    PolarsError(polars::prelude::PolarsError)
 }
 
 pub fn format_error(error: Error) -> String {
     match error {
         Error::WrongType { expected, got } => format!("Error: expected {0}, got {1}", expected, got.type_to_str()),
         Error::LookupNotFound { symbol } => format!("Error: symbol '{symbol}' is not defined"),
+        Error::PolarsError(perror) => format!("Error: {}", perror)
     }
 }
