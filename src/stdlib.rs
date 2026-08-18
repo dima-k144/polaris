@@ -110,6 +110,23 @@ fn lt_eq(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(Expr::PolarsExpr(expr.lt_eq(lit)))
 }
 
+fn not(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    Ok(Expr::PolarsExpr(expr.not()))
+}
+
+fn and(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr1 = args[0].clone().expect_polars_expr()?;
+    let expr2 = args[1].clone().expect_polars_expr()?;
+    Ok(Expr::PolarsExpr(expr1.and(expr2)))
+}
+
+fn or(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr1 = args[0].clone().expect_polars_expr()?;
+    let expr2 = args[1].clone().expect_polars_expr()?;
+    Ok(Expr::PolarsExpr(expr1.or(expr2)))
+}
+
 fn select(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let mut exprs = Vec::<polars::prelude::Expr>::new();
@@ -148,6 +165,9 @@ pub fn std_env() -> Env {
     defines.insert("<".to_string(), Expr::NativeFunction(lt));
     defines.insert(">=".to_string(), Expr::NativeFunction(gt_eq));
     defines.insert("<=".to_string(), Expr::NativeFunction(lt_eq));
+    defines.insert("not".to_string(), Expr::NativeFunction(not));
+    defines.insert("and".to_string(), Expr::NativeFunction(and));
+    defines.insert("or".to_string(), Expr::NativeFunction(or));
     defines.insert("select".to_string(), Expr::NativeFunction(select));
     defines.insert("filter".to_string(), Expr::NativeFunction(filter));
 
