@@ -16,6 +16,8 @@ pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Expr {
         Expr::List(items)
     } else if first_char == '"' {
         Expr::String(token.0.chars().skip(1).take(token.0.chars().count() - 2).collect())
+    } else if token.0 == "$" {
+        Expr::List(vec![Expr::Symbol(String::from("col")), parse1(tokens)])
     } else {
         Expr::Symbol(token.0)
     }

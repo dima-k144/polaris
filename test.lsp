@@ -8,6 +8,6 @@
 
 (print (-> df
     (filter 
-        (= (col "age") (lit 25))
+        (= $"age" (lit 25))
     )
 ))

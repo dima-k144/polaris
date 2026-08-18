@@ -10,7 +10,7 @@ mod tests {
         let mut state = State { line: 0 };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (= (col "age") (lit 30)))
+            (filter (read-csv "data1.csv") (= $"age" (lit 30)))
         "#.to_string();
 
         let res = eval_string(code, &mut env, &mut state)
@@ -36,7 +36,7 @@ mod tests {
         let mut state = State { line: 0 };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (!= (col "age") (lit 30)))
+            (filter (read-csv "data1.csv") (!= $"age" (lit 30)))
         "#.to_string();
 
         let res = eval_string(code, &mut env, &mut state)
@@ -62,7 +62,7 @@ mod tests {
         let mut state = State { line: 0 };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (> (col "age") (lit 25)))
+            (filter (read-csv "data1.csv") (> $"age" (lit 25)))
         "#.to_string();
 
         let res = eval_string(code, &mut env, &mut state)
@@ -88,7 +88,7 @@ mod tests {
         let mut state = State { line: 0 };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (< (col "age") (lit 28)))
+            (filter (read-csv "data1.csv") (< $"age" (lit 28)))
         "#.to_string();
 
         let res = eval_string(code, &mut env, &mut state)
@@ -114,7 +114,7 @@ mod tests {
         let mut state = State { line: 0 };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (>= (col "age") (lit 28)))
+            (filter (read-csv "data1.csv") (>= $"age" (lit 28)))
         "#.to_string();
 
         let res = eval_string(code, &mut env, &mut state)
@@ -140,7 +140,7 @@ mod tests {
         let mut state = State { line: 0 };
     
         let code = r#"
-            (filter (read-csv "data1.csv") (<= (col "age") (lit 28)))
+            (filter (read-csv "data1.csv") (<= $"age" (lit 28)))
         "#.to_string();
     
         let res = eval_string(code, &mut env, &mut state)
@@ -166,7 +166,7 @@ mod tests {
         let mut state = State { line: 0 };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (and (> (col "age") (lit 22)) (< (col "age") (lit 35))))
+            (filter (read-csv "data1.csv") (and (> $"age" (lit 22)) (< $"age" (lit 35))))
         "#.to_string();
 
         let res = eval_string(code, &mut env, &mut state)
@@ -192,7 +192,7 @@ mod tests {
         let mut state = State { line: 0 };
     
         let code = r#"
-            (filter (read-csv "data1.csv") (or (< (col "age") (lit 25)) (>= (col "age") (lit 35))))
+            (filter (read-csv "data1.csv") (or (< $"age" (lit 25)) (>= $"age" (lit 35))))
         "#.to_string();
     
         let res = eval_string(code, &mut env, &mut state)
@@ -218,7 +218,7 @@ mod tests {
         let mut state = State { line: 0 };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (not (> (col "age") (lit 25))))
+            (filter (read-csv "data1.csv") (not (> $"age" (lit 25))))
         "#.to_string();
 
         let res = eval_string(code, &mut env, &mut state)
@@ -244,7 +244,7 @@ mod tests {
         let mut state = State { line: 0 };
 
         let code = r#"
-            (select (read-csv "data1.csv") (sum (col "age")))
+            (select (read-csv "data1.csv") (sum $"age"))
         "#.to_string();
 
         let res = eval_string(code, &mut env, &mut state)
@@ -267,7 +267,7 @@ mod tests {
         let mut state = State { line: 0 };
 
         let code = r#"
-            (select (read-csv "data1.csv") (mean (col "age")))
+            (select (read-csv "data1.csv") (mean $"age"))
         "#.to_string();
 
         let res = eval_string(code, &mut env, &mut state)
@@ -288,22 +288,22 @@ mod tests {
     fn test_select_median() {
         let mut env = std_env();
         let mut state = State { line: 0 };
-    
+
         let code = r#"
-            (select (read-csv "data1.csv") (median (col "age")))
+            (select (read-csv "data1.csv") (median $"age"))
         "#.to_string();
-    
+
         let res = eval_string(code, &mut env, &mut state)
             .expect("eval select with 'median' failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
-    
+
         let df = res.collect().expect("failed to collect DataFrame");
-    
+
         let expected_df = df!(
             "age" => &[28.0f64],
         ).expect("failed to construct expected DataFrame");
-    
+
         assert_eq!(df, expected_df);
     }
 }
