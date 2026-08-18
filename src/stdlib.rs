@@ -68,8 +68,9 @@ fn col_(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 fn lit_(args: Vec<Expr>) -> Result<Expr, Error> {
-    match args[0] {
+    match args[0].clone() {
         Expr::Number(num) => Ok(Expr::PolarsExpr(lit(num))),
+        Expr::String(string) => Ok(Expr::PolarsExpr(lit(string))),
         _ => Err(Error::WrongType { expected: String::from("number"), got: args[0].clone() })
     }
 }

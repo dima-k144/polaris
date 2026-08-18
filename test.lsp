@@ -11,3 +11,10 @@
         (= $"age" (lit 25))
     )
 ))
+
+(print (-> df
+    (filter 
+        (= $"name" (lit "Bob"))
+    )
+))
+
