@@ -610,4 +610,134 @@ mod tests {
 
         assert_eq!(df, expected_df);
     }
+
+    #[test]
+    fn test_is_null() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (filter (read-csv "data3.csv") (null? $"age"))
+        "#.to_string();
+
+        let res = eval_string(code, &mut env, &mut state)
+            .expect("eval filter with 'null?' failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[2i64, 5],
+            "name" => &[Some("Bob"), Some("Evan")],
+            "age" => &[None::<i64>, None::<i64>],
+            "city" => &[Some("Paris"), None],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_is_not_null() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (filter (read-csv "data3.csv") (not-null? $"city"))
+        "#.to_string();
+
+        let res = eval_string(code, &mut env, &mut state)
+            .expect("eval filter with 'not-null?' failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 4],
+            "name" => &[Some("Alice"), Some("Bob"), None],
+            "age" => &[Some(25i64), None, Some(28)],
+            "city" => &[Some("London"), Some("Paris"), Some("Rome")],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_fill_null() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (with-column (read-csv "data3.csv") $"age" (fill-null $"age" 0))
+        "#.to_string();
+
+        let res = eval_string(code, &mut env, &mut state)
+            .expect("eval with-column fill-null failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &[Some("Alice"), Some("Bob"), Some("Charlie"), None, Some("Evan")],
+            "age" => &[25i64, 0, 22, 28, 0],
+            "city" => &[Some("London"), Some("Paris"), None, Some("Rome"), None],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_drop_nulls_all() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (drop-nulls (read-csv "data3.csv"))
+        "#.to_string();
+
+        let res = eval_string(code, &mut env, &mut state)
+            .expect("eval drop-nulls failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64],
+            "name" => &[Some("Alice")],
+            "age" => &[Some(25i64)],
+            "city" => &[Some("London")],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_drop_nulls_selected_columns() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (drop-nulls (read-csv "data3.csv") $"name" $"age")
+        "#.to_string();
+
+        let res = eval_string(code, &mut env, &mut state)
+            .expect("eval drop-nulls with columns failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 3],
+            "name" => &[Some("Alice"), Some("Charlie")],
+            "age" => &[Some(25i64), Some(22)],
+            "city" => &[Some("London"), None],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
 }

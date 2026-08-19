@@ -341,6 +341,61 @@ fn join(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(Expr::LazyFrame(joined))
 }
 
+fn is_null_(args: Vec<Expr>) -> Result<Expr, Error> {
+    let col = args[0].clone().expect_polars_expr()?;
+    Ok(Expr::PolarsExpr(is_null(col)))
+}
+
+fn is_not_null_(args: Vec<Expr>) -> Result<Expr, Error> {
+    let col = args[0].clone().expect_polars_expr()?;
+    Ok(Expr::PolarsExpr(is_not_null(col)))
+}
+
+fn fill_null_(args: Vec<Expr>) -> Result<Expr, Error> {
+    let col = args[0].clone().expect_polars_expr()?;
+    let value = args[1].clone().expect_polars_expr()?;
+    Ok(Expr::PolarsExpr(col.fill_null(value)))
+}
+
+fn drop_nulls(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args[0].clone().expect_lazy_frame()?;
+    if args.len() == 1 {
+        Ok(Expr::LazyFrame(lf.drop_nulls(None)))
+    } else {
+        let mut col_names = Vec::<String>::new();
+
+        let mut extract_name = |expr: &Expr| -> Result<(), Error> {
+            match expr {
+                Expr::String(s) | Expr::Symbol(s) => {
+                    col_names.push(s.clone());
+                    Ok(())
+                }
+                Expr::PolarsExpr(polars::prelude::Expr::Column(name)) => {
+                    col_names.push(name.to_string());
+                    Ok(())
+                }
+                other => Err(Error::WrongType {
+                    expected: String::from("column name or $col"),
+                    got: other.clone(),
+                }),
+            }
+        };
+
+        for arg in args.iter().skip(1) {
+            match arg {
+                Expr::List(list) => {
+                    for item in list {
+                        extract_name(item)?;
+                    }
+                }
+                _ => extract_name(arg)?,
+            }
+        }
+
+        Ok(Expr::LazyFrame(lf.drop_nulls(Some(cols(col_names).into()))))
+    }
+}
+
 pub fn std_env() -> Env {
     let mut defines = HashMap::new();
 
@@ -381,6 +436,10 @@ pub fn std_env() -> Env {
     defines.insert("alias".to_string(), Expr::NativeFunction(alias));
     defines.insert("agg".to_string(), Expr::NativeFunction(agg));
     defines.insert("join".to_string(), Expr::NativeFunction(join));
+    defines.insert("null?".to_string(), Expr::NativeFunction(is_null_));
+    defines.insert("not-null?".to_string(), Expr::NativeFunction(is_not_null_));
+    defines.insert("fill-null".to_string(), Expr::NativeFunction(fill_null_));
+    defines.insert("drop-nulls".to_string(), Expr::NativeFunction(drop_nulls));
 
     Env {
         defines: defines,
