@@ -107,6 +107,34 @@ fn write_csv(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(nil()) 
 }
 
+// (read-parquet "path/to/data.parquet") -> LazyFrame
+fn read_parquet(args: Vec<Expr>) -> Result<Expr, Error> {
+    let path = args[0].clone().expect_string()?;
+    match LazyFrame::scan_parquet(path.as_str().into(), ScanArgsParquet::default()) {
+        Ok(lf) => Ok(Expr::LazyFrame(lf)),
+        Err(err) => Err(Error::PolarsError(err)),
+    }
+}
+
+// (write-parquet df "path/to/output.parquet") -> nil
+fn write_parquet(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args[0].clone().expect_lazy_frame()?;
+    let path = args[1].clone().expect_string()?;
+
+    let mut df = lf.collect().map_err(Error::PolarsError)?;
+    let file = File::create(&path).map_err(|err| {
+        Error::PolarsError(PolarsError::ComputeError(
+            format!("Failed to create file '{}': {}", path, err).into(),
+        ))
+    })?;
+
+    ParquetWriter::new(file)
+        .finish(&mut df)
+        .map_err(Error::PolarsError)?;
+
+    Ok(nil())
+}
+
 fn head(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     Ok(Expr::LazyFrame(lf.limit(10)))
@@ -699,9 +727,13 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "*", mult, 1, u8::MAX);
     insert_native_function(&mut defines, "/", divide, 1, u8::MAX);
 
-    // IO & Inspection
+    // IO
     insert_native_function(&mut defines, "read-csv", read_csv, 1, 1);
     insert_native_function(&mut defines, "write-csv", write_csv, 2, 2);
+    insert_native_function(&mut defines, "read-parquet", read_parquet, 1, 1);
+    insert_native_function(&mut defines, "write-parquet", write_parquet, 2, 2);
+
+    // Inspection
     insert_native_function(&mut defines, "head", head, 1, 1);
     insert_native_function(&mut defines, "tail", tail, 1, 1);
     insert_native_function(&mut defines, "slice", slice, 3, 3);

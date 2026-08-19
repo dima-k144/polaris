@@ -3,6 +3,19 @@ mod tests {
     use crate::interpreter::{eval_string, State};
     use crate::stdlib::std_env;
     use polars::prelude::*;
+    use std::fs::File;
+
+    fn generate_data1_parquet() -> Result<(), PolarsError> {
+        let mut df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "department" => &["Engineering", "HR", "Engineering", "Marketing", "HR"],
+            "salary" => &[90000i64, 60000, 95000, 70000, 65000]
+        )?;
+
+        let file = File::create("data1.parquet").unwrap();
+        ParquetWriter::new(file).finish(&mut df)?;
+        Ok(())
+    }
 
     #[test]
     fn test_filter_eq() {
@@ -1153,5 +1166,84 @@ mod tests {
         ).expect("failed to construct expected DataFrame");
 
         assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_write_and_read_parquet_roundtrip() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+        let temp_parquet = "test_output.parquet";
+    
+        // 1. Filter CSV data and write to Parquet
+        let write_code = format!(
+            r#"(write-parquet (filter (read-csv "data1.csv") (= $"city" "Paris")) "{}")"#,
+            temp_parquet
+        );
+    
+        eval_string(write_code, &env, &mut state)
+            .expect("eval write-parquet failed");
+    
+        // 2. Read back from Parquet and assert contents
+        let read_code = format!(r#"(read-parquet "{}")"#, temp_parquet);
+        let res = eval_string(read_code, &env, &mut state)
+            .expect("eval read-parquet failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+    
+        let df = res.collect().expect("failed to collect DataFrame");
+    
+        let expected_df = df!(
+            "id" => &[2i64],
+            "name" => &["Bob"],
+            "age" => &[30i64],
+            "city" => &["Paris"],
+        ).expect("failed to construct expected DataFrame");
+    
+        assert_eq!(df, expected_df);
+    
+        // Clean up temporary test file
+        let _ = std::fs::remove_file(temp_parquet);
+    }
+    
+    #[test]
+    fn test_parquet_query_pipeline() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+        let parquet_path = "data1.parquet";
+    
+        // Create fixture data1.parquet using polars directly before querying
+        let mut df_fixture = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "department" => &["Engineering", "HR", "Engineering", "Marketing", "HR"],
+            "salary" => &[90000i64, 60000, 95000, 70000, 65000],
+        ).expect("failed to create fixture DataFrame");
+    
+        let file = std::fs::File::create(parquet_path).expect("failed to create parquet file");
+        ParquetWriter::new(file)
+            .finish(&mut df_fixture)
+            .expect("failed to write parquet fixture");
+    
+        // Run query over data1.parquet via MLisp
+        let code = r#"
+            (-> (read-parquet "data1.parquet")
+                (filter (= $"department" "Engineering"))
+                (select (alias (mean $"salary") "avg_eng_salary")))
+        "#.to_string();
+    
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval read-parquet pipeline failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+    
+        let df = res.collect().expect("failed to collect DataFrame");
+    
+        let expected_df = df!(
+            "avg_eng_salary" => &[92500.0f64],
+        ).expect("failed to construct expected DataFrame");
+    
+        assert_eq!(df, expected_df);
+    
+        // Clean up fixture file
+        let _ = std::fs::remove_file(parquet_path);
     }
 }

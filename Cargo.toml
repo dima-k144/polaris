@@ -8,6 +8,7 @@ polars = {
     version = "0.55.2", 
     features = [
         "lazy", "csv", "semi_anti_join", "strings", "regex", "cum_agg", "rank",
-        "temporal", "dtype-date", "dtype-datetime", "dtype-duration", "dtype-time"
+        "temporal", "dtype-date", "dtype-datetime", "dtype-duration", "dtype-time",
+        "parquet"
    ] 
 }
