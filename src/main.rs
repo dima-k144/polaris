@@ -18,7 +18,10 @@ fn repl() {
         std::io::stdin().read_line(&mut input).unwrap();
         let mut tokens = lexer::scan(&input);
         //println!("{:?}", tokens);
-        let exprs = parser::parse(&mut tokens);
+        let exprs = match parser::parse(&mut tokens) {
+            Ok(exprs) => exprs,
+            Err(err) => { println!("{}", crate::types::format_error(err)); continue; },
+        };
         //for (n, expr) in exprs.iter().enumerate() {
         //    println!("{} {:?}", n, expr);
         //}
@@ -51,7 +54,10 @@ fn main() {
         if arg.ends_with(".lsp") {
             let contents = fs::read_to_string(arg).unwrap();
             let mut tokens = lexer::scan(&contents); 
-            let exprs = parser::parse(&mut tokens);
+            let exprs = match parser::parse(&mut tokens) {
+                Ok(exprs) => exprs,
+                Err(err) => { println!("{}", crate::types::format_error(err)); continue; },
+            };
             let mut result = None;
             let mut state = interpreter::State {
                 line: 0,

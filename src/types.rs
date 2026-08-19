@@ -160,6 +160,9 @@ impl Env {
 
 #[derive(Debug)]
 pub enum Error {
+    FailedToParseNumber {
+        number: String
+    },
     WrongType {
         expected: String,
         got: Expr
@@ -177,6 +180,7 @@ pub enum Error {
 
 pub fn format_error(error: Error) -> String {
     match error {
+        Error::FailedToParseNumber { number } => format!("Error: failed to parse number '{number}'"),
         Error::WrongType { expected, got } => format!("Error: expected {0}, got {1}", expected, got.type_to_str()),
         Error::LookupNotFound { symbol } => format!("Error: symbol '{symbol}' is not defined"),
         Error::WrongNumberOfArguments { 
