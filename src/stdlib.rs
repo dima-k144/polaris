@@ -201,6 +201,43 @@ fn median(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(Expr::PolarsExpr(expr.median()))
 }
 
+fn count(args: Vec<Expr>) -> Result<Expr, Error> {
+    if args.is_empty() {
+        // (count) without arguments returns the total number of rows
+        Ok(Expr::PolarsExpr(polars::prelude::len()))
+    } else {
+        // (count $"col") returns non-null count for that column
+        let expr = args[0].clone().expect_polars_expr()?;
+        Ok(Expr::PolarsExpr(expr.count()))
+    }
+}
+
+fn min(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    Ok(Expr::PolarsExpr(expr.min()))
+}
+
+fn max(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    Ok(Expr::PolarsExpr(expr.max()))
+}
+
+fn n_unique(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    Ok(Expr::PolarsExpr(expr.n_unique()))
+}
+
+fn std_dev(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    // Default to sample standard deviation (ddof = 1); allow overriding via second argument
+    let ddof = if args.len() > 1 {
+        args[1].clone().expect_number()? as u8
+    } else {
+        1
+    };
+    Ok(Expr::PolarsExpr(expr.std(ddof)))
+}
+
 fn select(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let mut exprs = Vec::<polars::prelude::Expr>::new();
@@ -440,6 +477,11 @@ pub fn std_env() -> Env {
     defines.insert("sum".to_string(), Expr::NativeFunction(sum));
     defines.insert("mean".to_string(), Expr::NativeFunction(mean));
     defines.insert("median".to_string(), Expr::NativeFunction(median));
+    defines.insert("count".to_string(), Expr::NativeFunction(count));
+    defines.insert("min".to_string(), Expr::NativeFunction(min));
+    defines.insert("max".to_string(), Expr::NativeFunction(max));
+    defines.insert("n-unique".to_string(), Expr::NativeFunction(n_unique));
+    defines.insert("std".to_string(), Expr::NativeFunction(std_dev));
     defines.insert("select".to_string(), Expr::NativeFunction(select));
     defines.insert("filter".to_string(), Expr::NativeFunction(filter));
     defines.insert("with-column".to_string(), Expr::NativeFunction(with_column));

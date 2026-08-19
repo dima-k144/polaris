@@ -794,4 +794,34 @@ mod tests {
 
         assert_eq!(df, expected_df);
     }
+
+    #[test]
+    fn test_aggregations_min_max_count_nunique_std() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (agg (read-csv "data1.csv")
+                 (alias (min $"age") "min_age")
+                 (alias (max $"age") "max_age")
+                 (alias (count $"age") "count_age")
+                 (alias (n-unique $"city") "unique_cities"))
+        "#.to_string();
+
+        let res = eval_string(code, &mut env, &mut state)
+            .expect("eval aggregations failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "min_age" => &[22i64],
+            "max_age" => &[35i64],
+            "count_age" => &[5u32],
+            "unique_cities" => &[5u32],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
 }
