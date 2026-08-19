@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use polars::prelude::*;
-use crate::types::{Env, Expr, Error};
+use crate::types::{Env, Error, Expr::{self, PolarsExpr}};
 
 fn nil() -> Expr { Expr::Symbol(String::from("nil")) }
 
@@ -396,6 +396,18 @@ fn drop_nulls(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
+fn when(args: Vec<Expr>) -> Result<Expr, Error> {
+    let condition = args[0].clone().expect_polars_expr()?;
+    let on_true = args[1].clone().expect_polars_expr()?;
+    match args.len() {
+        2 => Ok(PolarsExpr(polars::prelude::when(condition).then(on_true).otherwise(polars::prelude::lit(polars::prelude::NULL)))),
+        _ => {
+            let on_false = args[2].clone().expect_polars_expr()?;
+            Ok(PolarsExpr(polars::prelude::when(condition).then(on_true).otherwise(on_false)))
+        }
+    }
+}
+
 pub fn std_env() -> Env {
     let mut defines = HashMap::new();
 
@@ -440,6 +452,7 @@ pub fn std_env() -> Env {
     defines.insert("not-null?".to_string(), Expr::NativeFunction(is_not_null_));
     defines.insert("fill-null".to_string(), Expr::NativeFunction(fill_null_));
     defines.insert("drop-nulls".to_string(), Expr::NativeFunction(drop_nulls));
+    defines.insert("when".to_string(), Expr::NativeFunction(when));
 
     Env {
         defines: defines,

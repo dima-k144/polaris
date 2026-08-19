@@ -740,4 +740,58 @@ mod tests {
 
         assert_eq!(df, expected_df);
     }
+
+    #[test]
+    fn test_when_with_otherwise() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (with-column (read-csv "data1.csv") $"category" (when (>= $"age" 30) "senior" "junior"))
+        "#.to_string();
+
+        let res = eval_string(code, &mut env, &mut state)
+            .expect("eval when with otherwise failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
+            "age" => &[25i64, 30, 22, 28, 35],
+            "city" => &["London", "Paris", "Berlin", "Rome", "Madrid"],
+            "category" => &["junior", "senior", "junior", "junior", "senior"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_when_without_otherwise() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (with-column (read-csv "data1.csv") $"status" (when (>= $"age" 30) "senior"))
+        "#.to_string();
+
+        let res = eval_string(code, &mut env, &mut state)
+            .expect("eval 2-arg when failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
+            "age" => &[25i64, 30, 22, 28, 35],
+            "city" => &["London", "Paris", "Berlin", "Rome", "Madrid"],
+            "status" => &[Option::<&str>::None, Some("senior"), None, None, Some("senior")],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
 }
