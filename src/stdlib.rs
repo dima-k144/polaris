@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fs::File;
 use polars::prelude::*;
 use crate::types::{Env, Error, Expr::{self, PolarsExpr}};
 
@@ -83,6 +84,25 @@ fn read_csv(args: Vec<Expr>) -> Result<Expr, Error> {
             Ok(lf) => Ok(Expr::LazyFrame(lf)),
             Err(err) => Err(Error::PolarsError(err)),
         }
+}
+
+fn write_csv(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args[0].clone().expect_lazy_frame()?;
+    let path = args[1].clone().expect_string()?;
+
+    let mut df = lf.collect().map_err(Error::PolarsError)?;
+    let mut file = File::create(&path).map_err(|err| {
+        Error::PolarsError(PolarsError::ComputeError(
+            format!("Failed to create file '{}': {}", path, err).into(),
+        ))
+    })?;
+
+    CsvWriter::new(&mut file)
+        .include_header(true)
+        .finish(&mut df)
+        .map_err(Error::PolarsError)?;
+
+    Ok(nil()) 
 }
 
 fn head(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -458,6 +478,7 @@ pub fn std_env() -> Env {
     defines.insert("/".to_string(), Expr::NativeFunction(divide));
 
     defines.insert("read-csv".to_string(), Expr::NativeFunction(read_csv));
+    defines.insert("write-csv".to_string(), Expr::NativeFunction(write_csv));
     defines.insert("head".to_string(), Expr::NativeFunction(head));
     defines.insert("tail".to_string(), Expr::NativeFunction(tail));
     defines.insert("slice".to_string(), Expr::NativeFunction(slice));

@@ -824,4 +824,41 @@ mod tests {
 
         assert_eq!(df, expected_df);
     }
+
+    #[test]
+    fn test_write_csv_roundtrip() {
+        let mut env = std_env();
+        let mut state = State { line: 0 };
+        let temp_output = "test_output.csv";
+
+        // Filter and write to CSV
+        let write_code = format!(
+            r#"(write-csv (filter (read-csv "data1.csv") (= $"age" 30)) "{}")"#,
+            temp_output
+        );
+
+        eval_string(write_code, &mut env, &mut state)
+            .expect("eval write-csv failed");
+
+        // Read back and assert content matches
+        let read_code = format!(r#"(read-csv "{}")"#, temp_output);
+        let res = eval_string(read_code, &mut env, &mut state)
+            .expect("eval read-csv on written file failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[2i64],
+            "name" => &["Bob"],
+            "age" => &[30i64],
+            "city" => &["Paris"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+
+        // Clean up temporary test file
+        let _ = std::fs::remove_file(temp_output);
+    }
 }
