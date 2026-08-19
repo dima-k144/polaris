@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::fs::File;
 use polars::prelude::*;
+use std::cell::RefCell;
+use std::rc::Rc;
 use crate::types::{Env, Error, Expr::{self, PolarsExpr}};
 
 fn nil() -> Expr { Expr::Symbol(String::from("nil")) }
@@ -465,7 +467,7 @@ fn when(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
-pub fn std_env() -> Env {
+pub fn std_env() -> Rc<RefCell<Env>> {
     let mut defines = HashMap::new();
 
     defines.insert("nil".to_string(), Expr::Symbol(String::from("nil")));
@@ -517,8 +519,8 @@ pub fn std_env() -> Env {
     defines.insert("drop-nulls".to_string(), Expr::NativeFunction(drop_nulls));
     defines.insert("when".to_string(), Expr::NativeFunction(when));
 
-    Env {
-        defines: defines,
+    Rc::new(RefCell::new(Env {
+        defines,
         outer: None,
-    }
+    }))
 }

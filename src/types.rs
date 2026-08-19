@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use std::fmt;
+use std::cell::RefCell;
+use std::rc::Rc;
 use polars::prelude::*;
 
 #[derive(Clone)]
@@ -9,6 +11,7 @@ pub enum Expr {
     String(String),
     List(Vec<Expr>),
     NativeFunction(fn(Vec<Expr>) -> Result<Expr, Error>),
+    UserFunction{ body: Vec<Expr>, params: Vec<String>, name: Option<String> },
     LazyFrame(LazyFrame),
     PolarsExpr(polars::prelude::Expr),
     SourceInfo(Box<Expr>, usize)
@@ -66,6 +69,7 @@ impl Expr {
             Expr::String(_) => "string",
             Expr::List(_) => "list",
             Expr::NativeFunction(_) => "native function",
+            Expr::UserFunction { body, params, name } => "user function",
             Expr::LazyFrame(_) => "lazy frame",
             Expr::PolarsExpr(_) => "polars expr",
             Expr::SourceInfo(_, _) => "source info",
@@ -101,6 +105,12 @@ impl fmt::Display for Expr {
                 write!(f, ")")
             },
             Expr::NativeFunction(_) => write!(f, "<NativeFunction>"),
+            Expr::UserFunction { body, params, name } => {
+                match name {
+                    Some(name) => write!(f, "<{name}>"),
+                    None => write!(f, "<lambda>"),
+                }
+            }
             Expr::LazyFrame(lf) => match lf.clone().collect() {
                 Ok(df) => write!(f, "{df}"),
                 Err(err) => write!(f, "<Failed to collect LazyFrame: {err}>"),
@@ -119,6 +129,7 @@ impl fmt::Debug for Expr {
             Expr::String(s) => f.debug_tuple("String").field(s).finish(),
             Expr::List(items) => f.debug_tuple("List").field(items).finish(),
             Expr::NativeFunction(_) => { f.write_str("NativeFunction") },
+            Expr::UserFunction { body, params, name } => { f.write_str("UserFunction") },
             Expr::LazyFrame(_) => { f.write_str("LazyFrame") },
             Expr::PolarsExpr(_) => { f.write_str("PolarsExpr") },
             Expr::SourceInfo(expr, line) => { f.write_str("SourceInfo") }
@@ -128,7 +139,23 @@ impl fmt::Debug for Expr {
 
 pub struct Env {
     pub defines: HashMap<String, Expr>,
-    pub outer: Option<Box<Env>>
+    pub outer: Option<Rc<RefCell<Env>>>,
+}
+
+impl Env {
+    pub fn new() -> Self {
+        Self {
+            defines: HashMap::new(),
+            outer: None,
+        }
+    }
+
+    pub fn with_parent(outer: Rc<RefCell<Env>>) -> Self {
+        Self {
+            defines: HashMap::new(),
+            outer: Some(outer),
+        }
+    }
 }
 
 #[derive(Debug)]

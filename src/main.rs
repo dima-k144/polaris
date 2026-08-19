@@ -6,10 +6,11 @@ mod parser;
 mod types;
 mod interpreter;
 mod stdlib;
-mod tests;
+mod core_tests;
+mod polars_tests;
 
 fn repl() {
-    let mut env = crate::stdlib::std_env();
+    let env = crate::stdlib::std_env();
 
     loop {
         let mut input = String::new();
@@ -26,7 +27,7 @@ fn repl() {
             line: 0,
         };
         for expr in exprs {
-            result = Some(crate::interpreter::eval(expr, &mut env, &mut state));
+            result = Some(crate::interpreter::eval(expr, &env, &mut state));
         }
         if let Some(res) = result {
             match res {
@@ -45,7 +46,7 @@ fn repl() {
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     for arg in args {
-        let mut env = crate::stdlib::std_env();
+        let env = crate::stdlib::std_env();
 
         if arg.ends_with(".lsp") {
             let contents = fs::read_to_string(arg).unwrap();
@@ -56,7 +57,7 @@ fn main() {
                 line: 0,
             };
             for expr in exprs {
-                result = Some(crate::interpreter::eval(expr, &mut env, &mut state));
+                result = Some(crate::interpreter::eval(expr, &env, &mut state));
             }
             if let Some(res) = result {
                 match res {

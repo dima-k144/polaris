@@ -6,14 +6,14 @@ mod tests {
 
     #[test]
     fn test_filter_eq() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (filter (read-csv "data1.csv") (= $"age" 30))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval filter with '=' failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -32,14 +32,14 @@ mod tests {
 
     #[test]
     fn test_filter_neq() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (filter (read-csv "data1.csv") (!= $"age" 30))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval filter with '!=' failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -58,14 +58,14 @@ mod tests {
 
     #[test]
     fn test_filter_gt() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (filter (read-csv "data1.csv") (> $"age" 25))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval filter with '>' failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -84,14 +84,14 @@ mod tests {
 
     #[test]
     fn test_filter_lt() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (filter (read-csv "data1.csv") (< $"age" 28))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval filter with '<' failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -110,14 +110,14 @@ mod tests {
 
     #[test]
     fn test_filter_gt_eq() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (filter (read-csv "data1.csv") (>= $"age" 28))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval filter with '>=' failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -136,14 +136,14 @@ mod tests {
 
     #[test]
     fn test_filter_lt_eq() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
     
         let code = r#"
             (filter (read-csv "data1.csv") (<= $"age" 28))
         "#.to_string();
     
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval filter with '<=' failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -162,14 +162,14 @@ mod tests {
 
     #[test]
     fn test_filter_and() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (filter (read-csv "data1.csv") (and (> $"age" 22) (< $"age" 35)))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval filter with 'and' failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -188,14 +188,14 @@ mod tests {
 
     #[test]
     fn test_filter_or() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
     
         let code = r#"
             (filter (read-csv "data1.csv") (or (< $"age" 25) (>= $"age" 35)))
         "#.to_string();
     
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval filter with 'or' failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -214,14 +214,14 @@ mod tests {
 
     #[test]
     fn test_filter_not() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (filter (read-csv "data1.csv") (not (> $"age" 25)))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval filter with 'not' failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -240,14 +240,14 @@ mod tests {
 
     #[test]
     fn test_select_sum() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (select (read-csv "data1.csv") (sum $"age"))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval select with 'sum' failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -263,14 +263,14 @@ mod tests {
 
     #[test]
     fn test_select_mean() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (select (read-csv "data1.csv") (mean $"age"))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval select with 'mean' failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -286,14 +286,14 @@ mod tests {
 
     #[test]
     fn test_select_median() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (select (read-csv "data1.csv") (median $"age"))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval select with 'median' failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -309,14 +309,14 @@ mod tests {
 
     #[test]
     fn test_with_column_computed() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (with-column (read-csv "data1.csv") $"is_over_25" (> $"age" 25))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval with-column failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -336,14 +336,14 @@ mod tests {
 
     #[test]
     fn test_sort_asc() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
     
         let code = r#"
             (sort (read-csv "data1.csv") $"age")
         "#.to_string();
     
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval sort ascending failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -366,7 +366,7 @@ mod tests {
         use crate::stdlib::std_env;
         use polars::prelude::*;
     
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
     
         // Group by city and compute mean age, then sort by city to ensure deterministic order
@@ -374,7 +374,7 @@ mod tests {
             (sort (group-by (read-csv "data1.csv") $"city" (mean $"age")) $"city")
         "#.to_string();
     
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval group-by failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -391,7 +391,7 @@ mod tests {
 
     #[test]
     fn test_agg_multiple() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
@@ -400,7 +400,7 @@ mod tests {
                  (alias (mean $"age") "mean_age"))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval agg failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -417,14 +417,14 @@ mod tests {
 
     #[test]
     fn test_join_inner() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (sort (join (read-csv "data1.csv") (read-csv "data2.csv") $"id" $"id" :inner) $"id")
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval inner join failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -445,10 +445,10 @@ mod tests {
 
     #[test]
     fn test_arithmetic_plus() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
-        let res = eval_string("(+ 1 2 3 4)".to_string(), &mut env, &mut state)
+        let res = eval_string("(+ 1 2 3 4)".to_string(), &env, &mut state)
             .expect("eval failed")
             .expect_number()
             .expect("expected number");
@@ -458,10 +458,10 @@ mod tests {
 
     #[test]
     fn test_arithmetic_minus() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
-        let res = eval_string("(- 20 5 3 2)".to_string(), &mut env, &mut state)
+        let res = eval_string("(- 20 5 3 2)".to_string(), &env, &mut state)
             .expect("eval failed")
             .expect_number()
             .expect("expected number");
@@ -471,10 +471,10 @@ mod tests {
 
     #[test]
     fn test_arithmetic_mult() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
-        let res = eval_string("(* 2 3 4)".to_string(), &mut env, &mut state)
+        let res = eval_string("(* 2 3 4)".to_string(), &env, &mut state)
             .expect("eval failed")
             .expect_number()
             .expect("expected number");
@@ -484,10 +484,10 @@ mod tests {
 
     #[test]
     fn test_arithmetic_divide() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
-        let res = eval_string("(/ 100 2 5)".to_string(), &mut env, &mut state)
+        let res = eval_string("(/ 100 2 5)".to_string(), &env, &mut state)
             .expect("eval failed")
             .expect_number()
             .expect("expected number");
@@ -497,13 +497,13 @@ mod tests {
 
     #[test]
     fn test_arithmetic_nested() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         // Evaluates: ((10 + 5) * 2) - (20 / 4) = (15 * 2) - 5 = 30 - 5 = 25
         let code = "(- (* (+ 10 5) 2) (/ 20 4))".to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval failed")
             .expect_number()
             .expect("expected number");
@@ -513,14 +513,14 @@ mod tests {
 
     #[test]
     fn test_polars_plus() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (with-column (select (read-csv "data1.csv") $"id" $"age") $"age_plus_5" (+ $"age" 5))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval plus failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -538,14 +538,14 @@ mod tests {
 
     #[test]
     fn test_polars_minus() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (with-column (select (read-csv "data1.csv") $"id" $"age") $"age_minus_2" (- $"age" 2))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval minus failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -563,14 +563,14 @@ mod tests {
 
     #[test]
     fn test_polars_mult() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (with-column (select (read-csv "data1.csv") $"id" $"age") $"age_double" (* $"age" 2))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval multiply failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -588,14 +588,14 @@ mod tests {
 
     #[test]
     fn test_polars_divide() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (with-column (select (read-csv "data1.csv") $"id" $"age") $"age_half" (/ $"age" 2))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval divide failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -613,14 +613,14 @@ mod tests {
 
     #[test]
     fn test_is_null() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (filter (read-csv "data3.csv") (null? $"age"))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval filter with 'null?' failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -639,14 +639,14 @@ mod tests {
 
     #[test]
     fn test_is_not_null() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (filter (read-csv "data3.csv") (not-null? $"city"))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval filter with 'not-null?' failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -665,14 +665,14 @@ mod tests {
 
     #[test]
     fn test_fill_null() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (with-column (read-csv "data3.csv") $"age" (fill-null $"age" 0))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval with-column fill-null failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -691,14 +691,14 @@ mod tests {
 
     #[test]
     fn test_drop_nulls_all() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (drop-nulls (read-csv "data3.csv"))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval drop-nulls failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -717,14 +717,14 @@ mod tests {
 
     #[test]
     fn test_drop_nulls_selected_columns() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (drop-nulls (read-csv "data3.csv") $"name" $"age")
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval drop-nulls with columns failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -743,14 +743,14 @@ mod tests {
 
     #[test]
     fn test_when_with_otherwise() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (with-column (read-csv "data1.csv") $"category" (when (>= $"age" 30) "senior" "junior"))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval when with otherwise failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -770,14 +770,14 @@ mod tests {
 
     #[test]
     fn test_when_without_otherwise() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
             (with-column (read-csv "data1.csv") $"status" (when (>= $"age" 30) "senior"))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval 2-arg when failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -797,7 +797,7 @@ mod tests {
 
     #[test]
     fn test_aggregations_min_max_count_nunique_std() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
 
         let code = r#"
@@ -808,7 +808,7 @@ mod tests {
                  (alias (n-unique $"city") "unique_cities"))
         "#.to_string();
 
-        let res = eval_string(code, &mut env, &mut state)
+        let res = eval_string(code, &env, &mut state)
             .expect("eval aggregations failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
@@ -827,7 +827,7 @@ mod tests {
 
     #[test]
     fn test_write_csv_roundtrip() {
-        let mut env = std_env();
+        let env = std_env();
         let mut state = State { line: 0 };
         let temp_output = "test_output.csv";
 
@@ -837,12 +837,12 @@ mod tests {
             temp_output
         );
 
-        eval_string(write_code, &mut env, &mut state)
+        eval_string(write_code, &env, &mut state)
             .expect("eval write-csv failed");
 
         // Read back and assert content matches
         let read_code = format!(r#"(read-csv "{}")"#, temp_output);
-        let res = eval_string(read_code, &mut env, &mut state)
+        let res = eval_string(read_code, &env, &mut state)
             .expect("eval read-csv on written file failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
