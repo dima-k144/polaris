@@ -1013,20 +1013,20 @@ mod tests {
     fn test_window_shift_and_cumsum() {
         let env = std_env();
         let mut state = State { line: 0 };
-    
+
         let code = r#"
             (-> (read-csv "data1.csv")
                 (with-column $"prev_age" (shift $"age" 1))
                 (with-column $"running_age" (cum-sum $"age")))
         "#.to_string();
-    
+
         let res = eval_string(code, &env, &mut state)
             .expect("eval shift/cum-sum failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
-    
+
         let df = res.collect().expect("failed to collect DataFrame");
-    
+
         let expected_df = df!(
             "id" => &[1i64, 2, 3, 4, 5],
             "name" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
@@ -1035,7 +1035,123 @@ mod tests {
             "prev_age" => &[None::<i64>, Some(25), Some(30), Some(22), Some(28)],
             "running_age" => &[25i64, 55, 77, 105, 140],
         ).expect("failed to construct expected DataFrame");
-    
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_to_date_and_components() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        // Parse date and extract year, month, and day components
+        let code = r#"
+            (-> (read-csv "data5.csv")
+                (with-column $"date" (to-date $"date_str" "%Y-%m-%d"))
+                (with-column $"year" (dt-year $"date"))
+                (with-column $"month" (dt-month $"date"))
+                (with-column $"day" (dt-day $"date"))
+                (select $"id" $"year" $"month" $"day"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval to-date and dt components failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3],
+            "year" => &[2024i32, 2025, 2026],
+            "month" => &[1i8, 6, 11],
+            "day" => &[15i8, 20, 5],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_to_datetime_and_hour() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        // Parse datetime and extract hour component
+        let code = r#"
+            (-> (read-csv "data5.csv")
+                (with-column $"dt" (to-datetime $"datetime_str" "%Y-%m-%d %H:%M:%S"))
+                (with-column $"hour" (dt-hour $"dt"))
+                (select $"id" $"hour"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval to-datetime and dt-hour failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3],
+            "hour" => &[8i8, 14, 22],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_dt_format() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        // Parse date and reformat to custom display string
+        let code = r#"
+            (-> (read-csv "data5.csv")
+                (with-column $"date" (to-date $"date_str" "%Y-%m-%d"))
+                (with-column $"formatted_date" (dt-format $"date" "%d/%m/%Y"))
+                (select $"id" $"formatted_date"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval dt-format failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3],
+            "formatted_date" => &["15/01/2024", "20/06/2025", "05/11/2026"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_filter_by_date_component() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        // Filter rows where year is greater than or equal to 2025
+        let code = r#"
+            (-> (read-csv "data5.csv")
+                (with-column $"date" (to-date $"date_str" "%Y-%m-%d"))
+                (filter (>= (dt-year $"date") 2025))
+                (select $"id" $"date_str"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval filter by date component failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[2i64, 3],
+            "date_str" => &["2025-06-20", "2026-11-05"],
+        ).expect("failed to construct expected DataFrame");
+
         assert_eq!(df, expected_df);
     }
 }

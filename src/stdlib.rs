@@ -604,6 +604,81 @@ fn rank(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(Expr::PolarsExpr(expr.rank(options, None)))
 }
 
+// (to-date $"col" "%Y-%m-%d") or (to-date $"col") -> ISO-8601 default
+fn to_date(args: Vec<Expr>) -> Result<Expr, Error> {
+    let col_expr = args[0].clone().expect_polars_expr()?;
+    let format = if args.len() > 1 {
+        Some(args[1].clone().expect_string()?)
+    } else {
+        None
+    };
+
+    let options = StrptimeOptions {
+        format: format.map(|s| PlSmallStr::from(s.as_str())),
+        strict: true,
+        exact: true,
+        cache: true,
+    };
+
+    Ok(Expr::PolarsExpr(col_expr.str().to_date(options)))
+} 
+
+// (to-datetime $"col" "%Y-%m-%d %H:%M:%S")
+fn to_datetime(args: Vec<Expr>) -> Result<Expr, Error> {
+    let col_expr = args[0].clone().expect_polars_expr()?;
+    let format = if args.len() > 1 {
+        Some(args[1].clone().expect_string()?)
+    } else {
+        None
+    };
+
+    let options = StrptimeOptions {
+        format: format.map(|s| PlSmallStr::from(s.as_str())),
+        strict: true,
+        exact: true,
+        cache: true,
+    };
+
+    // Defaults to Microseconds timeunit, no timezone
+    Ok(Expr::PolarsExpr(col_expr.str().to_datetime(
+        Some(TimeUnit::Microseconds),
+        None,
+        options,
+        polars::prelude::lit("raise"),
+    )))
+}
+
+// (dt-year $"date_col")
+fn dt_year(args: Vec<Expr>) -> Result<Expr, Error> {
+    let col_expr = args[0].clone().expect_polars_expr()?;
+    Ok(Expr::PolarsExpr(col_expr.dt().year()))
+}
+
+// (dt-month $"date_col")
+fn dt_month(args: Vec<Expr>) -> Result<Expr, Error> {
+    let col_expr = args[0].clone().expect_polars_expr()?;
+    Ok(Expr::PolarsExpr(col_expr.dt().month()))
+}
+
+// (dt-day $"date_col")
+fn dt_day(args: Vec<Expr>) -> Result<Expr, Error> {
+    let col_expr = args[0].clone().expect_polars_expr()?;
+    Ok(Expr::PolarsExpr(col_expr.dt().day()))
+}
+
+// (dt-hour $"datetime_col")
+fn dt_hour(args: Vec<Expr>) -> Result<Expr, Error> {
+    let col_expr = args[0].clone().expect_polars_expr()?;
+    Ok(Expr::PolarsExpr(col_expr.dt().hour()))
+}
+
+// (dt-format $"date_col" "%B %d, %Y")
+fn dt_format(args: Vec<Expr>) -> Result<Expr, Error> {
+    let col_expr = args[0].clone().expect_polars_expr()?;
+    let format = args[1].clone().expect_string()?;
+    Ok(Expr::PolarsExpr(col_expr.dt().to_string(&format)))
+}
+
 pub fn insert_native_function(defines: &mut HashMap<String, Expr>, name: &str, body: fn(Vec<Expr>) -> Result<Expr, Error>,
     min_args: u8, max_args: u8) {
         defines.insert(name.to_string(), Expr::NativeFunction { body, min_args, max_args });
@@ -688,6 +763,15 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "cum-max", cum_max, 1, 2);
     insert_native_function(&mut defines, "cum-count", cum_count, 1, 2);
     insert_native_function(&mut defines, "rank", rank, 1, 2);
+
+    // Date and time
+    insert_native_function(&mut defines, "to-date", to_date, 1, 2);
+    insert_native_function(&mut defines, "to-datetime", to_datetime, 1, 2);
+    insert_native_function(&mut defines, "dt-year", dt_year, 1, 1);
+    insert_native_function(&mut defines, "dt-month", dt_month, 1, 1);
+    insert_native_function(&mut defines, "dt-day", dt_day, 1, 1);
+    insert_native_function(&mut defines, "dt-hour", dt_hour, 1, 1);
+    insert_native_function(&mut defines, "dt-format", dt_format, 2, 2);
 
     Rc::new(RefCell::new(Env {
         defines,
