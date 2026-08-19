@@ -10,7 +10,7 @@ pub enum Expr {
     Number(f64),
     String(String),
     List(Vec<Expr>),
-    NativeFunction(fn(Vec<Expr>) -> Result<Expr, Error>),
+    NativeFunction{ body: fn(Vec<Expr>) -> Result<Expr, Error>, min_args: u8, max_args: u8},
     UserFunction{ body: Vec<Expr>, params: Vec<String>, name: Option<String> },
     LazyFrame(LazyFrame),
     PolarsExpr(polars::prelude::Expr),
@@ -68,7 +68,7 @@ impl Expr {
             Expr::Number(_) => "number",
             Expr::String(_) => "string",
             Expr::List(_) => "list",
-            Expr::NativeFunction(_) => "native function",
+            Expr::NativeFunction { body, min_args, max_args } => "native function",
             Expr::UserFunction { body, params, name } => "user function",
             Expr::LazyFrame(_) => "lazy frame",
             Expr::PolarsExpr(_) => "polars expr",
@@ -104,7 +104,7 @@ impl fmt::Display for Expr {
                 }
                 write!(f, ")")
             },
-            Expr::NativeFunction(_) => write!(f, "<NativeFunction>"),
+            Expr::NativeFunction{ body, min_args, max_args } => write!(f, "<NativeFunction>"),
             Expr::UserFunction { body, params, name } => {
                 match name {
                     Some(name) => write!(f, "<{name}>"),
@@ -128,7 +128,7 @@ impl fmt::Debug for Expr {
             Expr::Number(n) => f.debug_tuple("Number").field(n).finish(),
             Expr::String(s) => f.debug_tuple("String").field(s).finish(),
             Expr::List(items) => f.debug_tuple("List").field(items).finish(),
-            Expr::NativeFunction(_) => { f.write_str("NativeFunction") },
+            Expr::NativeFunction{ body, min_args, max_args } => { f.write_str("NativeFunction") },
             Expr::UserFunction { body, params, name } => { f.write_str("UserFunction") },
             Expr::LazyFrame(_) => { f.write_str("LazyFrame") },
             Expr::PolarsExpr(_) => { f.write_str("PolarsExpr") },
@@ -167,6 +167,11 @@ pub enum Error {
     LookupNotFound {
         symbol: String
     },
+    WrongNumberOfArguments {
+        expected_min: u8,
+        expected_max: u8,
+        got: u8
+    },
     PolarsError(polars::prelude::PolarsError)
 }
 
@@ -174,6 +179,9 @@ pub fn format_error(error: Error) -> String {
     match error {
         Error::WrongType { expected, got } => format!("Error: expected {0}, got {1}", expected, got.type_to_str()),
         Error::LookupNotFound { symbol } => format!("Error: symbol '{symbol}' is not defined"),
+        Error::WrongNumberOfArguments { 
+            expected_min, expected_max, got 
+        } => format!("Error: expected {expected_min}-{expected_max} number of argumens, got {got}"),
         Error::PolarsError(perror) => format!("Error: {}", perror)
     }
 }

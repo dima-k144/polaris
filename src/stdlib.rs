@@ -467,57 +467,76 @@ fn when(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
+pub fn insert_native_function(defines: &mut HashMap<String, Expr>, name: &str, body: fn(Vec<Expr>) -> Result<Expr, Error>,
+    min_args: u8, max_args: u8) {
+        defines.insert(name.to_string(), Expr::NativeFunction { body, min_args, max_args });
+    }
+
 pub fn std_env() -> Rc<RefCell<Env>> {
     let mut defines = HashMap::new();
 
-    defines.insert("nil".to_string(), Expr::Symbol(String::from("nil")));
+    // Constant symbol
+    defines.insert("nil".to_string(), nil());
 
-    defines.insert("print".to_string(), Expr::NativeFunction(print));
+    // Native Functions: (defines, name, function_pointer, min_args, max_args)
+    insert_native_function(&mut defines, "print", print, 0, u8::MAX);
 
-    defines.insert("+".to_string(), Expr::NativeFunction(plus));
-    defines.insert("-".to_string(), Expr::NativeFunction(minus));
-    defines.insert("*".to_string(), Expr::NativeFunction(mult));
-    defines.insert("/".to_string(), Expr::NativeFunction(divide));
+    // Arithmetic
+    insert_native_function(&mut defines, "+", plus, 1, u8::MAX);
+    insert_native_function(&mut defines, "-", minus, 1, u8::MAX);
+    insert_native_function(&mut defines, "*", mult, 1, u8::MAX);
+    insert_native_function(&mut defines, "/", divide, 1, u8::MAX);
 
-    defines.insert("read-csv".to_string(), Expr::NativeFunction(read_csv));
-    defines.insert("write-csv".to_string(), Expr::NativeFunction(write_csv));
-    defines.insert("head".to_string(), Expr::NativeFunction(head));
-    defines.insert("tail".to_string(), Expr::NativeFunction(tail));
-    defines.insert("slice".to_string(), Expr::NativeFunction(slice));
-    defines.insert("schema".to_string(), Expr::NativeFunction(schema));
-    defines.insert("shape".to_string(), Expr::NativeFunction(shape));
-    defines.insert("col".to_string(), Expr::NativeFunction(col_));
-    defines.insert("lit".to_string(), Expr::NativeFunction(lit_));
-    defines.insert("=".to_string(), Expr::NativeFunction(eq));
-    defines.insert("!=".to_string(), Expr::NativeFunction(neq));
-    defines.insert(">".to_string(), Expr::NativeFunction(gt));
-    defines.insert("<".to_string(), Expr::NativeFunction(lt));
-    defines.insert(">=".to_string(), Expr::NativeFunction(gt_eq));
-    defines.insert("<=".to_string(), Expr::NativeFunction(lt_eq));
-    defines.insert("not".to_string(), Expr::NativeFunction(not));
-    defines.insert("and".to_string(), Expr::NativeFunction(and));
-    defines.insert("or".to_string(), Expr::NativeFunction(or));
-    defines.insert("sum".to_string(), Expr::NativeFunction(sum));
-    defines.insert("mean".to_string(), Expr::NativeFunction(mean));
-    defines.insert("median".to_string(), Expr::NativeFunction(median));
-    defines.insert("count".to_string(), Expr::NativeFunction(count));
-    defines.insert("min".to_string(), Expr::NativeFunction(min));
-    defines.insert("max".to_string(), Expr::NativeFunction(max));
-    defines.insert("n-unique".to_string(), Expr::NativeFunction(n_unique));
-    defines.insert("std".to_string(), Expr::NativeFunction(std_dev));
-    defines.insert("select".to_string(), Expr::NativeFunction(select));
-    defines.insert("filter".to_string(), Expr::NativeFunction(filter));
-    defines.insert("with-column".to_string(), Expr::NativeFunction(with_column));
-    defines.insert("sort".to_string(), Expr::NativeFunction(sort));
-    defines.insert("group-by".to_string(), Expr::NativeFunction(group_by));
-    defines.insert("alias".to_string(), Expr::NativeFunction(alias));
-    defines.insert("agg".to_string(), Expr::NativeFunction(agg));
-    defines.insert("join".to_string(), Expr::NativeFunction(join));
-    defines.insert("null?".to_string(), Expr::NativeFunction(is_null_));
-    defines.insert("not-null?".to_string(), Expr::NativeFunction(is_not_null_));
-    defines.insert("fill-null".to_string(), Expr::NativeFunction(fill_null_));
-    defines.insert("drop-nulls".to_string(), Expr::NativeFunction(drop_nulls));
-    defines.insert("when".to_string(), Expr::NativeFunction(when));
+    // IO & Inspection
+    insert_native_function(&mut defines, "read-csv", read_csv, 1, 1);
+    insert_native_function(&mut defines, "write-csv", write_csv, 2, 2);
+    insert_native_function(&mut defines, "head", head, 1, 1);
+    insert_native_function(&mut defines, "tail", tail, 1, 1);
+    insert_native_function(&mut defines, "slice", slice, 3, 3);
+    insert_native_function(&mut defines, "schema", schema, 1, 1);
+    insert_native_function(&mut defines, "shape", shape, 1, 1);
+
+    // Expressions & Literals
+    insert_native_function(&mut defines, "col", col_, 1, 1);
+    insert_native_function(&mut defines, "lit", lit_, 1, 1);
+
+    // Comparison & Logical
+    insert_native_function(&mut defines, "=", eq, 2, 2);
+    insert_native_function(&mut defines, "!=", neq, 2, 2);
+    insert_native_function(&mut defines, ">", gt, 2, 2);
+    insert_native_function(&mut defines, "<", lt, 2, 2);
+    insert_native_function(&mut defines, ">=", gt_eq, 2, 2);
+    insert_native_function(&mut defines, "<=", lt_eq, 2, 2);
+    insert_native_function(&mut defines, "not", not, 1, 1);
+    insert_native_function(&mut defines, "and", and, 2, 2);
+    insert_native_function(&mut defines, "or", or, 2, 2);
+
+    // Aggregations
+    insert_native_function(&mut defines, "sum", sum, 1, 1);
+    insert_native_function(&mut defines, "mean", mean, 1, 1);
+    insert_native_function(&mut defines, "median", median, 1, 1);
+    insert_native_function(&mut defines, "count", count, 0, 1);
+    insert_native_function(&mut defines, "min", min, 1, 1);
+    insert_native_function(&mut defines, "max", max, 1, 1);
+    insert_native_function(&mut defines, "n-unique", n_unique, 1, 1);
+    insert_native_function(&mut defines, "std", std_dev, 1, 2);
+
+    // LazyFrame Operations
+    insert_native_function(&mut defines, "select", select, 1, u8::MAX);
+    insert_native_function(&mut defines, "filter", filter, 2, 2);
+    insert_native_function(&mut defines, "with-column", with_column, 3, 3);
+    insert_native_function(&mut defines, "sort", sort, 2, 3);
+    insert_native_function(&mut defines, "group-by", group_by, 2, u8::MAX);
+    insert_native_function(&mut defines, "alias", alias, 2, 2);
+    insert_native_function(&mut defines, "agg", agg, 1, u8::MAX);
+    insert_native_function(&mut defines, "join", join, 4, 5);
+
+    // Null Handling & Conditionals
+    insert_native_function(&mut defines, "null?", is_null_, 1, 1);
+    insert_native_function(&mut defines, "not-null?", is_not_null_, 1, 1);
+    insert_native_function(&mut defines, "fill-null", fill_null_, 2, 2);
+    insert_native_function(&mut defines, "drop-nulls", drop_nulls, 1, u8::MAX);
+    insert_native_function(&mut defines, "when", when, 2, 3);
 
     Rc::new(RefCell::new(Env {
         defines,

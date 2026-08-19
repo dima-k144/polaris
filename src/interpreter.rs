@@ -89,10 +89,20 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
             }
 
             match func {
-                Expr::NativeFunction(native_func) => {
-                    return native_func(args);
+                Expr::NativeFunction{ body, min_args, max_args } => {
+                    if args.len() < min_args as usize {
+                        return Err(Error::WrongNumberOfArguments { expected_min: min_args, expected_max: max_args, got: args.len() as u8 });
+                    }
+                    
+                    return body(args);
                 },
                 Expr::UserFunction { body, params, name } => {
+                    if args.len() < params.len() {
+                        return Err(Error::WrongNumberOfArguments { 
+                            expected_min: params.len() as u8, expected_max: params.len() as u8, got: args.len() as u8 
+                        });
+                    }
+
                     let child_env = Rc::new(RefCell::new(Env::with_parent(Rc::clone(env))));
 
                     for (param, arg) in params.iter().zip(args) {
