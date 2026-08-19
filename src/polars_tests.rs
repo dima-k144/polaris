@@ -887,7 +887,7 @@ mod tests {
         ).expect("failed to construct expected DataFrame");
 
         assert_eq!(df, expected_df);
-}
+    }
     
     #[test]
     fn test_str_replace() {
@@ -979,5 +979,63 @@ mod tests {
         ).expect("failed to construct expected DataFrame");
 
         assert_eq!(df, expected_df);
-}
+    }
+
+    #[test]
+    fn test_window_over_mean() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        // Compute average age per city over the dataset without grouping
+        let code = r#"
+            (with-column (read-csv "data1.csv") $"city_mean_age" (over (mean $"age") $"city"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval over mean failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
+            "age" => &[25i64, 30, 22, 28, 35],
+            "city" => &["London", "Paris", "Berlin", "Rome", "Madrid"],
+            "city_mean_age" => &[25.0f64, 30.0, 22.0, 28.0, 35.0],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_window_shift_and_cumsum() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+    
+        let code = r#"
+            (-> (read-csv "data1.csv")
+                (with-column $"prev_age" (shift $"age" 1))
+                (with-column $"running_age" (cum-sum $"age")))
+        "#.to_string();
+    
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval shift/cum-sum failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+    
+        let df = res.collect().expect("failed to collect DataFrame");
+    
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
+            "age" => &[25i64, 30, 22, 28, 35],
+            "city" => &["London", "Paris", "Berlin", "Rome", "Madrid"],
+            "prev_age" => &[None::<i64>, Some(25), Some(30), Some(22), Some(28)],
+            "running_age" => &[25i64, 55, 77, 105, 140],
+        ).expect("failed to construct expected DataFrame");
+    
+        assert_eq!(df, expected_df);
+    }
 }

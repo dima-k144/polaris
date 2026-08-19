@@ -501,6 +501,109 @@ fn str_extract(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(Expr::PolarsExpr(col_expr.str().extract(pat_expr, group_idx)))
 }
 
+// (over <expr> <partition_col1> ...) or (over <expr> (<col1> <col2>))
+fn over(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+
+    let partition_by = match &args[1] {
+        Expr::List(cols) => {
+            let mut exprs = Vec::new();
+            for col_expr in cols {
+                exprs.push(col_expr.clone().expect_polars_expr()?);
+            }
+            exprs
+        }
+        _ => {
+            let mut exprs = Vec::new();
+            for arg in args.iter().skip(1) {
+                exprs.push(arg.clone().expect_polars_expr()?);
+            }
+            exprs
+        }
+    };
+
+    match expr.over(partition_by) {
+        Ok(result) => Ok(Expr::PolarsExpr(result)),
+        Err(err) => Err(Error::PolarsError(err)),
+    } 
+}
+
+// (shift $"col" 1) or (shift $"col" -1)
+fn shift(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    let offset = args[1].clone().expect_number()? as i64;
+    Ok(Expr::PolarsExpr(expr.shift(lit(offset))))
+}
+
+// (cum-sum $"col")
+fn cum_sum(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    let reverse = if args.len() > 1 {
+        matches!(args[1].clone().expect_symbol()?.as_str(), ":desc" | ":reverse")
+    } else {
+        false
+    };
+    
+    Ok(Expr::PolarsExpr(expr.cum_sum(reverse)))
+}
+
+// (cum-min $"col")
+fn cum_min(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    let reverse = if args.len() > 1 {
+        matches!(args[1].clone().expect_symbol()?.as_str(), ":desc" | ":reverse")
+    } else {
+        false
+    };
+    Ok(Expr::PolarsExpr(expr.cum_min(reverse)))
+}
+
+// (cum-max $"col")
+fn cum_max(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    let reverse = if args.len() > 1 {
+        matches!(args[1].clone().expect_symbol()?.as_str(), ":desc" | ":reverse")
+    } else {
+        false
+    };
+    Ok(Expr::PolarsExpr(expr.cum_max(reverse)))
+}
+
+// (cum-count $"col")
+fn cum_count(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    let reverse = if args.len() > 1 {
+        matches!(args[1].clone().expect_symbol()?.as_str(), ":desc" | ":reverse")
+    } else {
+        false
+    };
+    Ok(Expr::PolarsExpr(expr.cum_count(reverse)))
+}
+
+// (rank $"col") or (rank $"col" :dense)
+fn rank(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    let method = if args.len() > 1 {
+        match args[1].clone().expect_symbol()?.as_str() {
+            ":dense" => RankMethod::Dense,
+            ":min" => RankMethod::Min,
+            ":max" => RankMethod::Max,
+            ":average" => RankMethod::Average,
+            ":ordinal" | ":first" => RankMethod::Ordinal,
+            _ => RankMethod::Average,
+        }
+    } else {
+        RankMethod::Average
+    };
+
+    let options = RankOptions {
+        method,
+        descending: false,
+    };
+
+    Ok(Expr::PolarsExpr(expr.rank(options, None)))
+}
+
 pub fn insert_native_function(defines: &mut HashMap<String, Expr>, name: &str, body: fn(Vec<Expr>) -> Result<Expr, Error>,
     min_args: u8, max_args: u8) {
         defines.insert(name.to_string(), Expr::NativeFunction { body, min_args, max_args });
@@ -576,6 +679,15 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "str-contains", str_contains, 2, 2);
     insert_native_function(&mut defines, "str-replace", str_replace, 3, 3);
     insert_native_function(&mut defines, "str-extract", str_extract, 3, 3);
+
+    // Window & Cumulative Functions
+    insert_native_function(&mut defines, "over", over, 2, u8::MAX);
+    insert_native_function(&mut defines, "shift", shift, 2, 2);
+    insert_native_function(&mut defines, "cum-sum", cum_sum, 1, 2);
+    insert_native_function(&mut defines, "cum-min", cum_min, 1, 2);
+    insert_native_function(&mut defines, "cum-max", cum_max, 1, 2);
+    insert_native_function(&mut defines, "cum-count", cum_count, 1, 2);
+    insert_native_function(&mut defines, "rank", rank, 1, 2);
 
     Rc::new(RefCell::new(Env {
         defines,
