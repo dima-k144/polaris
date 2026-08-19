@@ -467,6 +467,40 @@ fn when(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
+// (str-contains $"name" "^A.*")
+fn str_contains(args: Vec<Expr>) -> Result<Expr, Error> {
+    if args.len() < 2 {
+        return Err(Error::WrongType {
+            expected: "2 arguments (column, pattern)".into(),
+            got: Expr::List(args),
+        });
+    }
+    let col_expr = args[0].clone().expect_polars_expr()?;
+    let pat_expr = args[1].clone().expect_polars_expr()?;
+    
+    // Polars: expr.str().contains(pattern, strict)
+    Ok(Expr::PolarsExpr(col_expr.str().contains(pat_expr, true)))
+}
+
+// (str-replace $"city" "^Lon" "New-Lon")
+fn str_replace(args: Vec<Expr>) -> Result<Expr, Error> {
+    let col_expr = args[0].clone().expect_polars_expr()?;
+    let pat_expr = args[1].clone().expect_polars_expr()?;
+    let rep_expr = args[2].clone().expect_polars_expr()?;
+
+    // false = interpret pattern as regex, not literal
+    Ok(Expr::PolarsExpr(col_expr.str().replace(pat_expr, rep_expr, false)))
+}
+
+// (str-extract $"code" "([A-Z]+)-(\\d+)" 1)
+fn str_extract(args: Vec<Expr>) -> Result<Expr, Error> {
+    let col_expr = args[0].clone().expect_polars_expr()?;
+    let pat_expr = args[1].clone().expect_polars_expr()?;
+    let group_idx = args[2].clone().expect_number()? as usize;
+
+    Ok(Expr::PolarsExpr(col_expr.str().extract(pat_expr, group_idx)))
+}
+
 pub fn insert_native_function(defines: &mut HashMap<String, Expr>, name: &str, body: fn(Vec<Expr>) -> Result<Expr, Error>,
     min_args: u8, max_args: u8) {
         defines.insert(name.to_string(), Expr::NativeFunction { body, min_args, max_args });
@@ -537,6 +571,11 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "fill-null", fill_null_, 2, 2);
     insert_native_function(&mut defines, "drop-nulls", drop_nulls, 1, u8::MAX);
     insert_native_function(&mut defines, "when", when, 2, 3);
+
+    // String
+    insert_native_function(&mut defines, "str-contains", str_contains, 2, 2);
+    insert_native_function(&mut defines, "str-replace", str_replace, 3, 3);
+    insert_native_function(&mut defines, "str-extract", str_extract, 3, 3);
 
     Rc::new(RefCell::new(Env {
         defines,

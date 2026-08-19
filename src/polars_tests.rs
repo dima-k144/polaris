@@ -861,4 +861,123 @@ mod tests {
         // Clean up temporary test file
         let _ = std::fs::remove_file(temp_output);
     }
+
+    #[test]
+    fn test_str_contains() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        // Use a single backslash inside r#"..."#
+        let code = r#"
+            (filter (read-csv "data4.csv") (str-contains $"email" "@example\.com$"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval filter with 'str-contains' failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 4],
+            "name" => &["Alice Johnson", "Diana Prince"],
+            "email" => &["alice.j@example.com", "diana.p@example.com"],
+            "sku" => &["PROD-101-US", "STAGING-404-US"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+}
+    
+    #[test]
+    fn test_str_replace() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        // Mask the numbers in the SKU column with "XXX"
+        let code = r#"
+            (with-column (read-csv "data4.csv") $"masked_sku" (str-replace $"sku" "[0-9]+" "XXX"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval with-column 'str-replace' failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &["Alice Johnson", "Bob Smith", "Charlie Brown", "Diana Prince", "Evan Wright"],
+            "email" => &[
+                "alice.j@example.com",
+                "bob_smith@work.org",
+                "charlie@test.net",
+                "diana.p@example.com",
+                "evan_w@domain.io",
+            ],
+            "sku" => &[
+                "PROD-101-US",
+                "DEV-202-EU",
+                "PROD-303-APAC",
+                "STAGING-404-US",
+                "DEV-505-LATAM",
+            ],
+            "masked_sku" => &[
+                "PROD-XXX-US",
+                "DEV-XXX-EU",
+                "PROD-XXX-APAC",
+                "STAGING-XXX-US",
+                "DEV-XXX-LATAM",
+            ],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_str_extract() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        // Extract the numeric portion (capture group 1) from SKU
+        let code = r#"
+            (with-column (read-csv "data4.csv") $"sku_code" (str-extract $"sku" ".*-([0-9]+)-.*" 1))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval with-column 'str-extract' failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &["Alice Johnson", "Bob Smith", "Charlie Brown", "Diana Prince", "Evan Wright"],
+            "email" => &[
+                "alice.j@example.com",
+                "bob_smith@work.org",
+                "charlie@test.net",
+                "diana.p@example.com",
+                "evan_w@domain.io",
+            ],
+            "sku" => &[
+                "PROD-101-US",
+                "DEV-202-EU",
+                "PROD-303-APAC",
+                "STAGING-404-US",
+                "DEV-505-LATAM",
+            ],
+            "sku_code" => &[
+                Some("101"),
+                Some("202"),
+                Some("303"),
+                Some("404"),
+                Some("505"),
+            ],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+}
 }

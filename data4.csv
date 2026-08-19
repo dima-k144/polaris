@@ -1,0 +1,6 @@
+id,name,email,sku
+1,Alice Johnson,alice.j@example.com,PROD-101-US
+2,Bob Smith,bob_smith@work.org,DEV-202-EU
+3,Charlie Brown,charlie@test.net,PROD-303-APAC
+4,Diana Prince,diana.p@example.com,STAGING-404-US
+5,Evan Wright,evan_w@domain.io,DEV-505-LATAM
