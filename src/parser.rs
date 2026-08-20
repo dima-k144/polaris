@@ -19,10 +19,15 @@ pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Result<Expr, Error> {
         }
     } else if token.0 == "(" {
         let mut items = Vec::<Expr>::new();
-        while tokens[0].0 != ")" {
+        while !tokens.is_empty() && tokens[0].0 != ")" {
             items.push(parse1(tokens)?);
         }
-        tokens.remove(0);
+
+        if tokens.is_empty() {
+            return Err(Error::UnclosedListExpr)
+        }
+
+        tokens.remove(0); // remove )
         Ok(Expr::List(items))
     } else if first_char == '"' {
         Ok(Expr::String(token.0.chars().skip(1).take(token.0.chars().count() - 2).collect()))

@@ -1,4 +1,6 @@
-pub fn scan(source: &String) -> Vec<(String, usize)> {
+use crate::types::Error;
+
+pub fn scan(source: &String) -> Result<Vec<(String, usize)>, Error> {
     let mut tokens = Vec::<(String, usize)>::new();
     let mut item = String::new();
     let mut line = 0;
@@ -41,6 +43,11 @@ pub fn scan(source: &String) -> Vec<(String, usize)> {
         }
 
     }
+
+    if in_string {
+        return Err(Error::UnclosedString);
+    }
+
     if !item.is_empty() { tokens.push((item, line)) };
-    tokens
+    Ok(tokens)
 }

@@ -202,6 +202,8 @@ impl Env {
 
 #[derive(Debug)]
 pub enum Error {
+    UnclosedString,
+    UnclosedListExpr,
     FailedToParseNumber {
         number: String
     },
@@ -222,6 +224,8 @@ pub enum Error {
 
 pub fn format_error(error: Error) -> String {
     match error {
+        Error::UnclosedString => format!("Error: unclosed string"),
+        Error::UnclosedListExpr => format!("Error: unclosed list expression"),
         Error::FailedToParseNumber { number } => format!("Error: failed to parse number '{number}'"),
         Error::WrongType { expected, got } => format!("Error: expected {0}, got {1}", expected, got.type_to_str()),
         Error::LookupNotFound { symbol } => format!("Error: symbol '{symbol}' is not defined"),

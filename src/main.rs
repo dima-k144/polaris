@@ -9,6 +9,13 @@ mod stdlib;
 mod core_tests;
 mod polars_tests;
 
+fn is_complete_input(input: &String) -> bool {
+    let open_parens_count = input.chars().filter(|&c| c == '(').count();
+    let closed_parens_count = input.chars().filter(|&c| c == ')').count();
+    let double_quotes_count = input.chars().filter(|&c| c == '"').count();
+    open_parens_count == closed_parens_count && double_quotes_count % 2 == 0
+}
+
 fn repl() {
     let env = crate::stdlib::std_env();
 
@@ -16,7 +23,15 @@ fn repl() {
         let mut input = String::new();
         print!("mlisp > "); io::stdout().flush().unwrap();
         std::io::stdin().read_line(&mut input).unwrap();
-        let mut tokens = lexer::scan(&input);
+        while !is_complete_input(&input) {
+            let mut buf = String::new();
+            std::io::stdin().read_line(&mut buf).unwrap();
+            input.push_str(buf.as_str());
+        }
+        let mut tokens = match lexer::scan(&input) {
+            Ok(tokens) => tokens,
+            Err(err) => { println!("{}", crate::types::format_error(err)); continue; },
+        };
         //println!("{:?}", tokens);
         let exprs = match parser::parse(&mut tokens) {
             Ok(exprs) => exprs,
@@ -53,7 +68,10 @@ fn main() {
 
         if arg.ends_with(".lsp") {
             let contents = fs::read_to_string(arg).unwrap();
-            let mut tokens = lexer::scan(&contents); 
+            let mut tokens = match lexer::scan(&contents) {
+                Ok(tokens) => tokens,
+                Err(err) => { println!("{}", crate::types::format_error(err)); continue; },
+            };
             let exprs = match parser::parse(&mut tokens) {
                 Ok(exprs) => exprs,
                 Err(err) => { println!("{}", crate::types::format_error(err)); continue; },
