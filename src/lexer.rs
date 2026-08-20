@@ -5,8 +5,11 @@ pub fn scan(source: &String) -> Result<Vec<(String, usize)>, Error> {
     let mut item = String::new();
     let mut line = 0;
     let mut in_string = false;
+    let mut in_comment = false;
     for c in source.chars() {
-        if in_string {
+        if in_comment {
+            if c == '\n' { line += 1; in_comment = false; }
+        } else if in_string {
             match c {
                 '"' => {
                     in_string = false;
@@ -37,6 +40,9 @@ pub fn scan(source: &String) -> Result<Vec<(String, usize)>, Error> {
                     if !item.is_empty() { tokens.push((item, line)); item = String::new(); } 
                     in_string = true;
                     item.push('"');
+                },
+                ';' => {
+                    in_comment = true;
                 }
                 c => { item.push(c); }
         }
