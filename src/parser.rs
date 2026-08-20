@@ -6,9 +6,16 @@ pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Result<Expr, Error> {
     let first_char = chars.next().unwrap();
     let line = token.1;
     if first_char.is_numeric() || (token.0.len() > 1 && first_char == '-' && chars.nth(0).unwrap().is_numeric()) {
-        match token.0.parse::<f64>() {
-            Ok(value) => Ok(Expr::SourceInfo(Box::new(Expr::Number(value)), line)),
-            Err(err) => Err(Error::FailedToParseNumber { number: token.0 }),
+        if token.0.contains('.') {
+            match token.0.parse::<f64>() {
+                Ok(value) => Ok(Expr::SourceInfo(Box::new(Expr::Float(value)), line)),
+                Err(err) => Err(Error::FailedToParseNumber { number: token.0 }),
+            }
+        } else {
+            match token.0.parse::<i64>() {
+                Ok(value) => Ok(Expr::SourceInfo(Box::new(Expr::Int(value)), line)),
+                Err(err) => Err(Error::FailedToParseNumber { number: token.0 }),
+            }
         }
     } else if token.0 == "(" {
         let mut items = Vec::<Expr>::new();

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, f32::consts::E};
 use std::fs::File;
 use polars::prelude::*;
 use std::cell::RefCell;
@@ -15,66 +15,99 @@ fn print(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 fn plus(args: Vec<Expr>) -> Result<Expr, Error> {
-    if args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(_))) {
+    let has_polars_expr_arg = args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(_)));
+    let has_float_arg = args.iter().any(|arg| matches!(arg, Expr::Float(_)));
+
+    if has_polars_expr_arg {
         let mut expr = args[0].clone().expect_polars_expr()?;
         for arg in args.iter().skip(1) {
             expr = expr + arg.clone().expect_polars_expr()?;
         }
         Ok(Expr::PolarsExpr(expr))
-    } else {
+    } else if has_float_arg {
         let mut sum = 0.0;
         for arg in args {
-            sum += arg.expect_number()?;
+            sum += arg.expect_number()?.to_float();
         }
-        Ok(Expr::Number(sum))
+        Ok(Expr::Float(sum))
+    } else {
+        let mut sum = 0;
+        for arg in args {
+            sum += arg.expect_number()?.to_int();
+        }
+        Ok(Expr::Int(sum))
     }
 }
 
 fn minus(args: Vec<Expr>) -> Result<Expr, Error> {
-    if args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(_))) {
+    let has_polars_expr_arg = args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(_)));
+    let has_float_arg = args.iter().any(|arg| matches!(arg, Expr::Float(_)));
+
+    if has_polars_expr_arg {
         let mut expr = args[0].clone().expect_polars_expr()?;
         for arg in args.iter().skip(1) {
             expr = expr - arg.clone().expect_polars_expr()?;
         }
         Ok(Expr::PolarsExpr(expr))
-    } else {
-        let mut value = args[0].clone().expect_number()?;
+    } else if has_float_arg {
+        let mut value = args[0].clone().expect_number()?.to_float();
         for arg in args.iter().skip(1) {
-            value -= arg.clone().expect_number()?;
+            value -= arg.clone().expect_number()?.to_float();
         }
-        Ok(Expr::Number(value))
+        Ok(Expr::Float(value))
+    } else {
+        let mut value = args[0].clone().expect_number()?.to_int();
+        for arg in args.iter().skip(1) {
+            value -= arg.clone().expect_number()?.to_int();
+        }
+        Ok(Expr::Int(value))
     }
 }
 
 fn mult(args: Vec<Expr>) -> Result<Expr, Error> {
-    if args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(_))) {
+    let has_polars_expr_arg = args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(_)));
+    let has_float_arg = args.iter().any(|arg| matches!(arg, Expr::Float(_)));
+
+    if has_polars_expr_arg {
         let mut expr = args[0].clone().expect_polars_expr()?;
         for arg in args.iter().skip(1) {
             expr = expr * arg.clone().expect_polars_expr()?;
         }
         Ok(Expr::PolarsExpr(expr))
-    } else {
-        let mut value = args[0].clone().expect_number()?;
+    } else if has_float_arg {
+        let mut value = args[0].clone().expect_number()?.to_float();
         for arg in args.iter().skip(1) {
-            value *= arg.clone().expect_number()?;
+            value *= arg.clone().expect_number()?.to_float();
         }
-        Ok(Expr::Number(value))
+        Ok(Expr::Float(value))
+    } else {
+        let mut value = args[0].clone().expect_number()?.to_int();
+        for arg in args.iter().skip(1) {
+            value *= arg.clone().expect_number()?.to_int();
+        }
+        Ok(Expr::Int(value))
     }
 }
 
 fn divide(args: Vec<Expr>) -> Result<Expr, Error> {
-    if args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(_))) {
-        let mut expr = args[0].clone().expect_polars_expr()?;
+    let has_polars_expr_arg = args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(_)));
+    // let has_float_arg = args.iter().any(|arg| matches!(arg, Expr::Float(_)));
+    // Always compute real division in f64
+
+    if has_polars_expr_arg {
+        // Cast the initial expression to Float64 so division produces f64
+        let mut expr = args[0].clone().expect_polars_expr()?.cast(DataType::Float64);
         for arg in args.iter().skip(1) {
-            expr = expr / arg.clone().expect_polars_expr()?;
+            let next_expr = arg.clone().expect_polars_expr()?.cast(DataType::Float64);
+            expr = expr / next_expr;
         }
         Ok(Expr::PolarsExpr(expr))
     } else {
-        let mut value = args[0].clone().expect_number()?;
+        let mut value = args[0].clone().expect_number()?.to_float();
         for arg in args.iter().skip(1) {
-            value /= arg.clone().expect_number()?;
+            value /= arg.clone().expect_number()?.to_float();
         }
-        Ok(Expr::Number(value))
+        Ok(Expr::Float(value))
     }
 }
 
@@ -147,9 +180,9 @@ fn tail(args: Vec<Expr>) -> Result<Expr, Error> {
 
 fn slice(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
-    let offset = args[1].clone().expect_number()?;
-    let len = args[2].clone().expect_number()?;
-    Ok(Expr::LazyFrame(lf.slice(offset as i64, len as u32)))
+    let offset = args[1].clone().expect_int()?;
+    let len = args[2].clone().expect_int()?;
+    Ok(Expr::LazyFrame(lf.slice(offset, len as u32)))
 }
 
 fn schema(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -168,7 +201,7 @@ fn schema(args: Vec<Expr>) -> Result<Expr, Error> {
 fn shape(args: Vec<Expr>) -> Result<Expr, Error> {
     let mut lf = args[0].clone().expect_lazy_frame()?;  
     let shape = lf.collect().unwrap().shape();
-    Ok(Expr::List(vec![Expr::Number(shape.0 as f64), Expr::Number(shape.1 as f64)]))
+    Ok(Expr::List(vec![Expr::Int(shape.0 as i64), Expr::Int(shape.1 as i64)]))
 }
 
 fn col_(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -177,7 +210,8 @@ fn col_(args: Vec<Expr>) -> Result<Expr, Error> {
 
 fn lit_(args: Vec<Expr>) -> Result<Expr, Error> {
     match args[0].clone() {
-        Expr::Number(num) => Ok(Expr::PolarsExpr(lit(num))),
+        Expr::Int(num) => Ok(Expr::PolarsExpr(lit(num))),
+        Expr::Float(num) => Ok(Expr::PolarsExpr(lit(num))),
         Expr::String(string) => Ok(Expr::PolarsExpr(lit(string))),
         _ => Err(Error::WrongType { expected: String::from("number"), got: args[0].clone() })
     }
@@ -281,7 +315,7 @@ fn std_dev(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     // Default to sample standard deviation (ddof = 1); allow overriding via second argument
     let ddof = if args.len() > 1 {
-        args[1].clone().expect_number()? as u8
+        args[1].clone().expect_int()? as u8
     } else {
         1
     };
@@ -524,7 +558,7 @@ fn str_replace(args: Vec<Expr>) -> Result<Expr, Error> {
 fn str_extract(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let pat_expr = args[1].clone().expect_polars_expr()?;
-    let group_idx = args[2].clone().expect_number()? as usize;
+    let group_idx = args[2].clone().expect_int()? as usize;
 
     Ok(Expr::PolarsExpr(col_expr.str().extract(pat_expr, group_idx)))
 }
@@ -559,7 +593,7 @@ fn over(args: Vec<Expr>) -> Result<Expr, Error> {
 // (shift $"col" 1) or (shift $"col" -1)
 fn shift(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
-    let offset = args[1].clone().expect_number()? as i64;
+    let offset = args[1].clone().expect_int()? as i64;
     Ok(Expr::PolarsExpr(expr.shift(lit(offset))))
 }
 

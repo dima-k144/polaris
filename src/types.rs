@@ -7,7 +7,8 @@ use polars::prelude::*;
 #[derive(Clone)]
 pub enum Expr {
     Symbol(String),
-    Number(f64),
+    Int(i64),
+    Float(f64),
     String(String),
     List(Vec<Expr>),
     NativeFunction{ body: fn(Vec<Expr>) -> Result<Expr, Error>, min_args: u8, max_args: u8},
@@ -15,6 +16,11 @@ pub enum Expr {
     LazyFrame(LazyFrame),
     PolarsExpr(polars::prelude::Expr),
     SourceInfo(Box<Expr>, usize)
+}
+
+pub enum Number {
+    Int(i64),
+    Float(f64)
 }
 
 impl Expr {
@@ -25,12 +31,28 @@ impl Expr {
         }
     }
 
-    pub fn expect_number(self) -> Result<f64, Error> {
+    pub fn expect_number(self) -> Result<Number, Error> {
         match self {
-            Expr::Number(n) => Ok(n),
+            Expr::Int(n) => Ok(Number::Int(n)),
+            Expr::Float(n) => Ok(Number::Float(n)),
             other => Err(Error::WrongType { expected: String::from("number"), got: other }),
         }
     }
+
+    pub fn expect_int(self) -> Result<i64, Error> {
+        match self {
+            Expr::Int(i) => Ok(i),
+            other => Err(Error::WrongType { expected: String::from("int"), got: other }),
+        }
+    }
+
+    pub fn expect_float(self) -> Result<f64, Error> {
+        match self {
+            Expr::Float(f) => Ok(f),
+            other => Err(Error::WrongType { expected: String::from("float"), got: other }),
+        }
+    }
+
 
     pub fn expect_string(self) -> Result<String, Error> {
         match self {
@@ -56,7 +78,8 @@ impl Expr {
     pub fn expect_polars_expr(self) -> Result<polars::prelude::Expr, Error> {
         match self {
             Expr::PolarsExpr(pe) => Ok(pe),
-            Expr::Number(num) => Ok(polars::prelude::lit(num)),
+            Expr::Int(i) => Ok(polars::prelude::lit(i)),
+            Expr::Float(f) => Ok(polars::prelude::lit(f)),
             Expr::String(str) => Ok(polars::prelude::lit(str)),
             other => Err(Error::WrongType { expected: String::from("polars expr"), got: other }),
         }
@@ -65,7 +88,8 @@ impl Expr {
     pub fn type_to_str(self) -> &'static str {
         match self {
             Expr::Symbol(_) => "symbol",
-            Expr::Number(_) => "number",
+            Expr::Int(_) => "int",
+            Expr::Float(_) => "float",
             Expr::String(_) => "string",
             Expr::List(_) => "list",
             Expr::NativeFunction { body, min_args, max_args } => "native function",
@@ -88,11 +112,28 @@ impl Expr {
     }
 }
 
+impl Number {
+    pub fn to_int(self) -> i64 {
+        match self {
+            Number::Int(i) => i,
+            Number::Float(f) => f as i64,
+        }
+    }
+
+    pub fn to_float(self) -> f64 {
+        match self {
+            Number::Int(i) => i as f64,
+            Number::Float(f) => f,
+        }
+    }
+}
+
 impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Expr::Symbol(s) => write!(f, "{s}"),
-            Expr::Number(n) => write!(f, "{n}"),
+            Expr::Int(n) => write!(f, "{n}"),
+            Expr::Float(n) => write!(f, "{n}"),
             Expr::String(s) => write!(f, "{s}"),
             Expr::List(items) => {
                 write!(f, "(")?;
@@ -125,7 +166,8 @@ impl fmt::Debug for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Expr::Symbol(s) => f.debug_tuple("Symbol").field(s).finish(),
-            Expr::Number(n) => f.debug_tuple("Number").field(n).finish(),
+            Expr::Int(n) => f.debug_tuple("Number").field(n).finish(),
+            Expr::Float(n) => f.debug_tuple("Number").field(n).finish(),
             Expr::String(s) => f.debug_tuple("String").field(s).finish(),
             Expr::List(items) => f.debug_tuple("List").field(items).finish(),
             Expr::NativeFunction{ body, min_args, max_args } => { f.write_str("NativeFunction") },

@@ -463,10 +463,10 @@ mod tests {
 
         let res = eval_string("(+ 1 2 3 4)".to_string(), &env, &mut state)
             .expect("eval failed")
-            .expect_number()
+            .expect_int()
             .expect("expected number");
 
-        assert_eq!(res, 10.0);
+        assert_eq!(res, 10);
     }
 
     #[test]
@@ -476,10 +476,10 @@ mod tests {
 
         let res = eval_string("(- 20 5 3 2)".to_string(), &env, &mut state)
             .expect("eval failed")
-            .expect_number()
+            .expect_int()
             .expect("expected number");
 
-        assert_eq!(res, 10.0);
+        assert_eq!(res, 10);
     }
 
     #[test]
@@ -489,10 +489,10 @@ mod tests {
 
         let res = eval_string("(* 2 3 4)".to_string(), &env, &mut state)
             .expect("eval failed")
-            .expect_number()
+            .expect_int()
             .expect("expected number");
 
-        assert_eq!(res, 24.0);
+        assert_eq!(res, 24);
     }
 
     #[test]
@@ -502,7 +502,7 @@ mod tests {
 
         let res = eval_string("(/ 100 2 5)".to_string(), &env, &mut state)
             .expect("eval failed")
-            .expect_number()
+            .expect_float()
             .expect("expected number");
 
         assert_eq!(res, 10.0);
@@ -518,7 +518,7 @@ mod tests {
 
         let res = eval_string(code, &env, &mut state)
             .expect("eval failed")
-            .expect_number()
+            .expect_float()
             .expect("expected number");
 
         assert_eq!(res, 25.0);

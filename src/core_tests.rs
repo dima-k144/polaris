@@ -15,10 +15,10 @@ mod tests {
 
         let res = eval_string(code, &env, &mut state)
             .expect("eval defun basic failed")
-            .expect_number()
+            .expect_int()
             .expect("expected number");
 
-        assert_eq!(res, 35.0);
+        assert_eq!(res, 35);
     }
 
     #[test]
@@ -35,10 +35,10 @@ mod tests {
 
         let res = eval_string(code, &env, &mut state)
             .expect("eval defun multi-body failed")
-            .expect_number()
+            .expect_int()
             .expect("expected number");
 
-        assert_eq!(res, 20.0);
+        assert_eq!(res, 20);
     }
 
     #[test]
@@ -53,10 +53,10 @@ mod tests {
 
         let res = eval_string(code, &env, &mut state)
             .expect("eval lambda bound failed")
-            .expect_number()
+            .expect_int()
             .expect("expected number");
 
-        assert_eq!(res, 36.0);
+        assert_eq!(res, 36);
     }
 
     #[test]
@@ -71,10 +71,10 @@ mod tests {
 
         let res = eval_string(code, &env, &mut state)
             .expect("eval multi-param lambda failed")
-            .expect_number()
+            .expect_int()
             .expect("expected number");
 
-        assert_eq!(res, 25.0);
+        assert_eq!(res, 25);
     }
 
     #[test]
@@ -90,9 +90,9 @@ mod tests {
 
         let res = eval_string(code, &env, &mut state)
             .expect("eval defun scope failed")
-            .expect_number()
+            .expect_int()
             .expect("expected number");
 
-        assert_eq!(res, 15.0);
+        assert_eq!(res, 15);
     }
 }
