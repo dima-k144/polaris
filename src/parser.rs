@@ -5,7 +5,7 @@ pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Result<Expr, Error> {
     let mut chars = token.0.chars();
     let first_char = chars.next().unwrap();
     let line = token.1;
-    if first_char.is_numeric() {
+    if first_char.is_numeric() || (token.0.len() > 1 && first_char == '-' && chars.nth(0).unwrap().is_numeric()) {
         match token.0.parse::<f64>() {
             Ok(value) => Ok(Expr::SourceInfo(Box::new(Expr::Number(value)), line)),
             Err(err) => Err(Error::FailedToParseNumber { number: token.0 }),
