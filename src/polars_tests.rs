@@ -1246,4 +1246,76 @@ mod tests {
         // Clean up fixture file
         let _ = std::fs::remove_file(parquet_path);
     }
+
+    #[test]
+    fn test_sink_csv_roundtrip() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+        let temp_output = "test_sink_output.csv";
+    
+        // Stream filtered lazy plan directly to CSV
+        let sink_code = format!(
+            r#"(sink (filter (read-csv "data1.csv") (= $"city" "Paris")) "{}")"#,
+            temp_output
+        );
+    
+        eval_string(sink_code, &env, &mut state)
+            .expect("eval sink csv failed");
+    
+        // Read back and verify
+        let read_code = format!(r#"(read-csv "{}")"#, temp_output);
+        let res = eval_string(read_code, &env, &mut state)
+            .expect("eval read-csv failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+    
+        let df = res.collect().expect("failed to collect DataFrame");
+    
+        let expected_df = df!(
+            "id" => &[2i64],
+            "name" => &["Bob"],
+            "age" => &[30i64],
+            "city" => &["Paris"],
+        ).expect("failed to construct expected DataFrame");
+    
+        assert_eq!(df, expected_df);
+    
+        let _ = std::fs::remove_file(temp_output);
+    }
+    
+    #[test]
+    fn test_sink_parquet_roundtrip() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+        let temp_output = "test_sink_output.parquet";
+    
+        // Stream filtered lazy plan directly to Parquet
+        let sink_code = format!(
+            r#"(sink (filter (read-csv "data1.csv") (> $"age" 28)) "{}")"#,
+            temp_output
+        );
+    
+        eval_string(sink_code, &env, &mut state)
+            .expect("eval sink parquet failed");
+    
+        // Read back from Parquet and verify
+        let read_code = format!(r#"(read-parquet "{}")"#, temp_output);
+        let res = eval_string(read_code, &env, &mut state)
+            .expect("eval read-parquet failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+    
+        let df = res.collect().expect("failed to collect DataFrame");
+    
+        let expected_df = df!(
+            "id" => &[2i64, 5],
+            "name" => &["Bob", "Evan"],
+            "age" => &[30i64, 35],
+            "city" => &["Paris", "Madrid"],
+        ).expect("failed to construct expected DataFrame");
+    
+        assert_eq!(df, expected_df);
+    
+        let _ = std::fs::remove_file(temp_output);
+    }
 }

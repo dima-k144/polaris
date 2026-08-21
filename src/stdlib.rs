@@ -3,6 +3,7 @@ use std::fs::File;
 use polars::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 use crate::types::{Env, Error, Expr::{self, PolarsExpr}};
 
 fn nil() -> Expr { Expr::Symbol(String::from("nil")) }
@@ -138,6 +139,43 @@ fn write_csv(args: Vec<Expr>) -> Result<Expr, Error> {
         .map_err(Error::PolarsError)?;
 
     Ok(nil()) 
+}
+
+// (sink df "path/to/output.parquet") or (sink df "path/to/output.csv")
+fn sink(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args[0].clone().expect_lazy_frame()?;
+    let path = args[1].clone().expect_string()?;
+
+    let format = if path.ends_with(".parquet") {
+        FileWriteFormat::Parquet(Arc::new(ParquetWriteOptions::default()))
+    } else if path.ends_with(".csv") {
+        FileWriteFormat::Csv(CsvWriterOptions {
+            include_header: true,
+            ..Default::default()
+        })
+    } else {
+        return Err(Error::PolarsError(PolarsError::ComputeError(
+            format!("Unsupported sink file format for '{}'", path).into(),
+        )));
+    };
+
+    let destination = SinkDestination::File {
+        target: SinkTarget::Path(path.as_str().into()),
+    };
+    let sink_args = UnifiedSinkArgs::default();
+
+    // lf.sink(...) returns a LazyFrame representing the sink task.
+    // .collect() triggers the actual streaming execution to disk.
+    lf.sink(destination, format, sink_args)
+        .map_err(Error::PolarsError)?
+        .collect()
+        .map_err(|err| {
+            Error::PolarsError(PolarsError::ComputeError(
+                format!("sink failed for '{}': {}", path, err).into(),
+            ))
+        })?;
+
+    Ok(nil())
 }
 
 // (read-parquet "path/to/data.parquet") -> LazyFrame
@@ -764,6 +802,7 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     // IO
     insert_native_function(&mut defines, "read-csv", read_csv, 1, 1);
     insert_native_function(&mut defines, "write-csv", write_csv, 2, 2);
+    insert_native_function(&mut defines, "sink", sink, 2, 2);
     insert_native_function(&mut defines, "read-parquet", read_parquet, 1, 1);
     insert_native_function(&mut defines, "write-parquet", write_parquet, 2, 2);
 
