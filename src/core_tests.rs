@@ -95,4 +95,98 @@ mod tests {
 
         assert_eq!(res, 15);
     }
+
+    #[test]
+    fn test_let_basic() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (let (a 1 b 2 c 3) (+ a b c))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval let basic failed")
+            .expect_int()
+            .expect("expected number");
+
+        assert_eq!(res, 6);
+    }
+
+    #[test]
+    fn test_let_scoping_isolation() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (define x 100)
+            (let (x 10 y 20) (+ x y))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval let scope failed")
+            .expect_int()
+            .expect("expected number");
+
+        assert_eq!(res, 30);
+
+        // Verify outer scope was not mutated
+        let outer_res = eval_string("x".to_string(), &env, &mut state)
+            .expect("eval outer lookup failed")
+            .expect_int()
+            .expect("expected number");
+
+        assert_eq!(outer_res, 100);
+    }
+
+    #[test]
+    fn test_let_multi_expression_body() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (let (a 5 b 10)
+                (+ a b)
+                (* a b))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval multi-expression let failed")
+            .expect_int()
+            .expect("expected number");
+
+        assert_eq!(res, 50);
+    }
+
+    #[test]
+    fn test_let_nested() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (let (a 2 b 3)
+                (let (c 4 d 5)
+                    (+ (* a b) (* c d))))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval nested let failed")
+            .expect_int()
+            .expect("expected number");
+
+        assert_eq!(res, 26);
+    }
+
+    #[test]
+    fn test_let_odd_bindings_error() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (let (a 1 b) (+ a 1))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state);
+        assert!(res.is_err());
+    }
 }

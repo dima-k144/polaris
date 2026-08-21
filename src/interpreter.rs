@@ -66,6 +66,43 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     define(&name.clone(), func.clone(), env);
                     return Ok(func)
                 },
+                "let" => {
+                    if list.len() < 3 {
+                        return Err(Error::WrongNumberOfArguments {
+                            expected_min: 2,
+                            expected_max: u8::MAX,
+                            got: (list.len().saturating_sub(1)) as u8,
+                        });
+                    }
+
+                    let bindings = list[1].clone().expect_list()?;
+                    if bindings.len() % 2 != 0 {
+                        return Err(Error::WrongType {
+                            expected: "an even number of binding pairs (key value ...)".into(),
+                            got: list[1].clone(),
+                        });
+                    }
+
+                    // Create a new child lexical scope
+                    let child_env = Rc::new(RefCell::new(Env::with_parent(Rc::clone(env))));
+
+                    // Evaluate values in the outer/current env, then bind them into child_env
+                    // (Use child_env for eval if you prefer `let*` semantics where later bindings see earlier ones)
+                    for pair in bindings.chunks(2) {
+                        let var_name = pair[0].clone().expect_symbol()?;
+                        let var_val = eval(pair[1].clone(), env, state)?;
+                        define(&var_name, var_val, &child_env);
+                    }
+
+                    // Evaluate all body expressions sequentially and return the result of the last one
+                    let body = &list[2..];
+                    let mut result = Expr::Symbol("nil".into());
+                    for expr in body {
+                        result = eval(expr.clone(), &child_env, state)?;
+                    }
+
+                    return Ok(result);
+                },
                 "->" => {
                     let mut var = eval(list[1].clone(), env, state)?;
                     for i in 2..list.len() {
