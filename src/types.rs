@@ -200,7 +200,7 @@ impl Env {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Error {
     UnclosedString,
     UnclosedListExpr,

@@ -182,11 +182,12 @@ pub async fn ask_ai(prompt: &str) -> Result<String, Box<dyn std::error::Error>> 
 ```
 "#;
 
+    let model = "qwen/qwen3.8-27b";
     let response = Client::new()
         .post("https://openrouter.ai/api/v1/chat/completions")
         .bearer_auth(api_key)
         .json(&json!({
-            "model": "openrouter/free",
+            "model": model,
             "messages": [
                 {
                     "role": "system",

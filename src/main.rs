@@ -1,6 +1,7 @@
 use std::io::{self, Write};
 use std::fs;
 
+use crate::ai::ask_ai;
 use crate::interpreter::eval_string;
 
 mod lexer;
@@ -19,6 +20,14 @@ fn is_complete_input(input: &String) -> bool {
     open_parens_count == closed_parens_count && double_quotes_count % 2 == 0
 }
 
+fn handle_error(error: crate::types::Error, input: String) {
+    println!("{}", crate::types::format_error(error.clone()));
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let prompt = format!("User has encountered an error:{}\nUser's code:\n{}\n", crate::types::format_error(error), input);
+    let answer = runtime.block_on(crate::ai::ask_ai(&prompt)).unwrap();
+    termimad::print_text(&answer);
+}
+
 fn repl() {
     let env = crate::stdlib::std_env();
 
@@ -34,14 +43,14 @@ fn repl() {
         let mut state = interpreter::State {
             line: 0,
         };
-        match eval_string(input, &env, &mut state) {
+        match eval_string(input.clone(), &env, &mut state) {
             Ok(val) => {
                 match val.to_string() {
                     Ok(str) => println!("{str}"),
-                    Err(err) => println!("{}", crate::types::format_error(err)),
+                    Err(err) => handle_error(err, input),
                 }
             },
-            Err(err) => println!("{}", crate::types::format_error(err)),
+            Err(err) => handle_error(err, input),
         };
     }
 }
@@ -56,14 +65,14 @@ fn main() {
             let mut state = interpreter::State {
                 line: 0,
             };
-            match eval_string(contents, &env, &mut state) {
+            match eval_string(contents.clone(), &env, &mut state) {
                 Ok(val) => {
                     match val.to_string() {
                         Ok(str) => println!("{str}"),
-                        Err(err) => println!("{}", crate::types::format_error(err)),
+                        Err(err) => handle_error(err, contents),
                     }
                 },
-                Err(err) => println!("{}", crate::types::format_error(err)),
+                Err(err) => handle_error(err, contents),
             };
         }
     }
