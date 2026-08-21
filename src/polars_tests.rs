@@ -1252,70 +1252,425 @@ mod tests {
         let env = std_env();
         let mut state = State { line: 0 };
         let temp_output = "test_sink_output.csv";
-    
+
         // Stream filtered lazy plan directly to CSV
         let sink_code = format!(
             r#"(sink (filter (read-csv "data1.csv") (= $"city" "Paris")) "{}")"#,
             temp_output
         );
-    
+
         eval_string(sink_code, &env, &mut state)
             .expect("eval sink csv failed");
-    
+
         // Read back and verify
         let read_code = format!(r#"(read-csv "{}")"#, temp_output);
         let res = eval_string(read_code, &env, &mut state)
             .expect("eval read-csv failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
-    
+
         let df = res.collect().expect("failed to collect DataFrame");
-    
+
         let expected_df = df!(
             "id" => &[2i64],
             "name" => &["Bob"],
             "age" => &[30i64],
             "city" => &["Paris"],
         ).expect("failed to construct expected DataFrame");
-    
+
         assert_eq!(df, expected_df);
-    
+
         let _ = std::fs::remove_file(temp_output);
     }
-    
+
     #[test]
     fn test_sink_parquet_roundtrip() {
         let env = std_env();
         let mut state = State { line: 0 };
         let temp_output = "test_sink_output.parquet";
-    
+
         // Stream filtered lazy plan directly to Parquet
         let sink_code = format!(
             r#"(sink (filter (read-csv "data1.csv") (> $"age" 28)) "{}")"#,
             temp_output
         );
-    
+
         eval_string(sink_code, &env, &mut state)
             .expect("eval sink parquet failed");
-    
+
         // Read back from Parquet and verify
         let read_code = format!(r#"(read-parquet "{}")"#, temp_output);
         let res = eval_string(read_code, &env, &mut state)
             .expect("eval read-parquet failed")
             .expect_lazy_frame()
             .expect("expected lazy frame");
-    
+
         let df = res.collect().expect("failed to collect DataFrame");
-    
+
         let expected_df = df!(
             "id" => &[2i64, 5],
             "name" => &["Bob", "Evan"],
             "age" => &[30i64, 35],
             "city" => &["Paris", "Madrid"],
         ).expect("failed to construct expected DataFrame");
-    
+
         assert_eq!(df, expected_df);
-    
+
         let _ = std::fs::remove_file(temp_output);
+    }
+
+    #[test]
+    fn test_pivot_basic() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (sort (pivot (read-csv "data1.csv") $"city" $"name" $"age") $"name")
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval pivot failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "name" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
+            "Berlin" => &[None, None, Some(22i64), None, None],
+            "London" => &[Some(25i64), None, None, None, None],
+            "Madrid" => &[None, None, None, None, Some(35i64)],
+            "Paris" => &[None, Some(30i64), None, None, None],
+            "Rome" => &[None, None, None, Some(28i64), None],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_pivot_with_explicit_agg_sum() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (sort (pivot (read-csv "data1.csv") $"city" $"name" $"age" :sum) $"name")
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval pivot with :sum failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        // :sum produces 0i64 for non-matching combinations instead of null
+        let expected_df = df!(
+            "name" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
+            "Berlin" => &[0i64, 0, 22, 0, 0],
+            "London" => &[25i64, 0, 0, 0, 0],
+            "Madrid" => &[0i64, 0, 0, 0, 35],
+            "Paris" => &[0i64, 30, 0, 0, 0],
+            "Rome" => &[0i64, 0, 0, 28, 0],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_pivot_string_col_arguments() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        // Column names can be strings, but the subsequent sort must use a column expression $"name"
+        let code = r#"
+            (sort (pivot (read-csv "data1.csv") "city" "name" "age" :first) $"name")
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval pivot with string arguments failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "name" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
+            "Berlin" => &[None, None, Some(22i64), None, None],
+            "London" => &[Some(25i64), None, None, None, None],
+            "Madrid" => &[None, None, None, None, Some(35i64)],
+            "Paris" => &[None, Some(30i64), None, None, None],
+            "Rome" => &[None, None, None, Some(28i64), None],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_pivot_pipeline_threading() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (-> (read-csv "data1.csv")
+                (pivot $"city" $"id" $"age" :max)
+                (sort $"id"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval pipeline pivot failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "Berlin" => &[None, None, Some(22i64), None, None],
+            "London" => &[Some(25i64), None, None, None, None],
+            "Madrid" => &[None, None, None, None, Some(35i64)],
+            "Paris" => &[None, Some(30i64), None, None, None],
+            "Rome" => &[None, None, None, Some(28i64), None],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_melt_basic() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (melt (read-csv "data1.csv") (list $"id") (list $"name" $"city"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval melt basic failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5, 1, 2, 3, 4, 5],
+            "variable" => &[
+                "name", "name", "name", "name", "name",
+                "city", "city", "city", "city", "city",
+            ],
+            "value" => &[
+                "Alice", "Bob", "Charlie", "Diana", "Evan",
+                "London", "Paris", "Berlin", "Rome", "Madrid",
+            ],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_melt_custom_variable_and_value_names() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (melt (read-csv "data1.csv") (list $"id" $"name") (list $"age") "metric" "val")
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval melt with custom column names failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
+            "metric" => &["age", "age", "age", "age", "age"],
+            "val" => &[25i64, 30, 22, 28, 35],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_melt_string_column_arguments() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (melt (read-csv "data1.csv") (list "id") (list "name" "city"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval melt with string arguments failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5, 1, 2, 3, 4, 5],
+            "variable" => &[
+                "name", "name", "name", "name", "name",
+                "city", "city", "city", "city", "city",
+            ],
+            "value" => &[
+                "Alice", "Bob", "Charlie", "Diana", "Evan",
+                "London", "Paris", "Berlin", "Rome", "Madrid",
+            ],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_unpivot_alias_and_pipeline() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        let code = r#"
+            (-> (read-csv "data1.csv")
+                (unpivot (list $"id") (list $"name" $"city") "attr" "val")
+                (filter (= $"attr" "city"))
+                (sort $"id"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval unpivot pipeline failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "attr" => &["city", "city", "city", "city", "city"],
+            "val" => &["London", "Paris", "Berlin", "Rome", "Madrid"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_concat_vertical_args() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        // Concatenate two filtered LazyFrames vertically via direct arguments
+        let code = r#"
+            (concat 
+                (filter (read-csv "data1.csv") (< $"age" 25))
+                (filter (read-csv "data1.csv") (> $"age" 30)))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval concat vertical args failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[3i64, 5],
+            "name" => &["Charlie", "Evan"],
+            "age" => &[22i64, 35],
+            "city" => &["Berlin", "Madrid"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_concat_vertical_list() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        // Concatenate a list of LazyFrames vertically
+        let code = r#"
+            (concat (list 
+                (filter (read-csv "data1.csv") (= $"id" 1))
+                (filter (read-csv "data1.csv") (= $"id" 2))))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval concat list failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2],
+            "name" => &["Alice", "Bob"],
+            "age" => &[25i64, 30],
+            "city" => &["London", "Paris"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_concat_horizontal() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        // Concatenate columns horizontally using the :horizontal strategy
+        let code = r#"
+            (concat 
+                (select (read-csv "data1.csv") $"id" $"name")
+                (select (read-csv "data1.csv") $"age" $"city")
+                :horizontal)
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval concat horizontal failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
+            "age" => &[25i64, 30, 22, 28, 35],
+            "city" => &["London", "Paris", "Berlin", "Rome", "Madrid"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_concat_diagonal() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+
+        // Diagonal concatenation of frames with non-matching schemas
+        let code = r#"
+            (concat 
+                (select (read-csv "data1.csv") $"id" $"name")
+                (select (read-csv "data1.csv") $"id" $"age")
+                :diagonal)
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval concat diagonal failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5, 1, 2, 3, 4, 5],
+            "name" => &[
+                Some("Alice"), Some("Bob"), Some("Charlie"), Some("Diana"), Some("Evan"),
+                None, None, None, None, None
+            ],
+            "age" => &[
+                None, None, None, None, None,
+                Some(25i64), Some(30), Some(22), Some(28), Some(35)
+            ],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
     }
 }

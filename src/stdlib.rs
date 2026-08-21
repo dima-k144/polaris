@@ -15,6 +15,10 @@ fn print(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(nil())
 }
 
+fn list(args: Vec<Expr>) -> Result<Expr, Error> {
+    Ok(Expr::List(args))
+}
+
 fn plus(args: Vec<Expr>) -> Result<Expr, Error> {
     let has_polars_expr_arg = args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(_)));
     let has_float_arg = args.iter().any(|arg| matches!(arg, Expr::Float(_)));
@@ -779,10 +783,153 @@ fn dt_format(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(Expr::PolarsExpr(col_expr.dt().to_string(&format)))
 }
 
+// Helper to extract a column name string from String, Symbol, or $col Expr
+fn extract_col_name(expr: &Expr) -> Result<String, Error> {
+    match expr {
+        Expr::String(s) | Expr::Symbol(s) => Ok(s.clone()),
+        Expr::PolarsExpr(polars::prelude::Expr::Column(name)) => Ok(name.to_string()),
+        other => Err(Error::WrongType {
+            expected: String::from("column name or $col"),
+            got: other.clone(),
+        }),
+    }
+}
+
+// Helper to extract a Vec<String> from either a single item or Expr::List
+fn extract_col_names(arg: &Expr) -> Result<Vec<String>, Error> {
+    match arg {
+        Expr::List(list) => list.iter().map(extract_col_name).collect(),
+        _ => Ok(vec![extract_col_name(arg)?]),
+    }
+}
+
+fn pivot_(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args[0].clone().expect_lazy_frame()?;
+    let on_cols = extract_col_names(&args[1])?;
+    let index_cols = extract_col_names(&args[2])?;
+    let values_cols = extract_col_names(&args[3])?;
+
+    let agg_sym = if args.len() > 4 {
+        args[4].clone().expect_symbol()?
+    } else {
+        ":first".to_string()
+    };
+
+    let agg_expr = match agg_sym.as_str() {
+        ":sum" => polars::prelude::element().sum(),
+        ":min" => polars::prelude::element().min(),
+        ":max" => polars::prelude::element().max(),
+        ":mean" | ":avg" => polars::prelude::element().mean(),
+        ":median" => polars::prelude::element().median(),
+        ":count" | ":len" => polars::prelude::len(),
+        ":last" => polars::prelude::element().last(),
+        ":first" | _ => polars::prelude::element().first(),
+    };
+
+    // 1. Select distinct on_cols and SORT them for deterministic column ordering
+    let sort_options = SortMultipleOptions::new().with_order_descending(false);
+    let pivot_values = Arc::new(
+        lf.clone()
+            .select([cols(on_cols.clone()).as_expr()])
+            .unique(None, UniqueKeepStrategy::Any)
+            .sort_by_exprs(vec![cols(on_cols.clone()).as_expr()], sort_options)
+            .collect()
+            .map_err(Error::PolarsError)?,
+    );
+
+    // 2. Pivot LazyFrame
+    let pivoted = lf.pivot(
+        cols(on_cols),
+        pivot_values,
+        cols(index_cols),
+        cols(values_cols),
+        agg_expr,
+        false,
+        PlSmallStr::from_static("_"),
+        Default::default(),
+    );
+
+    Ok(Expr::LazyFrame(pivoted))
+}
+
+fn melt_(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args[0].clone().expect_lazy_frame()?;
+    let id_vars = extract_col_names(&args[1])?;
+    let value_vars = extract_col_names(&args[2])?;
+
+    let var_name = if args.len() > 3 {
+        Some(PlSmallStr::from(args[3].clone().expect_string()?.as_str()))
+    } else {
+        None
+    };
+
+    let val_name = if args.len() > 4 {
+        Some(PlSmallStr::from(args[4].clone().expect_string()?.as_str()))
+    } else {
+        None
+    };
+
+    let unpivot_args = UnpivotArgsDSL {
+        index: cols(id_vars).into(),
+        on: cols(value_vars).into(),
+        variable_name: var_name,
+        value_name: val_name,
+    };
+
+    Ok(Expr::LazyFrame(lf.unpivot(unpivot_args)))
+}
+
+fn concat_(args: Vec<Expr>) -> Result<Expr, Error> {
+    let mut frames = Vec::<LazyFrame>::new();
+    let mut how_str: Option<String> = None;
+
+    let items = match &args[0] {
+        Expr::List(list) => list.as_slice(),
+        _ => &args[..],
+    };
+
+    for item in items {
+        match item {
+            Expr::LazyFrame(lf) => frames.push(lf.clone()),
+            Expr::Symbol(s) if s.starts_with(':') => how_str = Some(s.clone()),
+            _ => {
+                if let Ok(lf) = item.clone().expect_lazy_frame() {
+                    frames.push(lf);
+                }
+            }
+        }
+    }
+
+    if args.len() > 1 && how_str.is_none() {
+        if let Ok(sym) = args.last().unwrap().clone().expect_symbol() {
+            if sym.starts_with(':') {
+                how_str = Some(sym);
+            }
+        }
+    }
+
+    let concatted = match how_str.as_deref() {
+        Some(":horizontal") | Some(":horiz") => {
+            concat_lf_horizontal(frames, Default::default()).map_err(Error::PolarsError)?
+        }
+        Some(":diagonal") | Some(":diag") => {
+            let mut union_args = UnionArgs::default();
+            union_args.diagonal = true;
+            polars::prelude::concat(frames, union_args).map_err(Error::PolarsError)?
+        }
+        _ => {
+            // Default: Vertical concatenation
+            polars::prelude::concat(frames, UnionArgs::default()).map_err(Error::PolarsError)?
+        }
+    };
+
+    Ok(Expr::LazyFrame(concatted))
+}
+
 pub fn insert_native_function(defines: &mut HashMap<String, Expr>, name: &str, body: fn(Vec<Expr>) -> Result<Expr, Error>,
     min_args: u8, max_args: u8) {
         defines.insert(name.to_string(), Expr::NativeFunction { body, min_args, max_args });
-    }
+}
 
 pub fn std_env() -> Rc<RefCell<Env>> {
     let mut defines = HashMap::new();
@@ -792,6 +939,7 @@ pub fn std_env() -> Rc<RefCell<Env>> {
 
     // Native Functions: (defines, name, function_pointer, min_args, max_args)
     insert_native_function(&mut defines, "print", print, 0, u8::MAX);
+    insert_native_function(&mut defines, "list", list, 0, u8::MAX);
 
     // Arithmetic
     insert_native_function(&mut defines, "+", plus, 1, u8::MAX);
@@ -877,6 +1025,12 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "dt-day", dt_day, 1, 1);
     insert_native_function(&mut defines, "dt-hour", dt_hour, 1, 1);
     insert_native_function(&mut defines, "dt-format", dt_format, 2, 2);
+
+    // Reshaping & Set Operations
+    insert_native_function(&mut defines, "pivot", pivot_, 4, 5);
+    insert_native_function(&mut defines, "melt", melt_, 3, 5);
+    insert_native_function(&mut defines, "unpivot", melt_, 3, 5);
+    insert_native_function(&mut defines, "concat", concat_, 1, u8::MAX);
 
     Rc::new(RefCell::new(Env {
         defines,
