@@ -10,6 +10,7 @@ mod interpreter;
 mod stdlib;
 mod core_tests;
 mod polars_tests;
+mod ai;
 
 fn is_complete_input(input: &String) -> bool {
     let open_parens_count = input.chars().filter(|&c| c == '(').count();

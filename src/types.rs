@@ -134,7 +134,7 @@ impl fmt::Display for Expr {
             Expr::Symbol(s) => write!(f, "{s}"),
             Expr::Int(n) => write!(f, "{n}"),
             Expr::Float(n) => write!(f, "{n}"),
-            Expr::String(s) => write!(f, "{s}"),
+            Expr::String(s) => Ok(termimad::print_text(s)),
             Expr::List(items) => {
                 write!(f, "(")?;
                 for (i, item) in items.iter().enumerate() {
