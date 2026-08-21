@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::interpreter::{eval_string, State};
+    use crate::types::Error;
     use crate::stdlib::std_env;
     use polars::prelude::*;
     use std::fs::File;
@@ -1672,5 +1673,91 @@ mod tests {
         ).expect("failed to construct expected DataFrame");
 
         assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_scalar_int() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+    
+        // Aggregate to a 1x1 LazyFrame containing the sum of ages (140)
+        let code = r#"
+            (scalar (agg (read-csv "data1.csv") (sum $"age")))
+        "#.to_string();
+    
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval scalar int failed")
+            .expect_int()
+            .expect("expected int result");
+    
+        assert_eq!(res, 140);
+    }
+    
+    #[test]
+    fn test_scalar_float() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+    
+        // Aggregate to a 1x1 LazyFrame containing the mean age (28.0)
+        let code = r#"
+            (scalar (agg (read-csv "data1.csv") (mean $"age")))
+        "#.to_string();
+    
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval scalar float failed")
+            .expect_float()
+            .expect("expected float result");
+    
+        assert_eq!(res, 28.0);
+    }
+    
+    #[test]
+    fn test_scalar_string() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+    
+        // Filter to a single row and select 1 column to get a 1x1 String
+        let code = r#"
+            (scalar (select (filter (read-csv "data1.csv") (= $"id" 1)) $"name"))
+        "#.to_string();
+    
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval scalar string failed")
+            .expect_string()
+            .expect("expected string result");
+    
+        assert_eq!(res, "Alice");
+    }
+    
+    #[test]
+    fn test_scalar_boolean() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+    
+        // Materialize a 1x1 boolean expression
+        let code = r#"
+            (scalar (select (filter (read-csv "data1.csv") (= $"id" 1)) (= $"name" "Alice")))
+        "#.to_string();
+    
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval scalar boolean failed")
+            .expect_symbol()
+            .expect("expected symbol result");
+    
+        assert_eq!(res, "true");
+    }
+    
+    #[test]
+    fn test_scalar_shape_error() {
+        let env = std_env();
+        let mut state = State { line: 0 };
+    
+        // Attempting scalar conversion on a non-1x1 LazyFrame should fail with ScalarShapeError
+        let code = r#"
+            (scalar (read-csv "data1.csv"))
+        "#.to_string();
+    
+        let res = eval_string(code, &env, &mut state);
+        assert!(matches!(res, Err(Error::ScalarShapeError { .. })));
     }
 }

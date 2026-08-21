@@ -219,6 +219,12 @@ pub enum Error {
         expected_max: u8,
         got: u8
     },
+    ScalarShapeError{
+        shape: (usize, usize)
+    },
+    ScalarUnsupportedError{
+        name: String
+    },
     PolarsError(polars::prelude::PolarsError)
 }
 
@@ -232,6 +238,8 @@ pub fn format_error(error: Error) -> String {
         Error::WrongNumberOfArguments { 
             expected_min, expected_max, got 
         } => format!("Error: expected {expected_min}-{expected_max} number of argumens, got {got}"),
+        Error::ScalarShapeError { shape } => format!("Error: failed to convert to lisp expr, shape is {} by {}", shape.0, shape.1),
+        Error::ScalarUnsupportedError { name } => format!("Error: unsupported scalar conversion from type '{name}'"),
         Error::PolarsError(perror) => format!("Error: {}", perror)
     }
 }

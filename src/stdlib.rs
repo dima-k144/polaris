@@ -926,6 +926,48 @@ fn concat_(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(Expr::LazyFrame(concatted))
 }
 
+// (scalar expr) — materialize a 1x1 result into a Lisp scalar
+fn scalar(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args[0].clone().expect_lazy_frame()?;
+    let df = lf.collect().map_err(Error::PolarsError)?;
+    if df.shape() != (1, 1) { return Err(Error::ScalarShapeError { shape: df.shape() }) }
+    let row = df.get(0).unwrap();
+    match row[0].clone() {
+        AnyValue::Null => Ok(nil()),
+        AnyValue::Boolean(b) => if b { Ok(Expr::Symbol("true".to_string())) } else { Ok(Expr::Symbol("false".to_string())) },
+        AnyValue::String(s) => Ok(Expr::String(s.to_string())),
+        AnyValue::UInt8(i) => Ok(Expr::Int(i.into())),
+        AnyValue::UInt16(i) => Ok(Expr::Int(i.into())),
+        AnyValue::UInt32(i) => Ok(Expr::Int(i.into())),
+        AnyValue::UInt64(i) => Ok(Expr::Int(i as i64)),
+        AnyValue::UInt128(i) => Ok(Expr::Int(i as i64)),
+        AnyValue::Int8(i) => Ok(Expr::Int(i as i64)),
+        AnyValue::Int16(i) => Ok(Expr::Int(i as i64)),
+        AnyValue::Int32(i) => Ok(Expr::Int(i as i64)),
+        AnyValue::Int64(i) => Ok(Expr::Int(i as i64)),
+        AnyValue::Int128(i) => Ok(Expr::Int(i as i64)),
+        AnyValue::Float16(f) => Ok(Expr::Float(f.into())),
+        AnyValue::Float32(f) => Ok(Expr::Float(f.into())),
+        AnyValue::Float64(f) => Ok(Expr::Float(f.into())),
+        AnyValue::Date(_) => Err(Error::ScalarUnsupportedError { name: "Date".to_string() }),
+        AnyValue::Datetime(_, time_unit, time_zone) => Err(Error::ScalarUnsupportedError { name: "DateTime".to_string() }),
+        AnyValue::DatetimeOwned(_, time_unit, time_zone) => Err(Error::ScalarUnsupportedError { name: "DatetimeOwned".to_string() }),
+        AnyValue::Duration(_, time_unit) => Err(Error::ScalarUnsupportedError { name: "Duration".to_string() }),
+        AnyValue::Time(_) => Err(Error::ScalarUnsupportedError { name: "Time".to_string() }),
+        AnyValue::Categorical(_, categorical_mapping) => Err(Error::ScalarUnsupportedError { name: "Categorical".to_string() }),
+        AnyValue::CategoricalOwned(_, categorical_mapping) => Err(Error::ScalarUnsupportedError { name: "CategoricalOwned".to_string() }),
+        AnyValue::Enum(_, categorical_mapping) => Err(Error::ScalarUnsupportedError { name: "Enum".to_string() }),
+        AnyValue::EnumOwned(_, categorical_mapping) => Err(Error::ScalarUnsupportedError { name: "EnumOwned".to_string() }),
+        AnyValue::List(series) => Err(Error::ScalarUnsupportedError { name: "List".to_string() }),
+        AnyValue::Struct(_, struct_array, fields) => Err(Error::ScalarUnsupportedError { name: "Struct".to_string() }),
+        AnyValue::StructOwned(_) => Err(Error::ScalarUnsupportedError { name: "StructOwned".to_string() }),
+        AnyValue::StringOwned(pl_small_str) => Ok(Expr::String(pl_small_str.to_string())),
+        AnyValue::Binary(items) => Err(Error::ScalarUnsupportedError { name: "Binary".to_string() }),
+        AnyValue::BinaryOwned(items) => Err(Error::ScalarUnsupportedError { name: "BinaryOwned".to_string() }),
+        _ => Err(Error::ScalarUnsupportedError { name: "Unknown".to_string() })
+    }
+}
+
 pub fn insert_native_function(defines: &mut HashMap<String, Expr>, name: &str, body: fn(Vec<Expr>) -> Result<Expr, Error>,
     min_args: u8, max_args: u8) {
         defines.insert(name.to_string(), Expr::NativeFunction { body, min_args, max_args });
@@ -1031,6 +1073,9 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "melt", melt_, 3, 5);
     insert_native_function(&mut defines, "unpivot", melt_, 3, 5);
     insert_native_function(&mut defines, "concat", concat_, 1, u8::MAX);
+
+    // Polars to lisp
+    insert_native_function(&mut defines, "scalar", scalar, 1, 1);
 
     Rc::new(RefCell::new(Env {
         defines,
