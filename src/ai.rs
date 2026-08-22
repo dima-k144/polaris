@@ -917,3 +917,109 @@ RULES:
 
     Ok(output_path)
 }
+
+pub fn sample_lazy_frame(lf: &LazyFrame, n_samples: usize) -> Result<String, polars::prelude::PolarsError> {
+    let schema = lf.clone().collect_schema()?;
+    // Take a small sample of the data to inspect values
+    let sample_df = lf.clone().limit(n_samples as u32).collect()?;
+    let total_rows = sample_df.height();
+
+    let mut summary = format!("Dataset Sample ({total_rows} sample rows):\n");
+
+    for field in schema.iter_fields() {
+        let name = field.name().as_str();
+        let dtype = field.dtype();
+        
+        let col_data = match sample_df.column(name) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        // Collect sample non-null scalar representations
+        let mut sample_vals = Vec::new();
+        for idx in 0..col_data.len().min(5) {
+            if let Ok(val) = col_data.get(idx) {
+                sample_vals.push(format!("{:?}", val));
+            }
+        }
+
+        summary.push_str(&format!(
+            "  • `{name}` ({dtype}) -> samples: [{}]\n",
+            sample_vals.join(", ")
+        ));
+    }
+
+    Ok(summary)
+}
+
+pub async fn infer_and_cast_lazy_frame(lf: &LazyFrame) -> Result<String, Box<dyn std::error::Error>> {
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(
+        ProgressStyle::with_template("{spinner:.cyan} {msg}")
+            .unwrap()
+            .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", " "]),
+    );
+    pb.set_message("Inferring semantic types and building type-cast pipeline...");
+    pb.enable_steady_tick(Duration::from_millis(80));
+
+    let sample_data = sample_lazy_frame(lf, 10)?;
+
+    let api_key = std::env::var("OPENROUTER_API_KEY").unwrap_or_else(|_| {
+        "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".to_string()
+    });
+
+    let system_instructions = r#"
+You are the MLisp Type Inference & Semantic Casting Agent.
+Given a dataset schema and sample values, inspect strings/types and produce a minimal MLisp transformation pipeline starting with `(-> __df__ ...)`.
+
+RULES & CONVERSIONS:
+1. Currencies/Formatted Numbers: (e.g. "$1,200.50", "30%") -> strip symbols via `str-replace` and cast:
+   (with-column $"price" (cast (str-replace (str-replace $"price" "\\$" "") "," "") :float))
+2. Dates/Datetimes: String columns containing date/time formats -> use `(to-date $"col" "%Y-%m-%d")` or `(to-datetime $"col")`. Infer the strptime format from the samples.
+3. Messy Booleans: (e.g. "Y"/"N", "yes"/"no", "t"/"f") -> use `when`:
+   (with-column $"active" (when (or (= $"active" "Y") (= $"active" "yes") (= $"active" "true")) true false))
+4. Numeric IDs: Keep columns like "user_id" or "zipcode" that are parsed as integers or strings intact or cast to :str if preservation is needed.
+5. If a column already has the correct native type (e.g., already Int64 or Float64), DO NOT add redundant casts.
+6. Return ONLY the pure MLisp code starting with `(-> __df__ ...)`.
+7. DO NOT wrap output in markdown backticks. No comments, notes, or explanations.
+"#;
+
+    let user_prompt = format!(
+        "Dataset Samples & Types:\n{}\n\nGenerate the casting pipeline:",
+        sample_data
+    );
+
+    let client = Client::new();
+    let response_future = client
+        .post("https://openrouter.ai/api/v1/chat/completions")
+        .bearer_auth(api_key)
+        .json(&json!({
+            "model": "google/gemini-3.7-flash",
+            "messages": [
+                { "role": "system", "content": system_instructions },
+                { "role": "system", "content": LANGUAGE_SPEC },
+                { "role": "user", "content": user_prompt }
+            ],
+            "temperature": 0.0
+        }))
+        .send();
+
+    let response_res = tokio::select! {
+        res = response_future => res,
+        _ = tokio::signal::ctrl_c() => {
+            pb.finish_and_clear();
+            return Err("AI type inference cancelled by user.".into());
+        }
+    };
+
+    let response = response_res?;
+    let json_resp: serde_json::Value = response.json().await?;
+    pb.finish_and_clear();
+
+    let raw_code = json_resp["choices"][0]["message"]["content"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+
+    Ok(extract_lisp_code(&raw_code))
+}

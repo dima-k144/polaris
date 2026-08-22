@@ -1081,6 +1081,31 @@ fn ai_to_csv(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(Expr::String(output_file))
 }
 
+fn ai_cast(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args[0].clone().expect_lazy_frame()?;
+
+    let runtime = tokio::runtime::Runtime::new().map_err(|e| {
+        Error::Custom(format!("Failed to create async runtime: {e}"))
+    })?;
+
+    // 1. Ask AI to infer types and return the (-> __df__ ...) pipeline
+    let generated_code = runtime
+        .block_on(ai::infer_and_cast_lazy_frame(&lf))
+        .map_err(|err| Error::Custom(format!("AI Cast inference failed: {err}")))?;
+
+    println!("\n\x1b[36m; Inferred Type-Cast Pipeline:\x1b[0m\n  {}\n", generated_code);
+
+    // 2. Evaluate against the LazyFrame in an isolated child scope
+    let child_env = Rc::new(RefCell::new(Env::with_parent(std_env())));
+    child_env
+        .borrow_mut()
+        .defines
+        .insert("__df__".to_string(), Expr::LazyFrame(lf));
+
+    let mut state = State { line: 0 };
+    eval_string(generated_code, &child_env, &mut state)
+}
+
 pub fn std_env() -> Rc<RefCell<Env>> {
     let mut defines = HashMap::new();
 
@@ -1092,6 +1117,7 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "ai-clean", ai_clean, 1, 2);
     insert_native_function(&mut defines, "ai-plot", ai_plot, 2, 2);
     insert_native_function(&mut defines, "ai-to-csv", ai_to_csv, 1, 1);
+    insert_native_function(&mut defines, "ai-cast", ai_cast, 1, 1);
 
     // Native Functions: (defines, name, function_pointer, min_args, max_args)
     insert_native_function(&mut defines, "print", print, 0, u8::MAX);
