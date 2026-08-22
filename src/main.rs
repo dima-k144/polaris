@@ -6,6 +6,7 @@ use crate::types::Env;
 
 use crate::ai::ask_ai;
 use crate::interpreter::eval_string;
+use crate::ai::suggest_fix;
 
 use mimalloc::MiMalloc;
 
@@ -30,11 +31,37 @@ fn is_complete_input(input: &String) -> bool {
 }
 
 fn handle_error(error: crate::types::Error, input: String, env: &Rc<RefCell<Env>>) {
-    println!("{}", crate::types::format_error(error.clone()));
+    let err_str = crate::types::format_error(error);
+    println!("{err_str}");
+
     let runtime = tokio::runtime::Runtime::new().unwrap();
-    let prompt = format!("User has encountered an error:{}\nUser's code:\n{}\n", crate::types::format_error(error), input);
-    let answer = runtime.block_on(crate::ai::ask_ai(&prompt, env)).unwrap();
-    termimad::print_text(&answer);
+    match runtime.block_on(suggest_fix(&err_str, &input, env)) {
+        Ok(fix) => {
+            termimad::print_text(&format!("**AI Diagnosis:** {}", fix.explanation));
+            println!("\nSuggested Fix:\n  {}", fix.fixed_code);
+            print!("\nApply suggested fix? (y/N): ");
+            io::stdout().flush().unwrap();
+
+            let mut choice = String::new();
+            if io::stdin().read_line(&mut choice).is_ok() {
+                let trimmed = choice.trim().to_lowercase();
+                if trimmed == "y" || trimmed == "yes" {
+                    println!("\nExecuting fix...");
+                    let mut state = interpreter::State { line: 0 };
+                    match eval_string(fix.fixed_code.clone(), env, &mut state) {
+                        Ok(val) => match val.to_string() {
+                            Ok(str) => println!("{str}"),
+                            Err(e) => handle_error(e, fix.fixed_code, env),
+                        },
+                        Err(e) => handle_error(e, fix.fixed_code, env),
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to generate AI auto-fix: {e}");
+        }
+    }
 }
 
 fn repl() {

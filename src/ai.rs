@@ -7,6 +7,7 @@ use crate::types::*;
 use polars::prelude::LazyFrame;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::time::Duration;
+use serde::Deserialize;
 
 static LANGUAGE_SPEC: &str = r#"
 # MLisp: Language Specification & AI Prompt Guide
@@ -344,4 +345,82 @@ Below is language specification
 
     let cleaned_code = extract_lisp_code(&raw_code);
     Ok(cleaned_code)
+}
+
+#[derive(Deserialize)]
+pub struct FixResponse {
+    pub explanation: String,
+    pub fixed_code: String,
+}
+
+pub async fn suggest_fix(
+    error_msg: &str,
+    input_code: &str,
+    env: &Rc<RefCell<Env>>,
+) -> Result<FixResponse, Box<dyn std::error::Error>> {
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(
+        ProgressStyle::with_template("{spinner:.cyan} {msg}")
+            .unwrap()
+            .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", " "]),
+    );
+    pb.set_message("AI is analyzing error and generating fix...");
+    pb.enable_steady_tick(Duration::from_millis(80));
+
+    let api_key = std::env::var("OPENROUTER_API_KEY").unwrap_or_else(|_| {
+        "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".to_string()
+    });
+
+    let system_instructions = r#"
+You are the MLisp Error Recovery Agent.
+Analyze the user's MLisp code and the encountered error.
+Provide a clear, brief explanation and the corrected MLisp code.
+
+Respond ONLY with valid JSON matching this schema:
+{
+  "explanation": "1-2 sentence explanation of the bug and fix",
+  "fixed_code": "pure MLisp expression without markdown formatting or code blocks"
+}
+"#;
+
+    let user_prompt = format!(
+        "Encountered Error:\n{}\n\nFailing Code:\n{}",
+        error_msg, input_code
+    );
+
+    let client = Client::new();
+    let response = client
+        .post("https://openrouter.ai/api/v1/chat/completions")
+        .bearer_auth(api_key)
+        .json(&json!({
+            "model": "qwen/qwen3.8-27b",
+            "messages": [
+                { "role": "system", "content": system_instructions },
+                { "role": "system", "content": LANGUAGE_SPEC },
+                { "role": "system", "content": collect_context(env) },
+                { "role": "user", "content": user_prompt }
+            ],
+            "response_format": { "type": "json_object" },
+            "temperature": 0.1
+        }))
+        .send()
+        .await;
+
+    let response = match response {
+        Ok(res) => res,
+        Err(err) => {
+            pb.finish_and_clear();
+            return Err(Box::new(err));
+        }
+    };
+
+    let json_resp: serde_json::Value = response.json().await?;
+    pb.finish_and_clear();
+
+    let content = json_resp["choices"][0]["message"]["content"]
+        .as_str()
+        .unwrap_or("{}");
+
+    let parsed: FixResponse = serde_json::from_str(content)?;
+    Ok(parsed)
 }
