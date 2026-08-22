@@ -5,6 +5,8 @@ use std::rc::Rc;
 use crate::types::Env;
 use crate::types::*;
 use polars::prelude::LazyFrame;
+use indicatif::{ProgressBar, ProgressStyle};
+use std::time::Duration;
 
 static LANGUAGE_SPEC: &str = r#"
 # MLisp: Language Specification & AI Prompt Guide
@@ -223,33 +225,46 @@ pub fn collect_context(env: &Rc<RefCell<Env>>) -> String {
 }
 
 pub async fn ask_ai(prompt: &str, env: &Rc<RefCell<Env>>) -> Result<String, Box<dyn std::error::Error>> {
+    // 1. Create and configure spinner
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(
+        ProgressStyle::with_template("{spinner:.cyan} {msg}")
+            .unwrap()
+            .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", " "]),
+    );
+    pb.set_message("AI is thinking...");
+    pb.enable_steady_tick(Duration::from_millis(80));
+
     let api_key = String::from("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");
-    
     let model = "qwen/qwen3.8-27b";
-    let response = Client::new()
+    
+    // 2. Perform the async network request
+    let response_res = Client::new()
         .post("https://openrouter.ai/api/v1/chat/completions")
         .bearer_auth(api_key)
         .json(&json!({
             "model": model,
             "messages": [
-                {
-                    "role": "system",
-                    "content": LANGUAGE_SPEC
-                },
-                {
-                    "role": "system",
-                    "content": collect_context(env)
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
+                { "role": "system", "content": LANGUAGE_SPEC },
+                { "role": "system", "content": collect_context(env) },
+                { "role": "user", "content": prompt }
             ]
         }))
         .send()
-        .await?;
+        .await;
+
+    let response = match response_res {
+        Ok(res) => res,
+        Err(err) => {
+            pb.finish_and_clear();
+            return Err(Box::new(err));
+        }
+    };
 
     let json: serde_json::Value = response.json().await?;
+
+    // 3. Clear or finish the spinner once complete
+    pb.finish_and_clear();
 
     Ok(json["choices"][0]["message"]["content"]
         .as_str()
@@ -261,6 +276,15 @@ pub async fn generate_mlisp_code(
     user_query: &str,
     env: &Rc<RefCell<Env>>,
 ) -> Result<String, Error> {
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(
+        ProgressStyle::with_template("{spinner:.cyan} {msg}")
+            .unwrap()
+            .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", " "]),
+    );
+    pb.set_message("Generating MLisp code...");
+    pb.enable_steady_tick(Duration::from_millis(80));
+
     let api_key = std::env::var("OPENROUTER_API_KEY").unwrap_or_else(|_| {
         "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".to_string()
     });
@@ -298,12 +322,20 @@ Below is language specification
         }))
         .send()
         .await
-        .map_err(|e| Error::Custom(format!("AI network error: {e}")))?;
+        .map_err(|e| {
+            pb.finish_and_clear();
+            Error::Custom(format!("AI network error: {e}"))
+        })?;
 
     let json_resp: serde_json::Value = response
         .json()
         .await
-        .map_err(|e| Error::Custom(format!("Failed to parse AI response JSON: {e}")))?;
+        .map_err(|e| {
+            pb.finish_and_clear();
+            Error::Custom(format!("Failed to parse AI response JSON: {e}"))
+        })?;
+
+    pb.finish_and_clear();
 
     let raw_code = json_resp["choices"][0]["message"]["content"]
         .as_str()
