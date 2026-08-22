@@ -4,6 +4,11 @@ use std::fs;
 use crate::ai::ask_ai;
 use crate::interpreter::eval_string;
 
+use mimalloc::MiMalloc;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
+
 mod lexer;
 mod parser;
 mod types;
@@ -58,14 +63,13 @@ fn repl() {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    for arg in args {
-        let env = crate::stdlib::std_env();
+    let lsp_files: Vec<&String> = args.iter().filter(|arg| arg.ends_with(".lsp")).collect();
 
-        if arg.ends_with(".lsp") {
+    if !lsp_files.is_empty() {
+        for arg in lsp_files {
+            let env = crate::stdlib::std_env();
             let contents = fs::read_to_string(arg).unwrap();
-            let mut state = interpreter::State {
-                line: 0,
-            };
+            let mut state = interpreter::State { line: 0 };
             match eval_string(contents.clone(), &env, &mut state) {
                 Ok(val) => {
                     match val.to_string() {
@@ -76,6 +80,7 @@ fn main() {
                 Err(err) => handle_error(err, contents),
             };
         }
+        return; // Exit without entering REPL
     }
 
     repl();

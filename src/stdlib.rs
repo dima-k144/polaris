@@ -983,6 +983,12 @@ fn scalar(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
+fn collect_(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args[0].clone().expect_lazy_frame()?;
+    lf.collect().unwrap();
+    Ok(nil())
+}
+
 pub fn ask(args: Vec<Expr>) -> Result<Expr, Error> {
     let question = args[0].clone().expect_string()?;
     let runtime = tokio::runtime::Runtime::new().unwrap();
@@ -1020,6 +1026,9 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "sink", sink, 2, 2);
     insert_native_function(&mut defines, "read-parquet", read_parquet, 1, 1);
     insert_native_function(&mut defines, "write-parquet", write_parquet, 2, 2);
+
+    // Collect
+    insert_native_function(&mut defines, "collect", collect_, 1, 1);
 
     // Inspection
     insert_native_function(&mut defines, "head", head, 1, 1);
