@@ -1109,6 +1109,7 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "histogram", plotlarslib::histogram, 1, u8::MAX);
     insert_native_function(&mut defines, "box-plot", plotlarslib::box_plot, 1, u8::MAX);
     insert_native_function(&mut defines, "time-series-plot", plotlarslib::time_series_plot, 1, u8::MAX);
+    insert_native_function(&mut defines, "line-plot", plotlarslib::line_plot, 1, u8::MAX);
 
     // Polars to lisp
     insert_native_function(&mut defines, "scalar", scalar, 1, 1);

@@ -51,4 +51,14 @@
   :x-title "Date"
   :y-title "Sales ($)")
 
+(define lf2 (read-csv "data7.csv"))
+
+(line-plot lf2
+  :x "temperature"
+  :y "pressure"
+  :title "Pressure vs. Temperature"
+  :x-title "Temperature (°C)"
+  :y-title "Pressure (bar)"
+  :width 2.5)
+
 (print lf)
