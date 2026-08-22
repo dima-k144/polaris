@@ -8,6 +8,7 @@ use polars::prelude::LazyFrame;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::time::Duration;
 use serde::Deserialize;
+use polars::prelude::*;
 
 static LANGUAGE_SPEC: &str = r#"
 # MLisp: Language Specification & AI Prompt Guide
@@ -209,11 +210,11 @@ pub fn collect_context(env: &Rc<RefCell<Env>>) -> String {
     let mut context = String::from("Here's the context about user's current environment with variables\nUser env: {");
     for (name, value) in env.borrow().defines.iter() {
         match value {
-            Expr::LazyFrame(lf) => {
+            crate::types::Expr::LazyFrame(lf) => {
                 let lf_info = lf.clone().collect_schema().unwrap();
                 context.push_str(&format!("{name}: LazyFrame {{ {:?} }}", lf_info));
             },
-            Expr::NativeFunction { body, min_args, max_args } => {
+            crate::types::Expr::NativeFunction { body, min_args, max_args } => {
 
             },
             _ => { 
@@ -423,4 +424,209 @@ Respond ONLY with valid JSON matching this schema:
 
     let parsed: FixResponse = serde_json::from_str(content)?;
     Ok(parsed)
+}
+
+pub fn profile_lazy_frame(lf: &LazyFrame) -> Result<String, polars::prelude::PolarsError> {
+    let schema = lf.clone().collect_schema()?;
+    let collected_df = lf.clone().collect()?;
+    let (total_rows, total_cols) = collected_df.shape();
+
+    let mut profile_summary = format!(
+        "Dataset Profile:\n- Dimensions: {total_rows} rows x {total_cols} columns\n- Columns:\n"
+    );
+
+    for field in schema.iter_fields() {
+        let name = field.name().as_str();
+        let dtype = field.dtype();
+
+        let is_numeric = matches!(
+            dtype,
+            DataType::Int8
+                | DataType::Int16
+                | DataType::Int32
+                | DataType::Int64
+                | DataType::UInt8
+                | DataType::UInt16
+                | DataType::UInt32
+                | DataType::UInt64
+                | DataType::Float32
+                | DataType::Float64
+        );
+
+        let col_series = match collected_df.column(name) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+
+        let null_count = col_series.null_count();
+        let unique_count = col_series.n_unique().unwrap_or(0);
+        let null_pct = (null_count as f64 / total_rows.max(1) as f64) * 100.0;
+
+        if is_numeric {
+            let min_str = col_series
+                .min_reduce()
+                .map(|v| format!("{:?}", v.value()))
+                .unwrap_or_else(|_| "null".into());
+            let max_str = col_series
+                .max_reduce()
+                .map(|v| format!("{:?}", v.value()))
+                .unwrap_or_else(|_| "null".into());
+            let mean_str = col_series
+                .mean_reduce()
+                .map(|v| format!("{:?}", v.value()))
+                .unwrap_or_else(|_| "null".into());
+            let median_str = col_series
+                .median_reduce()
+                .map(|v| format!("{:?}", v.value()))
+                .unwrap_or_else(|_| "null".into());
+
+            profile_summary.push_str(&format!(
+                "  • `{name}` ({dtype}): nulls={null_count} ({null_pct:.1}%), unique={unique_count}, min={min_str}, max={max_str}, mean={mean_str}, median={median_str}\n"
+            ));
+        } else {
+            profile_summary.push_str(&format!(
+                "  • `{name}` ({dtype}): nulls={null_count} ({null_pct:.1}%), unique={unique_count}\n"
+            ));
+        }
+    }
+
+    Ok(profile_summary)
+}
+
+pub async fn explain_lazy_frame(lf: &LazyFrame) -> Result<String, Box<dyn std::error::Error>> {
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(
+        ProgressStyle::with_template("{spinner:.cyan} {msg}")
+            .unwrap()
+            .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", " "]),
+    );
+    pb.set_message("Analyzing dataset profile...");
+    pb.enable_steady_tick(Duration::from_millis(80));
+
+    let profile_data = profile_lazy_frame(lf)?;
+
+    let api_key = std::env::var("OPENROUTER_API_KEY").unwrap_or_else(|_| {
+        "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".to_string()
+    });
+
+    let system_instructions = r#"
+You are a senior data scientist and MLisp expert.
+Analyze the provided dataset profile summary.
+Provide an insightful analysis formatted in clean Markdown with:
+1. **Summary & Health**: High-level observations (null percentages, cardinality).
+2. **Key Anomalies & Outliers**: Obvious skewness, min/max anomalies, or data hygiene issues.
+3. **Recommended Next Steps**: Concrete MLisp transformations to clean or enrich this dataset.
+Keep the points direct and concise.
+"#;
+
+    let client = Client::new();
+    let response = client
+        .post("https://openrouter.ai/api/v1/chat/completions")
+        .bearer_auth(api_key)
+        .json(&json!({
+            "model": "qwen/qwen3.8-27b",
+            "messages": [
+                { "role": "system", "content": system_instructions },
+                { "role": "user", "content": profile_data }
+            ],
+            "temperature": 0.2
+        }))
+        .send()
+        .await;
+
+    let response = match response {
+        Ok(res) => res,
+        Err(err) => {
+            pb.finish_and_clear();
+            return Err(Box::new(err));
+        }
+    };
+
+    let json_resp: serde_json::Value = response.json().await?;
+    pb.finish_and_clear();
+
+    Ok(json_resp["choices"][0]["message"]["content"]
+        .as_str()
+        .unwrap_or("")
+        .to_string())
+}
+
+pub async fn clean_lazy_frame(
+    lf: &LazyFrame,
+    custom_instructions: Option<&str>,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(
+        ProgressStyle::with_template("{spinner:.cyan} {msg}")
+            .unwrap()
+            .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", " "]),
+    );
+    pb.set_message("Generating data cleaning pipeline...");
+    pb.enable_steady_tick(Duration::from_millis(80));
+
+    let profile_data = profile_lazy_frame(lf)?;
+
+    let api_key = std::env::var("OPENROUTER_API_KEY").unwrap_or_else(|_| {
+        "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".to_string()
+    });
+
+    let instructions_text = match custom_instructions {
+        Some(instr) => format!("\nAdditional User Instructions: {}\n", instr),
+        None => String::new(),
+    };
+
+    let system_instructions = r#"
+You are the MLisp Data Cleaning Agent.
+Given a dataset profile summary and optional instructions, produce a complete MLisp transformation pipeline starting with `(-> __df__ ...)`.
+
+RULES:
+1. Always start the pipeline with `(-> __df__ ...)`.
+2. Clean data where appropriate:
+   - Handle missing null values via `(fill-null ...)` or `(drop-nulls ...)`.
+   - Cast date/datetime strings via `(to-date ...)` or `(to-datetime ...)`.
+   - Normalize casing or trim strings where needed with string operations.
+   - Clean column names or cast invalid numeric types.
+3. Return ONLY pure MLisp code.
+4. DO NOT wrap output in markdown backticks (no ```lisp).
+5. DO NOT include explanations, prose, or comments.
+"#;
+
+    let user_prompt = format!(
+        "Dataset Profile:\n{}{}\nGenerate the cleaning pipeline starting with (-> __df__ ...):",
+        profile_data, instructions_text
+    );
+
+    let client = Client::new();
+    let response = client
+        .post("[https://openrouter.ai/api/v1/chat/completions](https://openrouter.ai/api/v1/chat/completions)")
+        .bearer_auth(api_key)
+        .json(&json!({
+            "model": "qwen/qwen3.8-27b",
+            "messages": [
+                { "role": "system", "content": system_instructions },
+                { "role": "system", "content": LANGUAGE_SPEC },
+                { "role": "user", "content": user_prompt }
+            ],
+            "temperature": 0.1
+        }))
+        .send()
+        .await;
+
+    let response = match response {
+        Ok(res) => res,
+        Err(err) => {
+            pb.finish_and_clear();
+            return Err(Box::new(err));
+        }
+    };
+
+    let json_resp: serde_json::Value = response.json().await?;
+    pb.finish_and_clear();
+
+    let raw_code = json_resp["choices"][0]["message"]["content"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+
+    Ok(extract_lisp_code(&raw_code))
 }

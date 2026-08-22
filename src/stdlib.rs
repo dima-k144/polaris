@@ -6,6 +6,8 @@ use std::rc::Rc;
 use std::sync::Arc;
 use crate::types::{Env, Error, Expr::{self, PolarsExpr}};
 use crate::plotlarslib;
+use crate::ai;
+use crate::interpreter::{eval_string, State};
 
 pub fn nil() -> Expr { Expr::Symbol(String::from("nil")) }
 
@@ -994,11 +996,58 @@ pub fn insert_native_function(defines: &mut HashMap<String, Expr>, name: &str, b
         defines.insert(name.to_string(), Expr::NativeFunction { body, min_args, max_args });
 }
 
+fn ai_explain(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args[0].clone().expect_lazy_frame()?;
+    let runtime = tokio::runtime::Runtime::new().map_err(|e| {
+        Error::Custom(format!("Failed to create async runtime: {e}"))
+    })?;
+
+    match runtime.block_on(ai::explain_lazy_frame(&lf)) {
+        Ok(analysis) => Ok(Expr::String(analysis)),
+        Err(err) => Err(Error::Custom(format!("AI Explain failed: {err}"))),
+    }
+}
+
+fn ai_clean(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args[0].clone().expect_lazy_frame()?;
+    let custom_instructions = if args.len() > 1 {
+        Some(args[1].clone().expect_string()?)
+    } else {
+        None
+    };
+
+    let runtime = tokio::runtime::Runtime::new().map_err(|e| {
+        Error::Custom(format!("Failed to create async runtime: {e}"))
+    })?;
+
+    // 1. Ask the AI for the cleaning MLisp pipeline
+    let generated_code = runtime
+        .block_on(ai::clean_lazy_frame(&lf, custom_instructions.as_deref()))
+        .map_err(|err| Error::Custom(format!("AI Clean failed: {err}")))?;
+
+    println!("\nGenerated Cleaning Pipeline:\n  {}", generated_code);
+
+    // 2. Create an isolated sub-environment holding the input dataframe bound to `__df__`
+    let child_env = Rc::new(RefCell::new(Env::with_parent(std_env())));
+    child_env
+        .borrow_mut()
+        .defines
+        .insert("__df__".to_string(), Expr::LazyFrame(lf));
+
+    // 3. Execute the generated code against this frame
+    let mut state = State { line: 0 };
+    eval_string(generated_code, &child_env, &mut state)
+}
+
 pub fn std_env() -> Rc<RefCell<Env>> {
     let mut defines = HashMap::new();
 
     // Constant symbol
     defines.insert("nil".to_string(), nil());
+
+    // AI Assistant & Profiling
+    insert_native_function(&mut defines, "ai-explain", ai_explain, 1, 1);
+    insert_native_function(&mut defines, "ai-clean", ai_clean, 1, 2);
 
     // Native Functions: (defines, name, function_pointer, min_args, max_args)
     insert_native_function(&mut defines, "print", print, 0, u8::MAX);
