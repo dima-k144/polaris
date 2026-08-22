@@ -21,6 +21,8 @@ termimad = "0.31"
 plotlars = { version = "0.12.6", features = ["plotly"] }
 mimalloc = { version = "0.1", default-features = false }
 indicatif = "0.17"
+rustyline = "14.0"
+dirs = "5.0"
 
 [profile.release]
 opt-level = 3

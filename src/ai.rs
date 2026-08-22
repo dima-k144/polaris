@@ -162,7 +162,26 @@ static LANGUAGE_SPEC: &str = r#"
 
 * **Scalar Extraction:** `(scalar 1x1-lf)` converts a 1x1 LazyFrame back into an MLisp native scalar type.
 
+Plotlars Visualizations
+Plots consume a LazyFrame as the first argument, materialize it, and render the graphic. Optional configurations are passed as :key value pairs or flags.
 
+    (scatter-plot lf :x "col" :y "col" :title "str" :x-title "str" :y-title "str" :group "col" :size int :opacity float)
+
+    (bar-plot lf :labels "col" :values "col" :title "str" :x-title "str" :y-title "str" :group "col" :error "col")
+
+        Aliases: :x for :labels, :y for :values
+
+    (pie-plot lf :labels "col" :title "str" :hole float :pull float :rotation float :facet "col")
+
+    (histogram lf :x "col" :title "str" :x-title "str" :y-title "str" :group "col" :opacity float :facet "col")
+
+    (box-plot lf :labels "col" :values "col" :title "str" :x-title "str" :y-title "str" :group "col" :opacity float :facet "col" :jitter float :point-offset float :box-points)
+
+        Aliases: :x for :labels, :y for :values
+
+    (time-series-plot lf :x "col" :y "col" :additional-series (list "col" ...) :title "str" :x-title "str" :y-title "str" :y2-title "str" :facet "col" :width float :size int)
+
+    (line-plot lf :x "col" :y "col" :additional-lines (list "col" ...) :title "str" :x-title "str" :y-title "str" :y2-title "str" :facet "col" :width float :size int)
 
 ---
 
@@ -463,6 +482,19 @@ Respond ONLY with valid JSON matching this schema:
     Ok(parsed)
 }
 
+// Helper to safely format AnyValue scalar into a 2-decimal string
+fn format_anyvalue_num(val: &polars::prelude::AnyValue) -> String {
+    match val {
+        polars::prelude::AnyValue::Float64(f) => format!("{:.2}", f),
+        polars::prelude::AnyValue::Float32(f) => format!("{:.2}", f),
+        polars::prelude::AnyValue::Int64(i) => format!("{:.2}", *i as f64),
+        polars::prelude::AnyValue::Int32(i) => format!("{:.2}", *i as f64),
+        polars::prelude::AnyValue::UInt64(u) => format!("{:.2}", *u as f64),
+        polars::prelude::AnyValue::UInt32(u) => format!("{:.2}", *u as f64),
+        _ => "null".into(),
+    }
+}
+
 pub fn profile_lazy_frame(lf: &LazyFrame) -> Result<String, polars::prelude::PolarsError> {
     let schema = lf.clone().collect_schema()?;
     let collected_df = lf.clone().collect()?;
@@ -490,32 +522,43 @@ pub fn profile_lazy_frame(lf: &LazyFrame) -> Result<String, polars::prelude::Pol
                 | DataType::Float64
         );
 
-        let col_series = match collected_df.column(name) {
-            Ok(s) => s,
+        let col_data = match collected_df.column(name) {
+            Ok(c) => c,
             Err(_) => continue,
         };
 
-        let null_count = col_series.null_count();
-        let unique_count = col_series.n_unique().unwrap_or(0);
+        let null_count = col_data.null_count();
         let null_pct = (null_count as f64 / total_rows.max(1) as f64) * 100.0;
 
+        let s = col_data.as_materialized_series();
+        let unique_count = s.n_unique().unwrap_or(0);
+
         if is_numeric {
-            let min_str = col_series
-                .min_reduce()
-                .map(|v| format!("{:?}", v.value()))
-                .unwrap_or_else(|_| "null".into());
-            let max_str = col_series
-                .max_reduce()
-                .map(|v| format!("{:?}", v.value()))
-                .unwrap_or_else(|_| "null".into());
-            let mean_str = col_series
-                .mean_reduce()
-                .map(|v| format!("{:?}", v.value()))
-                .unwrap_or_else(|_| "null".into());
-            let median_str = col_series
-                .median_reduce()
-                .map(|v| format!("{:?}", v.value()))
-                .unwrap_or_else(|_| "null".into());
+            let (min_str, max_str, mean_str, median_str) = if let Ok(f64_series) = s.cast(&DataType::Float64) {
+                let min_val = f64_series
+                    .min_reduce()
+                    .ok()
+                    .map(|v| format_anyvalue_num(&v.value()))
+                    .unwrap_or_else(|| "null".into());
+                let max_val = f64_series
+                    .max_reduce()
+                    .ok()
+                    .map(|v| format_anyvalue_num(&v.value()))
+                    .unwrap_or_else(|| "null".into());
+                let mean_val = f64_series
+                    .mean_reduce()
+                    .ok()
+                    .map(|v| format_anyvalue_num(&v.value()))
+                    .unwrap_or_else(|| "null".into());
+                let median_val = f64_series
+                    .median_reduce()
+                    .ok()
+                    .map(|v| format_anyvalue_num(&v.value()))
+                    .unwrap_or_else(|| "null".into());
+                (min_val, max_val, mean_val, median_val)
+            } else {
+                ("null".into(), "null".into(), "null".into(), "null".into())
+            };
 
             profile_summary.push_str(&format!(
                 "  • `{name}` ({dtype}): nulls={null_count} ({null_pct:.1}%), unique={unique_count}, min={min_str}, max={max_str}, mean={mean_str}, median={median_str}\n"
@@ -667,6 +710,103 @@ RULES:
         _ = tokio::signal::ctrl_c() => {
             pb.finish_and_clear();
             return Err("AI data cleaning generation cancelled by user.".into());
+        }
+    };
+
+    let response = match response_res {
+        Ok(res) => res,
+        Err(err) => {
+            pb.finish_and_clear();
+            return Err(Box::new(err));
+        }
+    };
+
+    let json_future = response.json::<serde_json::Value>();
+    let json_resp: serde_json::Value = tokio::select! {
+        res = json_future => res?,
+        _ = tokio::signal::ctrl_c() => {
+            pb.finish_and_clear();
+            return Err("AI response stream cancelled by user.".into());
+        }
+    };
+    pb.finish_and_clear();
+
+    let raw_code = json_resp["choices"][0]["message"]["content"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+
+    Ok(extract_lisp_code(&raw_code))
+}
+
+pub async fn plot_lazy_frame(
+    lf: &LazyFrame,
+    user_intent: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(
+        ProgressStyle::with_template("{spinner:.cyan} {msg}")
+            .unwrap()
+            .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", " "]),
+    );
+    pb.set_message("Recommending and generating visualization pipeline...");
+    pb.enable_steady_tick(Duration::from_millis(80));
+
+    let profile_data = profile_lazy_frame(lf)?;
+
+    let api_key = std::env::var("OPENROUTER_API_KEY").unwrap_or_else(|_| {
+        "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".to_string()
+    });
+
+    let system_instructions = r#"
+You are the MLisp Data Visualization Specialist.
+Given a dataset profile and visualization goal, generate an MLisp pipeline starting with `(-> __df__ ...)` that prepares data and calls a plot function.
+
+CRITICAL RULES:
+1. ONLY reference columns that explicitly exist in the Dataset Profile. If the user asks for "revenue" but the data has "sales", use "sales".
+2. The final step must be a plotting function.
+3. Plot arguments MUST use string literals for column names, NOT column sugar (e.g. :x "month", NOT :x $"month").
+4. If aggregating, ensure the alias matches the :y parameter exactly:
+   (group-by (list $"region" $"month") (alias (sum $"sales") "total_sales"))
+   (bar-plot :x "month" :y "total_sales" :group "region" :title "Monthly Sales by Region")
+
+AVAILABLE FUNCTIONS:
+- (bar-plot :x "col" :y "col" [:group "col"] [:title "Title"])
+- (scatter-plot :x "col" :y "col" [:group "col"] [:title "Title"])
+- (time-series-plot :x "date_col" :y "col" [:group "col"] [:title "Title"])
+- (pie-plot :labels "col" :values "col" [:title "Title"])
+- (histogram :x "col" [:title "Title"])
+- (box-plot :x "col" :y "col" [:title "Title"])
+- (line-plot :x "col" :y "col" [:group "col"] [:title "Title"])
+
+Return ONLY pure MLisp code without markdown backticks or explanations.
+"#;
+
+    let user_prompt = format!(
+        "Dataset Profile:\n{}\n\nVisualization Goal:\n{}\n\nGenerate the visualization pipeline starting with (-> __df__ ...):",
+        profile_data, user_intent
+    );
+
+    let client = Client::new();
+    let response_future = client
+        .post("https://openrouter.ai/api/v1/chat/completions")
+        .bearer_auth(api_key)
+        .json(&json!({
+            "model": "qwen/qwen3.8-27b",
+            "messages": [
+                { "role": "system", "content": system_instructions },
+                { "role": "system", "content": LANGUAGE_SPEC },
+                { "role": "user", "content": user_prompt }
+            ],
+            "temperature": 0.1
+        }))
+        .send();
+
+    let response_res = tokio::select! {
+        res = response_future => res,
+        _ = tokio::signal::ctrl_c() => {
+            pb.finish_and_clear();
+            return Err("AI visualization generation cancelled by user.".into());
         }
     };
 

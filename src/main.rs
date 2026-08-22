@@ -3,6 +3,8 @@ use std::fs;
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::types::Env;
+use rustyline::error::ReadlineError;
+use rustyline::DefaultEditor;
 
 use crate::ai::ask_ai;
 use crate::interpreter::eval_string;
@@ -78,28 +80,74 @@ fn handle_error(error: crate::types::Error, input: String, env: &Rc<RefCell<Env>
 
 fn repl() {
     let env = crate::stdlib::std_env();
+    
+    // Initialize the line editor
+    let mut rl = match DefaultEditor::new() {
+        Ok(editor) => editor,
+        Err(err) => {
+            eprintln!("Failed to initialize line reader: {err}");
+            return;
+        }
+    };
+
+    // Optional: Load history from a persistent file
+    let history_path = dirs::home_dir().map(|p| p.join(".mlisp_history"));
+    if let Some(ref path) = history_path {
+        let _ = rl.load_history(path);
+    }
 
     loop {
-        let mut input = String::new();
-        print!("mlisp > "); io::stdout().flush().unwrap();
-        std::io::stdin().read_line(&mut input).unwrap();
-        while !is_complete_input(&input) {
-            let mut buf = String::new();
-            std::io::stdin().read_line(&mut buf).unwrap();
-            input.push_str(buf.as_str());
-        }
-        let mut state = interpreter::State {
-            line: 0,
-        };
-        match eval_string(input.clone(), &env, &mut state) {
-            Ok(val) => {
-                match val.to_string() {
-                    Ok(str) => println!("{str}"),
-                    Err(err) => handle_error(err, input, &env),
+        // Read input with prompt (Up/Down arrows work here)
+        let readline = rl.readline("mlisp > ");
+        match readline {
+            Ok(line) => {
+                let mut input = line;
+                
+                // Handle multiline incomplete parenthesis input
+                while !is_complete_input(&input) {
+                    match rl.readline("... ") {
+                        Ok(more) => {
+                            input.push('\n');
+                            input.push_str(&more);
+                        }
+                        Err(_) => break,
+                    }
                 }
-            },
-            Err(err) => handle_error(err, input, &env),
-        };
+
+                if input.trim().is_empty() {
+                    continue;
+                }
+
+                // Add to active session history
+                let _ = rl.add_history_entry(input.as_str());
+
+                // Evaluate MLisp expression
+                let mut state = interpreter::State { line: 0 };
+                match eval_string(input.clone(), &env, &mut state) {
+                    Ok(val) => match val.to_string() {
+                        Ok(str) => println!("{str}"),
+                        Err(err) => handle_error(err, input, &env),
+                    },
+                    Err(err) => handle_error(err, input, &env),
+                };
+            }
+            Err(ReadlineError::Interrupted) => {
+                println!("^C");
+            }
+            Err(ReadlineError::Eof) => {
+                println!("Exiting...");
+                break;
+            }
+            Err(err) => {
+                eprintln!("REPL error: {err}");
+                break;
+            }
+        }
+    }
+
+    // Optional: Save session history to disk on exit
+    if let Some(ref path) = history_path {
+        let _ = rl.save_history(path);
     }
 }
 

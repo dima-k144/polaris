@@ -1760,4 +1760,15 @@ mod tests {
         let res = eval_string(code, &env, &mut state);
         assert!(matches!(res, Err(Error::ScalarShapeError { .. })));
     }
+
+    #[test]
+    fn test_profile_lazy_frame_data6() {
+        let lf = LazyCsvReader::new("data6.csv".into())
+            .with_has_header(true)
+            .finish()
+            .expect("Failed to open data6.csv");
+
+        let result = crate::ai::profile_lazy_frame(&lf);
+        assert!(result.is_ok(), "profile_lazy_frame failed with error: {:?}", result.err());
+    }
 }

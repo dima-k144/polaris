@@ -1039,6 +1039,32 @@ fn ai_clean(args: Vec<Expr>) -> Result<Expr, Error> {
     eval_string(generated_code, &child_env, &mut state)
 }
 
+fn ai_plot(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args[0].clone().expect_lazy_frame()?;
+    let prompt = args[1].clone().expect_string()?;
+
+    let runtime = tokio::runtime::Runtime::new().map_err(|e| {
+        Error::Custom(format!("Failed to create async runtime: {e}"))
+    })?;
+
+    let generated_code = runtime
+        .block_on(ai::plot_lazy_frame(&lf, &prompt))
+        .map_err(|err| Error::Custom(format!("AI Plot network failed: {err}")))?;
+
+    // Print the generated Lisp code
+    println!("\n\x1b[36m; Generated Pipeline:\x1b[0m\n  {}\n", generated_code);
+
+    let child_env = Rc::new(RefCell::new(Env::with_parent(std_env())));
+    child_env
+        .borrow_mut()
+        .defines
+        .insert("__df__".to_string(), Expr::LazyFrame(lf));
+
+    let mut state = State { line: 0 };
+    eval_string(generated_code, &child_env, &mut state)
+        .map_err(|e| Error::Custom(format!("Plot execution failed: {}", crate::types::format_error(e))))
+}
+
 pub fn std_env() -> Rc<RefCell<Env>> {
     let mut defines = HashMap::new();
 
@@ -1048,6 +1074,7 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     // AI Assistant & Profiling
     insert_native_function(&mut defines, "ai-explain", ai_explain, 1, 1);
     insert_native_function(&mut defines, "ai-clean", ai_clean, 1, 2);
+    insert_native_function(&mut defines, "ai-plot", ai_plot, 2, 2);
 
     // Native Functions: (defines, name, function_pointer, min_args, max_args)
     insert_native_function(&mut defines, "print", print, 0, u8::MAX);
