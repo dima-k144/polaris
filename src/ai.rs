@@ -6,30 +6,7 @@ use crate::types::Env;
 use crate::types::*;
 use polars::prelude::LazyFrame;
 
-pub fn collect_context(env: &Rc<RefCell<Env>>) -> String {
-    let mut context = String::from("Here's the context about user's current environment with variables\nUser env: {");
-    for (name, value) in env.borrow().defines.iter() {
-        match value {
-            Expr::LazyFrame(lf) => {
-                let lf_info = lf.clone().collect_schema().unwrap();
-                context.push_str(&format!("{name}: LazyFrame {{ {:?} }}", lf_info));
-            },
-            Expr::NativeFunction { body, min_args, max_args } => {
-
-            },
-            _ => { 
-                if name == "nil" { continue; }
-                context.push_str(&format!("{name}: {value}"))
-            }
-        }
-    }
-    context
-}
-
-pub async fn ask_ai(prompt: &str, env: &Rc<RefCell<Env>>) -> Result<String, Box<dyn std::error::Error>> {
-    let api_key = String::from("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");
-    
-    let system_oprompt = r#"
+static LANGUAGE_SPEC: &str = r#"
 # MLisp: Language Specification & AI Prompt Guide
 
 **MLisp** is an S-expression-based Lisp dialect implemented in Rust that embeds and executes Apache Arrow / Polars DataFrame queries with lazy evaluation.
@@ -207,6 +184,47 @@ pub async fn ask_ai(prompt: &str, env: &Rc<RefCell<Env>>) -> Result<String, Box<
 ```
 "#;
 
+// Helper to strip markdown formatting if the model wraps output in ```lisp ... ```
+fn extract_lisp_code(raw: &str) -> String {
+    let trimmed = raw.trim();
+    if trimmed.starts_with("```") {
+        let lines: Vec<&str> = trimmed.lines().collect();
+        if lines.len() >= 2 {
+            let start = 1;
+            let end = if lines.last().map_or(false, |l| l.starts_with("```")) {
+                lines.len() - 1
+            } else {
+                lines.len()
+            };
+            return lines[start..end].join("\n").trim().to_string();
+        }
+    }
+    trimmed.to_string()
+}
+
+pub fn collect_context(env: &Rc<RefCell<Env>>) -> String {
+    let mut context = String::from("Here's the context about user's current environment with variables\nUser env: {");
+    for (name, value) in env.borrow().defines.iter() {
+        match value {
+            Expr::LazyFrame(lf) => {
+                let lf_info = lf.clone().collect_schema().unwrap();
+                context.push_str(&format!("{name}: LazyFrame {{ {:?} }}", lf_info));
+            },
+            Expr::NativeFunction { body, min_args, max_args } => {
+
+            },
+            _ => { 
+                if name == "nil" { continue; }
+                context.push_str(&format!("{name}: {value}"))
+            }
+        }
+    }
+    context
+}
+
+pub async fn ask_ai(prompt: &str, env: &Rc<RefCell<Env>>) -> Result<String, Box<dyn std::error::Error>> {
+    let api_key = String::from("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");
+    
     let model = "qwen/qwen3.8-27b";
     let response = Client::new()
         .post("https://openrouter.ai/api/v1/chat/completions")
@@ -216,7 +234,7 @@ pub async fn ask_ai(prompt: &str, env: &Rc<RefCell<Env>>) -> Result<String, Box<
             "messages": [
                 {
                     "role": "system",
-                    "content": system_oprompt
+                    "content": LANGUAGE_SPEC
                 },
                 {
                     "role": "system",
@@ -237,4 +255,61 @@ pub async fn ask_ai(prompt: &str, env: &Rc<RefCell<Env>>) -> Result<String, Box<
         .as_str()
         .unwrap_or("")
         .to_string())
+}
+
+pub async fn generate_mlisp_code(
+    user_query: &str,
+    env: &Rc<RefCell<Env>>,
+) -> Result<String, Error> {
+    let api_key = std::env::var("OPENROUTER_API_KEY").unwrap_or_else(|_| {
+        "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".to_string()
+    });
+
+    let system_instructions = r#"
+You are the MLisp Query Engine.
+Generate ONLY valid MLisp expressions based on the user's environment and request.
+
+RULES:
+1. Return ONLY pure MLisp code.
+2. DO NOT wrap in markdown backticks (no ```lisp).
+3. DO NOT include explanations, comments, or prose.
+4. Use thread-first pipelines (-> ...) when chaining transformations.
+5. Use column sugar ($"col_name" or $col_name).
+
+Below is language specification
+"#;
+
+    let context = collect_context(env);
+    let model = "qwen/qwen3.8-27b";
+
+    let client = Client::new();
+    let response = client
+        .post("https://openrouter.ai/api/v1/chat/completions")
+        .bearer_auth(api_key)
+        .json(&json!({
+            "model": model,
+            "messages": [
+                { "role": "system", "content": system_instructions },
+                { "role": "system", "content": LANGUAGE_SPEC},
+                { "role": "system", "content": context },
+                { "role": "user", "content": user_query }
+            ],
+            "temperature": 0.1
+        }))
+        .send()
+        .await
+        .map_err(|e| Error::Custom(format!("AI network error: {e}")))?;
+
+    let json_resp: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| Error::Custom(format!("Failed to parse AI response JSON: {e}")))?;
+
+    let raw_code = json_resp["choices"][0]["message"]["content"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+
+    let cleaned_code = extract_lisp_code(&raw_code);
+    Ok(cleaned_code)
 }
