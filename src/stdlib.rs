@@ -5,8 +5,9 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 use crate::types::{Env, Error, Expr::{self, PolarsExpr}};
+use crate::plotlarslib;
 
-fn nil() -> Expr { Expr::Symbol(String::from("nil")) }
+pub fn nil() -> Expr { Expr::Symbol(String::from("nil")) }
 
 fn print(args: Vec<Expr>) -> Result<Expr, Error> {
     for arg in args {
@@ -926,6 +927,20 @@ fn concat_(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(Expr::LazyFrame(concatted))
 }
 
+fn cast_(args: Vec<Expr>) -> Result<Expr, Error> {
+    let col_expr = args[0].clone().expect_polars_expr()?;
+    let target_type = match args[1].clone().expect_symbol()?.as_str() {
+        ":str" | ":string" => DataType::String,
+        ":int" | ":i64" => DataType::Int64,
+        ":float" | ":f64" => DataType::Float64,
+        ":date" => DataType::Date,
+        ":datetime" => DataType::Datetime(TimeUnit::Microseconds, None),
+        ":bool" => DataType::Boolean,
+        other => return Err(Error::Custom(format!("Unknown cast target: {}", other))),
+    };
+    Ok(Expr::PolarsExpr(col_expr.cast(target_type)))
+}
+
 // (scalar expr) — materialize a 1x1 result into a Lisp scalar
 fn scalar(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
@@ -1083,6 +1098,13 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "melt", melt_, 3, 5);
     insert_native_function(&mut defines, "unpivot", melt_, 3, 5);
     insert_native_function(&mut defines, "concat", concat_, 1, u8::MAX);
+
+    // Casting
+    insert_native_function(&mut defines, "cast", cast_, 2, 2);
+
+    // Plotlars
+    insert_native_function(&mut defines, "scatter-plot", plotlarslib::scatter_plot, 1, u8::MAX);
+    insert_native_function(&mut defines, "bar-plot", plotlarslib::bar_plot, 1, u8::MAX);
 
     // Polars to lisp
     insert_native_function(&mut defines, "scalar", scalar, 1, 1);

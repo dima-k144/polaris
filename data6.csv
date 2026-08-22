@@ -1,0 +1,501 @@
+transaction_id,date,region,customer_segment,category,subcategory,sales,quantity,discount,profit,cost,customer_rating,satisfaction_score,is_promotional
+TX-10001,2024-01-01,Europe,Corporate,Apparel,Athletic,210.74,2,0.0,76.25,134.49,5.0,99,False
+TX-10002,2024-01-02,North America,Corporate,Electronics,Accessories,1185.87,4,0.0,503.71,682.16,3.8,91,False
+TX-10003,2024-01-03,North America,Corporate,Office Supplies,Storage,29.13,1,0.15,4.29,24.84,4.1,94,True
+TX-10004,2024-01-04,Europe,Home Office,Apparel,Athletic,163.87,2,0.0,28.46,135.41,4.4,72,False
+TX-10005,2024-01-05,North America,Consumer,Apparel,Casual,538.15,4,0.1,144.66,393.49,5.0,62,True
+TX-10006,2024-01-06,Asia Pacific,Home Office,Office Supplies,Binders,280.13,3,0.15,42.32,237.81,3.3,92,True
+TX-10007,2024-01-07,Europe,Corporate,Apparel,Athletic,311.52,3,0.2,35.66,275.86,4.0,58,True
+TX-10008,2024-01-08,Asia Pacific,Home Office,Furniture,Bookcases,566.52,4,0.2,-10.28,576.8,4.0,66,True
+TX-10009,2024-01-09,Latin America,Corporate,Furniture,Furnishings,392.65,3,0.1,27.45,365.2,4.4,100,True
+TX-10010,2024-01-10,Europe,Corporate,Office Supplies,Storage,302.27,3,0.1,54.53,247.74,5.0,90,True
+TX-10011,2024-01-11,North America,Consumer,Furniture,Bookcases,2730.12,4,0.1,440.27,2289.85,3.8,70,True
+TX-10012,2024-01-12,Latin America,Consumer,Furniture,Chairs,1456.1,2,0.0,270.31,1185.79,3.8,81,False
+TX-10013,2024-01-13,North America,Corporate,Apparel,Casual,141.9,2,0.05,44.34,97.56,5.0,67,True
+TX-10014,2024-01-14,Asia Pacific,Consumer,Furniture,Furnishings,457.03,2,0.2,34.07,422.96,3.4,77,True
+TX-10015,2024-01-15,Asia Pacific,Corporate,Electronics,Accessories,881.03,5,0.1,123.16,757.87,3.6,69,True
+TX-10016,2024-01-16,North America,Corporate,Furniture,Tables,1233.16,3,0.3,-243.13,1476.29,4.8,92,True
+TX-10017,2024-01-17,Europe,Consumer,Electronics,Accessories,1257.05,3,0.0,259.93,997.12,5.0,68,False
+TX-10018,2024-01-18,North America,Consumer,Electronics,Laptops,1540.75,2,0.0,531.3,1009.45,5.0,100,False
+TX-10019,2024-01-19,Europe,Home Office,Office Supplies,Paper,197.5,3,0.0,36.95,160.55,4.3,86,False
+TX-10020,2024-01-20,Europe,Corporate,Office Supplies,Paper,59.84,1,0.0,13.43,46.41,2.3,63,False
+TX-10021,2024-01-21,North America,Consumer,Furniture,Bookcases,5477.14,8,0.05,901.89,4575.25,4.9,85,True
+TX-10022,2024-01-22,Asia Pacific,Consumer,Office Supplies,Paper,320.27,5,0.0,106.68,213.59,3.8,73,False
+TX-10023,2024-01-23,Asia Pacific,Consumer,Office Supplies,Paper,247.14,3,0.05,67.85,179.29,4.3,92,True
+TX-10024,2024-01-24,North America,Corporate,Office Supplies,Storage,129.18,2,0.2,18.84,110.34,3.7,100,True
+TX-10025,2024-01-25,North America,Consumer,Furniture,Bookcases,4528.35,10,0.3,-51.85,4580.2,4.0,94,True
+TX-10026,2024-01-26,North America,Corporate,Furniture,Bookcases,270.96,2,0.15,56.42,214.54,4.0,77,True
+TX-10027,2024-01-27,Europe,Corporate,Electronics,Monitors,1926.47,2,0.05,365.25,1561.22,4.2,83,True
+TX-10028,2024-01-28,North America,Home Office,Electronics,Phones,614.21,3,0.1,197.93,416.28,5.0,66,True
+TX-10029,2024-01-29,North America,Consumer,Electronics,Laptops,781.73,2,0.0,131.62,650.11,4.1,87,False
+TX-10030,2024-01-30,Europe,Home Office,Apparel,Outerwear,254.47,4,0.3,33.43,221.04,4.4,81,True
+TX-10031,2024-01-31,Europe,Consumer,Furniture,Chairs,2774.95,5,0.05,589.8,2185.15,3.8,67,True
+TX-10032,2024-02-01,North America,Corporate,Electronics,Phones,1358.36,2,0.15,284.36,1074.0,4.1,91,True
+TX-10033,2024-02-02,North America,Corporate,Electronics,Accessories,7391.96,10,0.1,1595.69,5796.27,3.0,100,True
+TX-10034,2024-02-03,Latin America,Home Office,Electronics,Laptops,1089.65,1,0.05,201.04,888.61,4.1,76,True
+TX-10035,2024-02-04,North America,Consumer,Electronics,Accessories,4192.12,5,0.05,801.05,3391.07,3.4,59,True
+TX-10036,2024-02-05,North America,Consumer,Furniture,Chairs,301.74,1,0.15,21.33,280.41,4.6,88,True
+TX-10037,2024-02-06,North America,Home Office,Electronics,Accessories,397.92,1,0.0,100.28,297.64,3.5,54,False
+TX-10038,2024-02-07,North America,Consumer,Office Supplies,Appliances,265.29,5,0.05,51.08,214.21,5.0,92,True
+TX-10039,2024-02-08,Asia Pacific,Consumer,Furniture,Bookcases,1459.51,2,0.0,-1.55,1461.06,4.3,90,False
+TX-10040,2024-02-09,Latin America,Consumer,Electronics,Laptops,988.3,3,0.0,165.04,823.26,3.2,78,False
+TX-10041,2024-02-10,North America,Consumer,Office Supplies,Appliances,104.29,2,0.05,29.47,74.82,5.0,69,True
+TX-10042,2024-02-11,Asia Pacific,Home Office,Electronics,Phones,1163.28,1,0.0,301.34,861.94,3.8,86,False
+TX-10043,2024-02-12,North America,Consumer,Electronics,Phones,2324.02,3,0.05,532.67,1791.35,5.0,55,True
+TX-10044,2024-02-13,Europe,Corporate,Furniture,Tables,1610.9,3,0.0,161.36,1449.54,4.3,81,False
+TX-10045,2024-02-14,North America,Corporate,Furniture,Chairs,972.72,4,0.0,224.79,747.93,5.0,80,False
+TX-10046,2024-02-15,Europe,Corporate,Furniture,Chairs,1171.53,2,0.0,293.2,878.33,4.3,100,False
+TX-10047,2024-02-16,Europe,Corporate,Electronics,Monitors,656.17,3,0.15,42.4,613.77,4.0,71,True
+TX-10048,2024-02-17,Asia Pacific,Corporate,Furniture,Tables,1517.21,4,0.0,-73.71,1590.92,3.4,59,False
+TX-10049,2024-02-18,Asia Pacific,Consumer,Furniture,Bookcases,273.76,1,0.0,70.82,202.94,4.5,78,False
+TX-10050,2024-02-19,Europe,Consumer,Office Supplies,Binders,280.06,3,0.0,121.6,158.46,5.0,40,False
+TX-10051,2024-02-20,Europe,Corporate,Furniture,Tables,267.24,1,0.2,6.68,260.56,3.2,82,True
+TX-10052,2024-02-21,North America,Consumer,Furniture,Furnishings,224.98,1,0.0,45.74,179.24,3.6,86,False
+TX-10053,2024-02-22,North America,Corporate,Apparel,Athletic,481.62,3,0.1,110.41,371.21,4.0,76,True
+TX-10054,2024-02-23,Asia Pacific,Corporate,Furniture,Furnishings,244.9,1,0.2,1.54,243.36,5.0,87,True
+TX-10055,2024-02-24,North America,Consumer,Electronics,Accessories,1097.78,4,0.05,202.37,895.41,5.0,77,True
+TX-10056,2024-02-25,North America,Home Office,Electronics,Accessories,854.07,1,0.2,-57.45,911.52,4.5,67,True
+TX-10057,2024-02-26,North America,Consumer,Office Supplies,Binders,331.61,3,0.2,45.43,286.18,4.4,53,True
+TX-10058,2024-02-27,North America,Consumer,Apparel,Footwear,39.29,1,0.1,9.43,29.86,4.5,85,True
+TX-10059,2024-02-28,Asia Pacific,Consumer,Electronics,Laptops,1368.93,3,0.05,328.99,1039.94,4.2,78,True
+TX-10060,2024-02-29,Latin America,Home Office,Office Supplies,Storage,103.34,1,0.05,25.07,78.27,4.2,78,True
+TX-10061,2024-03-01,North America,Corporate,Apparel,Footwear,341.76,2,0.05,155.11,186.65,4.9,89,True
+TX-10062,2024-03-02,Europe,Consumer,Furniture,Furnishings,1134.51,2,0.2,-81.7,1216.21,4.8,82,True
+TX-10063,2024-03-03,Latin America,Consumer,Office Supplies,Paper,8.37,1,0.2,1.4,6.97,3.6,74,True
+TX-10064,2024-03-04,Latin America,Consumer,Office Supplies,Paper,426.79,3,0.0,126.91,299.88,3.8,70,False
+TX-10065,2024-03-05,North America,Home Office,Electronics,Accessories,2823.8,3,0.05,546.95,2276.85,4.1,91,True
+TX-10066,2024-03-06,Europe,Corporate,Office Supplies,Paper,106.28,1,0.2,9.46,96.82,3.2,60,True
+TX-10067,2024-03-07,North America,Corporate,Office Supplies,Binders,108.18,1,0.2,27.25,80.93,4.9,79,True
+TX-10068,2024-03-08,Asia Pacific,Corporate,Furniture,Furnishings,1909.19,3,0.1,301.36,1607.83,4.9,66,True
+TX-10069,2024-03-09,North America,Corporate,Apparel,Outerwear,246.38,3,0.0,80.41,165.97,3.5,72,False
+TX-10070,2024-03-10,Asia Pacific,Corporate,Office Supplies,Appliances,327.43,3,0.0,98.89,228.54,4.1,49,False
+TX-10071,2024-03-11,Asia Pacific,Consumer,Office Supplies,Binders,41.32,2,0.15,5.44,35.88,4.5,81,True
+TX-10072,2024-03-12,Asia Pacific,Consumer,Apparel,Athletic,65.24,1,0.0,30.12,35.12,4.4,84,False
+TX-10073,2024-03-13,Asia Pacific,Consumer,Apparel,Casual,184.6,1,0.05,63.99,120.61,4.5,64,True
+TX-10074,2024-03-14,North America,Consumer,Office Supplies,Appliances,36.26,2,0.1,8.42,27.84,4.2,70,True
+TX-10075,2024-03-15,North America,Corporate,Electronics,Phones,541.72,4,0.2,46.05,495.67,4.6,64,True
+TX-10076,2024-03-16,Asia Pacific,Consumer,Electronics,Monitors,777.34,1,0.05,187.23,590.11,4.8,70,True
+TX-10077,2024-03-17,North America,Corporate,Apparel,Casual,96.66,2,0.1,22.97,73.69,4.0,49,True
+TX-10078,2024-03-18,Asia Pacific,Corporate,Apparel,Footwear,454.86,10,0.3,73.31,381.55,4.9,76,True
+TX-10079,2024-03-19,Asia Pacific,Corporate,Office Supplies,Appliances,153.29,2,0.05,51.44,101.85,4.6,93,True
+TX-10080,2024-03-20,Latin America,Consumer,Electronics,Phones,1929.88,3,0.2,69.43,1860.45,4.5,72,True
+TX-10081,2024-03-21,Europe,Corporate,Furniture,Chairs,2782.43,5,0.0,930.76,1851.67,4.5,73,False
+TX-10082,2024-03-22,Europe,Consumer,Furniture,Chairs,1204.86,3,0.0,357.48,847.38,4.4,96,False
+TX-10083,2024-03-23,Asia Pacific,Consumer,Electronics,Phones,3558.08,3,0.0,837.13,2720.95,5.0,75,False
+TX-10084,2024-03-24,North America,Home Office,Furniture,Chairs,460.92,1,0.0,11.62,449.3,3.8,100,False
+TX-10085,2024-03-25,Asia Pacific,Corporate,Electronics,Laptops,3768.2,4,0.2,180.26,3587.94,4.5,91,True
+TX-10086,2024-03-26,Europe,Home Office,Furniture,Tables,2979.28,4,0.05,469.73,2509.55,4.8,85,True
+TX-10087,2024-03-27,Asia Pacific,Home Office,Office Supplies,Storage,272.35,3,0.1,93.34,179.01,2.9,100,True
+TX-10088,2024-03-28,North America,Corporate,Office Supplies,Appliances,120.02,2,0.05,36.77,83.25,5.0,85,True
+TX-10089,2024-03-29,Asia Pacific,Corporate,Office Supplies,Storage,975.89,8,0.1,123.11,852.78,4.4,62,True
+TX-10090,2024-03-30,Europe,Home Office,Office Supplies,Paper,90.67,1,0.05,16.94,73.73,5.0,81,True
+TX-10091,2024-03-31,North America,Home Office,Office Supplies,Binders,248.41,2,0.0,78.19,170.22,3.9,62,False
+TX-10092,2024-04-01,Latin America,Consumer,Office Supplies,Paper,375.5,3,0.0,78.38,297.12,4.6,83,False
+TX-10093,2024-04-02,North America,Consumer,Electronics,Monitors,1175.28,3,0.0,217.68,957.6,3.1,50,False
+TX-10094,2024-04-03,Asia Pacific,Consumer,Electronics,Monitors,259.32,1,0.0,34.21,225.11,3.7,78,False
+TX-10095,2024-04-04,Asia Pacific,Consumer,Electronics,Phones,772.45,1,0.0,77.27,695.18,4.7,52,False
+TX-10096,2024-04-05,North America,Corporate,Apparel,Footwear,415.26,4,0.0,132.2,283.06,4.9,79,False
+TX-10097,2024-04-06,Europe,Corporate,Office Supplies,Binders,80.96,1,0.0,15.21,65.75,4.2,55,False
+TX-10098,2024-04-07,Asia Pacific,Corporate,Electronics,Laptops,3457.32,5,0.0,639.3,2818.02,3.9,74,False
+TX-10099,2024-04-08,Europe,Consumer,Electronics,Laptops,2310.38,2,0.0,319.12,1991.26,4.5,91,False
+TX-10100,2024-04-09,North America,Consumer,Furniture,Furnishings,920.87,2,0.05,89.98,830.89,5.0,95,True
+TX-10101,2024-04-10,North America,Consumer,Electronics,Accessories,353.73,1,0.05,45.37,308.36,5.0,96,True
+TX-10102,2024-04-11,North America,Consumer,Electronics,Monitors,3824.18,5,0.05,552.33,3271.85,4.7,88,True
+TX-10103,2024-04-12,North America,Consumer,Furniture,Bookcases,1522.51,3,0.0,425.0,1097.51,4.7,59,False
+TX-10104,2024-04-13,Europe,Consumer,Electronics,Phones,615.1,2,0.0,207.72,407.38,3.8,100,False
+TX-10105,2024-04-14,North America,Consumer,Apparel,Outerwear,185.22,2,0.0,69.63,115.59,4.7,95,False
+TX-10106,2024-04-15,Asia Pacific,Home Office,Electronics,Phones,3327.78,4,0.1,378.99,2948.79,3.7,90,True
+TX-10107,2024-04-16,North America,Home Office,Electronics,Monitors,971.61,1,0.0,197.33,774.28,4.0,87,False
+TX-10108,2024-04-17,North America,Corporate,Furniture,Tables,623.65,1,0.0,-53.61,677.26,4.1,74,False
+TX-10109,2024-04-18,Asia Pacific,Corporate,Office Supplies,Storage,138.54,3,0.0,37.57,100.97,3.7,90,False
+TX-10110,2024-04-19,Europe,Consumer,Office Supplies,Binders,143.61,4,0.1,13.79,129.82,5.0,86,True
+TX-10111,2024-04-20,Asia Pacific,Consumer,Office Supplies,Appliances,618.23,5,0.0,125.12,493.11,4.7,86,False
+TX-10112,2024-04-21,Europe,Corporate,Office Supplies,Appliances,349.62,3,0.0,79.28,270.34,4.6,72,False
+TX-10113,2024-04-22,Latin America,Corporate,Furniture,Chairs,252.05,1,0.0,2.09,249.96,5.0,79,False
+TX-10114,2024-04-23,North America,Corporate,Electronics,Monitors,2977.92,4,0.05,816.76,2161.16,2.5,89,True
+TX-10115,2024-04-24,North America,Consumer,Furniture,Bookcases,431.34,3,0.0,8.71,422.63,4.7,90,False
+TX-10116,2024-04-25,Latin America,Consumer,Electronics,Monitors,476.18,1,0.05,100.4,375.78,4.5,70,True
+TX-10117,2024-04-26,Europe,Corporate,Furniture,Tables,732.74,1,0.0,79.48,653.26,4.0,77,False
+TX-10118,2024-04-27,North America,Consumer,Electronics,Laptops,1555.45,4,0.05,222.3,1333.15,3.1,63,True
+TX-10119,2024-04-28,Asia Pacific,Corporate,Electronics,Monitors,1023.8,4,0.1,187.02,836.78,3.9,63,True
+TX-10120,2024-04-29,North America,Consumer,Apparel,Casual,327.37,5,0.05,125.81,201.56,4.3,72,True
+TX-10121,2024-04-30,Europe,Home Office,Electronics,Laptops,480.05,1,0.2,101.1,378.95,4.0,66,True
+TX-10122,2024-05-01,Latin America,Consumer,Office Supplies,Paper,112.46,2,0.0,33.63,78.83,4.2,67,False
+TX-10123,2024-05-02,Latin America,Corporate,Furniture,Furnishings,832.38,2,0.0,54.21,778.17,3.5,85,False
+TX-10124,2024-05-03,Asia Pacific,Corporate,Furniture,Furnishings,225.21,1,0.3,-24.42,249.63,5.0,63,True
+TX-10125,2024-05-04,North America,Corporate,Apparel,Casual,139.28,3,0.0,52.61,86.67,3.9,60,False
+TX-10126,2024-05-05,Latin America,Home Office,Furniture,Chairs,2269.25,4,0.05,-349.02,2618.27,4.5,66,True
+TX-10127,2024-05-06,Asia Pacific,Consumer,Electronics,Phones,2091.19,2,0.05,519.99,1571.2,4.0,68,True
+TX-10128,2024-05-07,North America,Home Office,Office Supplies,Binders,139.93,3,0.05,38.6,101.33,4.4,84,True
+TX-10129,2024-05-08,Asia Pacific,Corporate,Office Supplies,Binders,67.34,2,0.0,24.14,43.2,4.0,77,False
+TX-10130,2024-05-09,Europe,Consumer,Electronics,Laptops,4205.04,4,0.0,1224.06,2980.98,4.4,68,False
+TX-10131,2024-05-10,Europe,Consumer,Electronics,Laptops,670.98,1,0.1,65.45,605.53,4.9,79,True
+TX-10132,2024-05-11,North America,Home Office,Furniture,Bookcases,1395.04,3,0.0,293.14,1101.9,2.6,87,False
+TX-10133,2024-05-12,North America,Consumer,Furniture,Bookcases,366.14,2,0.15,65.2,300.94,3.7,64,True
+TX-10134,2024-05-13,Europe,Corporate,Apparel,Casual,107.69,1,0.0,24.34,83.35,3.7,68,False
+TX-10135,2024-05-14,Europe,Consumer,Electronics,Laptops,2049.97,2,0.0,367.61,1682.36,4.7,69,False
+TX-10136,2024-05-15,Europe,Home Office,Apparel,Athletic,48.01,1,0.0,19.25,28.76,3.3,90,False
+TX-10137,2024-05-16,Asia Pacific,Corporate,Apparel,Outerwear,136.14,1,0.2,43.37,92.77,4.3,66,True
+TX-10138,2024-05-17,Europe,Consumer,Apparel,Casual,273.16,2,0.05,103.43,169.73,4.2,67,True
+TX-10139,2024-05-18,North America,Corporate,Electronics,Laptops,2485.18,4,0.0,812.32,1672.86,4.0,93,False
+TX-10140,2024-05-19,North America,Corporate,Furniture,Tables,3129.61,5,0.05,-296.76,3426.37,4.8,93,True
+TX-10141,2024-05-20,Europe,Corporate,Electronics,Phones,394.03,2,0.0,100.44,293.59,5.0,100,False
+TX-10142,2024-05-21,North America,Consumer,Electronics,Laptops,178.91,1,0.0,23.64,155.27,4.1,81,False
+TX-10143,2024-05-22,Asia Pacific,Corporate,Office Supplies,Appliances,265.39,10,0.15,26.25,239.14,4.6,71,True
+TX-10144,2024-05-23,Europe,Consumer,Apparel,Footwear,582.37,3,0.0,150.29,432.08,2.7,73,False
+TX-10145,2024-05-24,Latin America,Consumer,Apparel,Casual,229.04,5,0.1,16.08,212.96,3.8,79,True
+TX-10146,2024-05-25,Asia Pacific,Home Office,Furniture,Tables,2013.4,5,0.05,27.93,1985.47,4.3,44,True
+TX-10147,2024-05-26,Europe,Home Office,Office Supplies,Storage,358.33,4,0.05,64.09,294.24,4.6,65,True
+TX-10148,2024-05-27,Asia Pacific,Corporate,Apparel,Outerwear,351.1,4,0.0,141.01,210.09,3.8,84,False
+TX-10149,2024-05-28,Asia Pacific,Home Office,Office Supplies,Appliances,73.85,3,0.0,25.54,48.31,3.8,82,False
+TX-10150,2024-05-29,Asia Pacific,Consumer,Electronics,Laptops,192.56,1,0.15,19.76,172.8,3.3,76,True
+TX-10151,2024-05-30,Europe,Consumer,Apparel,Footwear,717.08,5,0.05,384.98,332.1,3.3,74,True
+TX-10152,2024-05-31,North America,Corporate,Electronics,Laptops,300.02,1,0.0,53.43,246.59,4.2,77,False
+TX-10153,2024-06-01,North America,Home Office,Electronics,Laptops,609.94,1,0.2,40.53,569.41,4.7,80,True
+TX-10154,2024-06-02,Latin America,Consumer,Furniture,Tables,292.5,2,0.1,-5.26,297.76,3.6,92,True
+TX-10155,2024-06-03,North America,Home Office,Office Supplies,Appliances,127.83,2,0.0,37.48,90.35,5.0,69,False
+TX-10156,2024-06-04,Europe,Home Office,Apparel,Outerwear,69.01,1,0.1,30.66,38.35,3.7,86,True
+TX-10157,2024-06-05,Asia Pacific,Corporate,Electronics,Accessories,3043.42,3,0.0,712.52,2330.9,4.7,64,False
+TX-10158,2024-06-06,Asia Pacific,Corporate,Electronics,Laptops,4774.57,10,0.0,959.61,3814.96,2.9,81,False
+TX-10159,2024-06-07,Europe,Corporate,Electronics,Accessories,2612.88,4,0.1,196.62,2416.26,3.8,100,True
+TX-10160,2024-06-08,North America,Home Office,Office Supplies,Appliances,1190.29,8,0.0,306.49,883.8,5.0,85,False
+TX-10161,2024-06-09,Europe,Corporate,Electronics,Phones,8813.94,8,0.0,2151.34,6662.6,4.5,80,False
+TX-10162,2024-06-10,Europe,Consumer,Electronics,Monitors,3467.49,3,0.0,996.29,2471.2,3.9,76,False
+TX-10163,2024-06-11,North America,Home Office,Furniture,Furnishings,352.62,2,0.1,-6.45,359.07,4.2,86,True
+TX-10164,2024-06-12,North America,Corporate,Furniture,Tables,1714.05,4,0.2,21.08,1692.97,5.0,75,True
+TX-10165,2024-06-13,North America,Corporate,Office Supplies,Storage,441.08,4,0.15,64.22,376.86,5.0,78,True
+TX-10166,2024-06-14,North America,Consumer,Electronics,Phones,2959.44,5,0.3,-288.63,3248.07,4.3,86,True
+TX-10167,2024-06-15,Europe,Consumer,Office Supplies,Appliances,450.16,5,0.3,2.19,447.97,5.0,70,True
+TX-10168,2024-06-16,Europe,Corporate,Furniture,Furnishings,1648.89,5,0.05,488.63,1160.26,3.4,83,True
+TX-10169,2024-06-17,North America,Corporate,Apparel,Casual,89.68,1,0.15,33.72,55.96,3.8,77,True
+TX-10170,2024-06-18,North America,Consumer,Apparel,Athletic,81.51,1,0.3,5.31,76.2,4.9,89,True
+TX-10171,2024-06-19,Asia Pacific,Home Office,Furniture,Tables,387.76,2,0.3,-44.87,432.63,4.0,63,True
+TX-10172,2024-06-20,Europe,Consumer,Office Supplies,Appliances,128.98,1,0.1,24.11,104.87,5.0,100,True
+TX-10173,2024-06-21,Europe,Consumer,Apparel,Casual,37.08,1,0.2,3.66,33.42,4.6,93,True
+TX-10174,2024-06-22,Europe,Consumer,Furniture,Chairs,552.79,1,0.15,55.04,497.75,4.3,96,True
+TX-10175,2024-06-23,Latin America,Consumer,Electronics,Phones,5251.02,8,0.0,1233.85,4017.17,4.8,70,False
+TX-10176,2024-06-24,Europe,Corporate,Electronics,Laptops,2251.0,3,0.0,175.36,2075.64,3.3,93,False
+TX-10177,2024-06-25,Asia Pacific,Consumer,Furniture,Tables,158.74,1,0.0,23.04,135.7,4.4,72,False
+TX-10178,2024-06-26,Asia Pacific,Consumer,Office Supplies,Appliances,294.5,2,0.0,71.1,223.4,3.5,54,False
+TX-10179,2024-06-27,North America,Corporate,Electronics,Phones,2436.71,3,0.0,880.28,1556.43,5.0,88,False
+TX-10180,2024-06-28,Asia Pacific,Corporate,Furniture,Bookcases,1264.81,3,0.2,64.34,1200.47,4.8,94,True
+TX-10181,2024-06-29,Europe,Home Office,Electronics,Monitors,1941.54,3,0.1,391.62,1549.92,4.6,73,True
+TX-10182,2024-06-30,North America,Consumer,Apparel,Athletic,346.02,3,0.1,116.54,229.48,3.8,65,True
+TX-10183,2024-07-01,North America,Consumer,Electronics,Phones,601.78,2,0.2,41.69,560.09,4.4,43,True
+TX-10184,2024-07-02,North America,Consumer,Apparel,Casual,119.21,1,0.0,59.05,60.16,3.4,87,False
+TX-10185,2024-07-03,Asia Pacific,Corporate,Furniture,Furnishings,2465.41,4,0.05,-105.18,2570.59,4.8,63,True
+TX-10186,2024-07-04,North America,Consumer,Furniture,Tables,634.71,5,0.15,53.69,581.02,4.3,54,True
+TX-10187,2024-07-05,Europe,Consumer,Furniture,Bookcases,2446.85,4,0.1,-33.44,2480.29,3.9,92,True
+TX-10188,2024-07-06,Europe,Home Office,Office Supplies,Storage,64.34,1,0.1,11.9,52.44,4.8,90,True
+TX-10189,2024-07-07,Europe,Consumer,Electronics,Phones,1667.0,3,0.05,274.41,1392.59,3.7,65,True
+TX-10190,2024-07-08,North America,Corporate,Office Supplies,Appliances,189.14,3,0.1,51.24,137.9,4.5,100,True
+TX-10191,2024-07-09,North America,Home Office,Office Supplies,Appliances,294.19,4,0.1,69.17,225.02,4.8,74,True
+TX-10192,2024-07-10,North America,Consumer,Office Supplies,Appliances,482.81,4,0.05,80.07,402.74,3.7,77,True
+TX-10193,2024-07-11,Europe,Consumer,Apparel,Athletic,144.84,3,0.15,-6.72,151.56,3.7,76,True
+TX-10194,2024-07-12,Asia Pacific,Consumer,Office Supplies,Storage,101.94,1,0.0,30.19,71.75,5.0,83,False
+TX-10195,2024-07-13,Asia Pacific,Corporate,Apparel,Outerwear,277.98,3,0.0,56.54,221.44,5.0,72,False
+TX-10196,2024-07-14,Asia Pacific,Consumer,Furniture,Tables,1202.96,2,0.0,-22.46,1225.42,3.7,99,False
+TX-10197,2024-07-15,Asia Pacific,Consumer,Office Supplies,Appliances,94.19,1,0.05,28.15,66.04,4.6,85,True
+TX-10198,2024-07-16,Europe,Consumer,Apparel,Casual,30.45,1,0.0,10.86,19.59,3.5,94,False
+TX-10199,2024-07-17,Asia Pacific,Corporate,Apparel,Casual,561.24,4,0.1,146.45,414.79,3.1,86,True
+TX-10200,2024-07-18,North America,Consumer,Apparel,Athletic,139.51,1,0.0,64.05,75.46,5.0,92,False
+TX-10201,2024-07-19,Asia Pacific,Consumer,Office Supplies,Paper,298.27,3,0.05,97.95,200.32,3.9,100,True
+TX-10202,2024-07-20,Europe,Home Office,Furniture,Tables,1391.07,3,0.1,84.52,1306.55,4.9,93,True
+TX-10203,2024-07-21,Europe,Corporate,Electronics,Accessories,2852.2,3,0.05,486.78,2365.42,4.3,88,True
+TX-10204,2024-07-22,Latin America,Corporate,Apparel,Outerwear,257.49,2,0.0,70.6,186.89,3.5,86,False
+TX-10205,2024-07-23,Asia Pacific,Consumer,Apparel,Casual,54.09,1,0.1,10.47,43.62,3.0,60,True
+TX-10206,2024-07-24,Asia Pacific,Consumer,Apparel,Footwear,130.28,2,0.0,59.3,70.98,3.6,67,False
+TX-10207,2024-07-25,North America,Consumer,Electronics,Phones,1870.41,4,0.0,538.84,1331.57,3.8,92,False
+TX-10208,2024-07-26,North America,Consumer,Electronics,Monitors,224.57,1,0.05,72.78,151.79,4.5,83,True
+TX-10209,2024-07-27,North America,Corporate,Furniture,Bookcases,1364.93,2,0.1,205.33,1159.6,4.0,81,True
+TX-10210,2024-07-28,Asia Pacific,Consumer,Furniture,Furnishings,2183.13,3,0.05,424.15,1758.98,3.7,83,True
+TX-10211,2024-07-29,Europe,Home Office,Electronics,Laptops,1896.11,3,0.05,539.83,1356.28,4.5,100,True
+TX-10212,2024-07-30,North America,Consumer,Apparel,Athletic,56.85,1,0.2,14.54,42.31,2.9,69,True
+TX-10213,2024-07-31,North America,Home Office,Furniture,Tables,1580.88,3,0.0,426.61,1154.27,5.0,79,False
+TX-10214,2024-08-01,Latin America,Home Office,Furniture,Tables,218.38,2,0.1,40.71,177.67,4.2,70,True
+TX-10215,2024-08-02,Europe,Corporate,Apparel,Footwear,340.78,4,0.2,101.01,239.77,4.4,58,True
+TX-10216,2024-08-03,Asia Pacific,Consumer,Apparel,Casual,467.31,4,0.0,175.35,291.96,4.1,81,False
+TX-10217,2024-08-04,Europe,Consumer,Office Supplies,Binders,404.43,5,0.0,63.24,341.19,5.0,73,False
+TX-10218,2024-08-05,North America,Consumer,Electronics,Monitors,424.1,1,0.0,56.14,367.96,3.2,78,False
+TX-10219,2024-08-06,Europe,Corporate,Office Supplies,Binders,348.14,8,0.15,78.46,269.68,4.0,91,True
+TX-10220,2024-08-07,Asia Pacific,Corporate,Electronics,Monitors,739.87,2,0.15,105.95,633.92,3.1,77,True
+TX-10221,2024-08-08,Europe,Corporate,Furniture,Chairs,331.16,1,0.05,46.82,284.34,4.7,67,True
+TX-10222,2024-08-09,North America,Consumer,Electronics,Phones,3538.79,3,0.0,898.38,2640.41,4.2,84,False
+TX-10223,2024-08-10,North America,Consumer,Electronics,Monitors,629.79,1,0.1,108.23,521.56,4.2,69,True
+TX-10224,2024-08-11,North America,Consumer,Apparel,Casual,665.88,4,0.0,262.97,402.91,3.9,78,False
+TX-10225,2024-08-12,Europe,Corporate,Furniture,Tables,332.48,1,0.0,52.65,279.83,3.5,87,False
+TX-10226,2024-08-13,Asia Pacific,Home Office,Apparel,Casual,82.7,2,0.05,20.43,62.27,4.0,73,True
+TX-10227,2024-08-14,Asia Pacific,Consumer,Electronics,Phones,5553.52,8,0.0,1618.98,3934.54,3.3,64,False
+TX-10228,2024-08-15,North America,Corporate,Electronics,Laptops,732.11,1,0.15,154.51,577.6,4.1,82,True
+TX-10229,2024-08-16,Asia Pacific,Consumer,Furniture,Furnishings,902.32,4,0.1,201.38,700.94,4.4,82,True
+TX-10230,2024-08-17,Europe,Corporate,Electronics,Laptops,1158.91,3,0.1,214.95,943.96,2.9,95,True
+TX-10231,2024-08-18,North America,Consumer,Electronics,Monitors,3948.29,4,0.0,723.32,3224.97,3.6,65,False
+TX-10232,2024-08-19,North America,Consumer,Electronics,Phones,193.0,1,0.05,34.33,158.67,4.2,84,True
+TX-10233,2024-08-20,North America,Corporate,Office Supplies,Storage,74.45,2,0.0,19.19,55.26,4.3,70,False
+TX-10234,2024-08-21,North America,Corporate,Electronics,Laptops,387.33,2,0.05,79.47,307.86,4.1,75,True
+TX-10235,2024-08-22,North America,Consumer,Furniture,Tables,2716.6,4,0.0,51.04,2665.56,3.9,82,False
+TX-10236,2024-08-23,Europe,Consumer,Electronics,Phones,647.39,1,0.3,52.72,594.67,5.0,69,True
+TX-10237,2024-08-24,Europe,Corporate,Furniture,Furnishings,551.4,1,0.0,26.87,524.53,3.7,32,False
+TX-10238,2024-08-25,North America,Corporate,Office Supplies,Paper,219.58,10,0.1,57.99,161.59,5.0,90,True
+TX-10239,2024-08-26,Europe,Consumer,Furniture,Tables,1147.09,3,0.1,-81.67,1228.76,3.8,82,True
+TX-10240,2024-08-27,Latin America,Home Office,Electronics,Phones,498.57,1,0.0,66.97,431.6,4.8,60,False
+TX-10241,2024-08-28,Latin America,Corporate,Electronics,Monitors,1296.78,4,0.0,324.33,972.45,3.2,90,False
+TX-10242,2024-08-29,Asia Pacific,Consumer,Office Supplies,Binders,115.44,3,0.05,14.64,100.8,3.7,82,True
+TX-10243,2024-08-30,Europe,Consumer,Office Supplies,Storage,55.18,1,0.0,20.61,34.57,3.9,44,False
+TX-10244,2024-08-31,North America,Home Office,Electronics,Accessories,1571.59,3,0.15,28.98,1542.61,3.5,93,True
+TX-10245,2024-09-01,North America,Corporate,Office Supplies,Storage,64.32,2,0.3,8.84,55.48,4.2,50,True
+TX-10246,2024-09-02,Asia Pacific,Consumer,Electronics,Monitors,2323.31,2,0.0,730.54,1592.77,5.0,77,False
+TX-10247,2024-09-03,North America,Consumer,Furniture,Tables,385.07,1,0.2,57.57,327.5,4.4,80,True
+TX-10248,2024-09-04,Latin America,Consumer,Apparel,Outerwear,167.17,2,0.2,36.4,130.77,3.8,75,True
+TX-10249,2024-09-05,North America,Consumer,Furniture,Tables,828.57,5,0.05,242.59,585.98,2.8,61,True
+TX-10250,2024-09-06,Asia Pacific,Consumer,Electronics,Phones,1302.57,2,0.0,170.09,1132.48,4.2,68,False
+TX-10251,2024-09-07,Europe,Consumer,Apparel,Athletic,431.16,3,0.0,84.39,346.77,3.0,81,False
+TX-10252,2024-09-08,Europe,Consumer,Furniture,Tables,432.85,1,0.2,-127.2,560.05,4.1,100,True
+TX-10253,2024-09-09,Asia Pacific,Consumer,Apparel,Athletic,223.57,2,0.1,56.76,166.81,4.0,58,True
+TX-10254,2024-09-10,North America,Corporate,Electronics,Laptops,2087.4,3,0.05,394.82,1692.58,4.9,100,True
+TX-10255,2024-09-11,North America,Corporate,Electronics,Accessories,1342.6,3,0.0,341.68,1000.92,4.8,73,False
+TX-10256,2024-09-12,Latin America,Home Office,Apparel,Casual,106.74,3,0.05,19.35,87.39,4.0,79,True
+TX-10257,2024-09-13,Latin America,Consumer,Apparel,Casual,472.3,3,0.0,108.4,363.9,4.9,67,False
+TX-10258,2024-09-14,Europe,Consumer,Office Supplies,Appliances,431.82,3,0.0,136.99,294.83,3.4,100,False
+TX-10259,2024-09-15,Latin America,Corporate,Electronics,Laptops,5974.78,8,0.1,1998.93,3975.85,3.8,89,True
+TX-10260,2024-09-16,Asia Pacific,Home Office,Furniture,Furnishings,269.29,2,0.05,-49.6,318.89,3.9,61,True
+TX-10261,2024-09-17,Asia Pacific,Corporate,Furniture,Bookcases,344.9,1,0.0,81.37,263.53,3.6,95,False
+TX-10262,2024-09-18,Asia Pacific,Corporate,Furniture,Chairs,839.28,2,0.05,108.56,730.72,4.8,65,True
+TX-10263,2024-09-19,North America,Consumer,Office Supplies,Appliances,28.66,2,0.0,7.95,20.71,4.3,64,False
+TX-10264,2024-09-20,North America,Consumer,Office Supplies,Storage,90.1,1,0.0,36.71,53.39,5.0,60,False
+TX-10265,2024-09-21,North America,Corporate,Electronics,Laptops,2701.93,3,0.0,505.15,2196.78,4.6,50,False
+TX-10266,2024-09-22,Asia Pacific,Corporate,Office Supplies,Storage,119.66,1,0.2,13.35,106.31,4.2,94,True
+TX-10267,2024-09-23,Asia Pacific,Consumer,Electronics,Monitors,2751.3,4,0.0,266.25,2485.05,4.2,84,False
+TX-10268,2024-09-24,Europe,Consumer,Office Supplies,Storage,228.66,2,0.0,60.79,167.87,4.5,81,False
+TX-10269,2024-09-25,Asia Pacific,Corporate,Electronics,Laptops,707.39,4,0.0,135.28,572.11,4.4,83,False
+TX-10270,2024-09-26,North America,Home Office,Apparel,Outerwear,276.0,2,0.0,106.0,170.0,4.9,88,False
+TX-10271,2024-09-27,Asia Pacific,Corporate,Apparel,Casual,106.23,3,0.1,29.3,76.93,4.5,71,True
+TX-10272,2024-09-28,Asia Pacific,Corporate,Office Supplies,Storage,268.29,4,0.1,70.38,197.91,3.9,82,True
+TX-10273,2024-09-29,Europe,Consumer,Apparel,Athletic,351.98,3,0.2,77.72,274.26,4.1,60,True
+TX-10274,2024-09-30,North America,Consumer,Electronics,Phones,3368.35,3,0.05,1000.21,2368.14,3.6,100,True
+TX-10275,2024-10-01,Europe,Home Office,Electronics,Laptops,843.84,1,0.0,260.83,583.01,4.3,64,False
+TX-10276,2024-10-02,Europe,Consumer,Electronics,Laptops,552.76,2,0.0,25.34,527.42,3.8,82,False
+TX-10277,2024-10-03,North America,Consumer,Apparel,Casual,70.57,2,0.1,22.8,47.77,4.1,78,True
+TX-10278,2024-10-04,Europe,Consumer,Electronics,Accessories,9489.93,10,0.2,978.15,8511.78,3.9,92,True
+TX-10279,2024-10-05,Asia Pacific,Home Office,Electronics,Phones,293.87,1,0.0,43.52,250.35,3.9,91,False
+TX-10280,2024-10-06,Asia Pacific,Consumer,Apparel,Outerwear,136.11,1,0.0,42.03,94.08,4.4,74,False
+TX-10281,2024-10-07,North America,Home Office,Furniture,Chairs,313.69,3,0.05,95.55,218.14,4.1,58,True
+TX-10282,2024-10-08,Asia Pacific,Corporate,Office Supplies,Paper,44.49,2,0.0,13.94,30.55,4.4,70,False
+TX-10283,2024-10-09,North America,Consumer,Apparel,Athletic,258.06,2,0.05,86.92,171.14,4.3,95,True
+TX-10284,2024-10-10,Asia Pacific,Consumer,Apparel,Outerwear,48.15,1,0.0,20.84,27.31,4.9,71,False
+TX-10285,2024-10-11,North America,Consumer,Furniture,Tables,924.21,2,0.0,165.08,759.13,3.3,81,False
+TX-10286,2024-10-12,Europe,Consumer,Electronics,Phones,460.64,1,0.3,29.03,431.61,5.0,100,True
+TX-10287,2024-10-13,North America,Corporate,Electronics,Phones,686.52,2,0.05,92.81,593.71,4.4,73,True
+TX-10288,2024-10-14,North America,Consumer,Furniture,Tables,1954.13,5,0.05,361.34,1592.79,4.0,92,True
+TX-10289,2024-10-15,Asia Pacific,Consumer,Apparel,Athletic,103.04,1,0.0,29.07,73.97,5.0,74,False
+TX-10290,2024-10-16,North America,Consumer,Electronics,Laptops,1965.68,3,0.3,-119.38,2085.06,3.6,89,True
+TX-10291,2024-10-17,Europe,Consumer,Electronics,Monitors,412.94,2,0.0,112.33,300.61,4.7,84,False
+TX-10292,2024-10-18,Europe,Corporate,Furniture,Furnishings,2767.08,4,0.05,-475.49,3242.57,4.5,83,True
+TX-10293,2024-10-19,North America,Corporate,Furniture,Tables,330.07,2,0.1,59.51,270.56,3.5,65,True
+TX-10294,2024-10-20,Asia Pacific,Consumer,Electronics,Accessories,390.39,2,0.05,36.3,354.09,4.2,79,True
+TX-10295,2024-10-21,Europe,Consumer,Electronics,Accessories,158.4,1,0.1,16.27,142.13,4.9,78,True
+TX-10296,2024-10-22,Asia Pacific,Consumer,Apparel,Casual,247.14,3,0.0,95.41,151.73,3.7,77,False
+TX-10297,2024-10-23,Latin America,Consumer,Furniture,Chairs,735.71,2,0.15,-11.72,747.43,4.2,83,True
+TX-10298,2024-10-24,Asia Pacific,Home Office,Furniture,Furnishings,125.03,1,0.05,6.1,118.93,3.5,62,True
+TX-10299,2024-10-25,North America,Consumer,Furniture,Tables,672.59,1,0.05,146.78,525.81,3.8,70,True
+TX-10300,2024-10-26,North America,Consumer,Furniture,Chairs,843.61,2,0.2,293.37,550.24,3.8,80,True
+TX-10301,2024-10-27,Asia Pacific,Consumer,Apparel,Casual,106.21,2,0.0,32.22,73.99,5.0,73,False
+TX-10302,2024-10-28,Europe,Consumer,Electronics,Accessories,944.27,1,0.0,119.11,825.16,4.0,98,False
+TX-10303,2024-10-29,Europe,Consumer,Electronics,Phones,992.23,2,0.1,76.66,915.57,5.0,62,True
+TX-10304,2024-10-30,North America,Home Office,Office Supplies,Paper,226.79,2,0.0,62.65,164.14,4.0,96,False
+TX-10305,2024-10-31,Asia Pacific,Corporate,Electronics,Accessories,836.27,1,0.0,212.45,623.82,5.0,61,False
+TX-10306,2024-11-01,North America,Corporate,Apparel,Casual,254.39,2,0.1,73.73,180.66,4.3,77,True
+TX-10307,2024-11-02,Europe,Consumer,Furniture,Furnishings,3802.47,8,0.0,499.82,3302.65,4.6,83,False
+TX-10308,2024-11-03,North America,Consumer,Electronics,Monitors,5852.19,5,0.0,1148.26,4703.93,3.3,75,False
+TX-10309,2024-11-04,North America,Home Office,Furniture,Tables,839.42,2,0.0,28.84,810.58,4.3,83,False
+TX-10310,2024-11-05,Asia Pacific,Corporate,Electronics,Phones,247.48,1,0.15,25.29,222.19,4.7,74,True
+TX-10311,2024-11-06,Asia Pacific,Home Office,Furniture,Chairs,3758.5,5,0.0,420.67,3337.83,4.0,94,False
+TX-10312,2024-11-07,Europe,Corporate,Office Supplies,Paper,141.92,8,0.2,20.26,121.66,5.0,71,True
+TX-10313,2024-11-08,Asia Pacific,Home Office,Apparel,Footwear,34.75,1,0.0,11.24,23.51,3.7,83,False
+TX-10314,2024-11-09,Asia Pacific,Consumer,Apparel,Athletic,416.98,4,0.05,101.28,315.7,3.2,78,True
+TX-10315,2024-11-10,North America,Corporate,Office Supplies,Appliances,544.87,5,0.0,116.33,428.54,4.0,69,False
+TX-10316,2024-11-11,Europe,Home Office,Office Supplies,Appliances,446.33,8,0.05,79.32,367.01,4.1,70,True
+TX-10317,2024-11-12,Europe,Home Office,Furniture,Furnishings,398.08,4,0.05,74.06,324.02,4.1,77,True
+TX-10318,2024-11-13,Europe,Consumer,Apparel,Athletic,105.56,1,0.0,60.02,45.54,4.0,68,False
+TX-10319,2024-11-14,North America,Corporate,Electronics,Phones,749.37,5,0.05,29.52,719.85,3.9,55,True
+TX-10320,2024-11-15,North America,Consumer,Office Supplies,Paper,17.6,1,0.05,3.51,14.09,3.8,90,True
+TX-10321,2024-11-16,Europe,Home Office,Office Supplies,Appliances,179.32,2,0.0,69.48,109.84,4.3,60,False
+TX-10322,2024-11-17,Asia Pacific,Consumer,Furniture,Bookcases,634.33,2,0.0,86.93,547.4,4.6,86,False
+TX-10323,2024-11-18,Asia Pacific,Consumer,Electronics,Monitors,573.35,1,0.15,-21.05,594.4,4.3,65,True
+TX-10324,2024-11-19,Europe,Consumer,Furniture,Chairs,1664.07,3,0.0,168.86,1495.21,4.3,86,False
+TX-10325,2024-11-20,Asia Pacific,Corporate,Office Supplies,Storage,57.6,2,0.15,8.48,49.12,4.4,69,True
+TX-10326,2024-11-21,Asia Pacific,Corporate,Furniture,Bookcases,1255.06,2,0.15,334.85,920.21,4.7,77,True
+TX-10327,2024-11-22,Europe,Home Office,Furniture,Tables,2662.97,4,0.1,565.31,2097.66,3.8,82,True
+TX-10328,2024-11-23,North America,Home Office,Electronics,Accessories,2485.96,4,0.0,780.28,1705.68,3.4,81,False
+TX-10329,2024-11-24,North America,Consumer,Apparel,Athletic,257.6,2,0.05,91.3,166.3,4.0,60,True
+TX-10330,2024-11-25,Latin America,Consumer,Furniture,Chairs,951.78,2,0.05,269.19,682.59,3.6,86,True
+TX-10331,2024-11-26,Europe,Consumer,Electronics,Laptops,1894.4,2,0.0,168.71,1725.69,4.2,100,False
+TX-10332,2024-11-27,Latin America,Consumer,Electronics,Phones,3467.61,3,0.0,753.46,2714.15,4.7,78,False
+TX-10333,2024-11-28,North America,Home Office,Office Supplies,Binders,506.31,5,0.2,64.31,442.0,3.4,85,True
+TX-10334,2024-11-29,Europe,Corporate,Office Supplies,Appliances,52.52,1,0.0,11.1,41.42,5.0,60,False
+TX-10335,2024-11-30,Europe,Consumer,Office Supplies,Appliances,68.22,2,0.0,27.06,41.16,3.9,73,False
+TX-10336,2024-12-01,Asia Pacific,Corporate,Electronics,Phones,2211.41,2,0.0,552.01,1659.4,4.4,74,False
+TX-10337,2024-12-02,Europe,Consumer,Office Supplies,Storage,41.55,1,0.2,6.06,35.49,4.1,67,True
+TX-10338,2024-12-03,Asia Pacific,Corporate,Electronics,Monitors,984.87,1,0.0,194.24,790.63,4.0,68,False
+TX-10339,2024-12-04,Latin America,Corporate,Office Supplies,Paper,15.85,1,0.1,2.57,13.28,3.8,77,True
+TX-10340,2024-12-05,Europe,Consumer,Apparel,Athletic,1126.6,10,0.05,502.49,624.11,4.1,91,True
+TX-10341,2024-12-06,Europe,Consumer,Office Supplies,Binders,200.24,2,0.0,63.45,136.79,3.5,96,False
+TX-10342,2024-12-07,North America,Consumer,Office Supplies,Storage,148.54,2,0.1,37.18,111.36,3.4,83,True
+TX-10343,2024-12-08,North America,Corporate,Office Supplies,Paper,12.68,1,0.1,1.85,10.83,4.6,72,True
+TX-10344,2024-12-09,Latin America,Corporate,Electronics,Laptops,3334.93,5,0.0,745.84,2589.09,4.0,64,False
+TX-10345,2024-12-10,North America,Consumer,Office Supplies,Paper,483.6,8,0.2,106.25,377.35,3.9,100,True
+TX-10346,2024-12-11,North America,Consumer,Apparel,Athletic,662.69,5,0.0,306.84,355.85,3.8,67,False
+TX-10347,2024-12-12,North America,Home Office,Furniture,Tables,120.78,1,0.3,8.17,112.61,4.4,89,True
+TX-10348,2024-12-13,North America,Home Office,Electronics,Accessories,2883.93,5,0.0,494.11,2389.82,4.2,77,False
+TX-10349,2024-12-14,North America,Home Office,Electronics,Monitors,874.44,2,0.0,200.93,673.51,4.4,85,False
+TX-10350,2024-12-15,Asia Pacific,Corporate,Office Supplies,Paper,24.73,1,0.2,3.49,21.24,4.3,68,True
+TX-10351,2024-12-16,North America,Corporate,Apparel,Athletic,317.93,2,0.1,91.57,226.36,3.6,76,True
+TX-10352,2024-12-17,North America,Consumer,Office Supplies,Appliances,238.77,3,0.2,16.48,222.29,4.8,89,True
+TX-10353,2024-12-18,North America,Consumer,Furniture,Chairs,900.25,3,0.15,-20.41,920.66,5.0,96,True
+TX-10354,2024-12-19,Latin America,Consumer,Office Supplies,Storage,45.41,1,0.2,1.2,44.21,4.2,76,True
+TX-10355,2024-12-20,Europe,Consumer,Office Supplies,Appliances,97.87,2,0.0,20.51,77.36,3.1,76,False
+TX-10356,2024-12-21,Asia Pacific,Corporate,Apparel,Footwear,320.44,2,0.1,83.83,236.61,3.7,77,True
+TX-10357,2024-12-22,North America,Corporate,Apparel,Outerwear,351.64,2,0.05,80.2,271.44,4.3,79,True
+TX-10358,2024-12-23,Europe,Consumer,Office Supplies,Storage,115.88,1,0.0,33.75,82.13,4.1,97,False
+TX-10359,2024-12-24,Europe,Consumer,Electronics,Phones,9443.66,10,0.0,1342.71,8100.95,3.6,86,False
+TX-10360,2024-12-25,Asia Pacific,Home Office,Apparel,Casual,85.65,1,0.05,22.51,63.14,5.0,97,True
+TX-10361,2024-12-26,Europe,Consumer,Electronics,Phones,1818.42,2,0.0,367.74,1450.68,4.7,67,False
+TX-10362,2024-12-27,Latin America,Consumer,Furniture,Tables,760.85,2,0.15,68.74,692.11,4.4,71,True
+TX-10363,2024-12-28,Asia Pacific,Consumer,Electronics,Laptops,379.21,2,0.05,64.78,314.43,3.6,52,True
+TX-10364,2024-12-29,Europe,Consumer,Office Supplies,Storage,98.57,1,0.15,9.62,88.95,4.9,47,True
+TX-10365,2024-12-30,Europe,Home Office,Office Supplies,Storage,132.41,2,0.2,19.89,112.52,3.9,100,True
+TX-10366,2024-12-31,Asia Pacific,Consumer,Apparel,Casual,432.74,3,0.15,114.6,318.14,4.5,77,True
+TX-10367,2025-01-01,Europe,Home Office,Electronics,Accessories,2440.16,3,0.1,349.6,2090.56,4.3,100,True
+TX-10368,2025-01-02,North America,Home Office,Furniture,Bookcases,373.58,1,0.2,77.07,296.51,4.3,100,True
+TX-10369,2025-01-03,Europe,Consumer,Furniture,Tables,224.55,1,0.3,-32.65,257.2,4.1,63,True
+TX-10370,2025-01-04,Asia Pacific,Consumer,Apparel,Casual,98.1,1,0.0,34.55,63.55,4.7,79,False
+TX-10371,2025-01-05,Latin America,Home Office,Furniture,Chairs,443.41,2,0.1,1.57,441.84,3.5,84,True
+TX-10372,2025-01-06,Europe,Consumer,Office Supplies,Paper,414.68,3,0.05,142.0,272.68,4.5,54,True
+TX-10373,2025-01-07,North America,Corporate,Furniture,Bookcases,656.11,2,0.2,-160.12,816.23,4.3,82,True
+TX-10374,2025-01-08,Europe,Corporate,Electronics,Laptops,2275.45,2,0.0,154.35,2121.1,4.4,78,False
+TX-10375,2025-01-09,Europe,Corporate,Electronics,Laptops,516.1,2,0.0,76.51,439.59,5.0,93,False
+TX-10376,2025-01-10,Europe,Corporate,Apparel,Footwear,87.45,3,0.05,21.31,66.14,3.1,68,True
+TX-10377,2025-01-11,Latin America,Corporate,Electronics,Phones,1567.66,5,0.2,363.2,1204.46,3.7,88,True
+TX-10378,2025-01-12,Europe,Corporate,Office Supplies,Paper,25.07,1,0.05,7.11,17.96,3.5,51,True
+TX-10379,2025-01-13,Asia Pacific,Corporate,Office Supplies,Binders,144.24,2,0.0,42.04,102.2,3.4,91,False
+TX-10380,2025-01-14,Europe,Corporate,Electronics,Accessories,409.9,2,0.0,105.9,304.0,3.9,85,False
+TX-10381,2025-01-15,North America,Corporate,Apparel,Casual,65.71,1,0.0,21.18,44.53,4.4,79,False
+TX-10382,2025-01-16,Europe,Consumer,Furniture,Tables,982.79,2,0.0,224.1,758.69,3.6,70,False
+TX-10383,2025-01-17,Europe,Home Office,Electronics,Monitors,517.79,2,0.05,114.12,403.67,4.2,89,True
+TX-10384,2025-01-18,Asia Pacific,Consumer,Apparel,Outerwear,28.56,1,0.15,6.04,22.52,3.7,90,True
+TX-10385,2025-01-19,North America,Home Office,Electronics,Phones,1175.48,2,0.05,288.32,887.16,3.8,79,True
+TX-10386,2025-01-20,Asia Pacific,Consumer,Furniture,Chairs,857.26,2,0.05,116.01,741.25,4.5,100,True
+TX-10387,2025-01-21,Asia Pacific,Corporate,Furniture,Furnishings,2290.51,3,0.0,100.06,2190.45,3.9,81,False
+TX-10388,2025-01-22,Europe,Home Office,Electronics,Monitors,1740.0,2,0.0,317.83,1422.17,4.0,67,False
+TX-10389,2025-01-23,Europe,Consumer,Furniture,Tables,533.85,2,0.15,-61.09,594.94,4.5,100,True
+TX-10390,2025-01-24,Asia Pacific,Corporate,Electronics,Laptops,394.85,1,0.0,106.13,288.72,4.4,97,False
+TX-10391,2025-01-25,Asia Pacific,Corporate,Office Supplies,Appliances,12.81,1,0.05,2.45,10.36,3.8,61,True
+TX-10392,2025-01-26,Europe,Home Office,Furniture,Tables,390.58,1,0.0,116.41,274.17,3.8,74,False
+TX-10393,2025-01-27,Latin America,Consumer,Apparel,Casual,423.84,3,0.0,124.92,298.92,4.5,94,False
+TX-10394,2025-01-28,Asia Pacific,Corporate,Office Supplies,Binders,201.32,3,0.0,44.22,157.1,4.0,73,False
+TX-10395,2025-01-29,North America,Corporate,Office Supplies,Paper,79.9,2,0.15,11.93,67.97,3.6,81,True
+TX-10396,2025-01-30,Europe,Consumer,Office Supplies,Storage,671.75,5,0.05,98.8,572.95,3.1,74,True
+TX-10397,2025-01-31,Latin America,Consumer,Furniture,Bookcases,859.97,2,0.15,168.83,691.14,4.2,97,True
+TX-10398,2025-02-01,North America,Home Office,Furniture,Tables,3500.46,8,0.0,751.4,2749.06,4.6,75,False
+TX-10399,2025-02-02,North America,Home Office,Furniture,Furnishings,354.54,1,0.05,69.02,285.52,4.8,71,True
+TX-10400,2025-02-03,North America,Consumer,Furniture,Tables,752.04,1,0.0,185.29,566.75,3.1,82,False
+TX-10401,2025-02-04,Europe,Consumer,Electronics,Monitors,854.35,2,0.0,96.88,757.47,4.2,66,False
+TX-10402,2025-02-05,Asia Pacific,Consumer,Electronics,Laptops,2104.52,5,0.2,139.61,1964.91,3.4,89,True
+TX-10403,2025-02-06,North America,Home Office,Electronics,Phones,2457.17,5,0.1,637.59,1819.58,4.1,80,True
+TX-10404,2025-02-07,Asia Pacific,Consumer,Apparel,Athletic,273.35,2,0.0,113.7,159.65,4.9,67,False
+TX-10405,2025-02-08,Europe,Corporate,Furniture,Tables,516.49,5,0.0,124.24,392.25,3.5,100,False
+TX-10406,2025-02-09,North America,Corporate,Furniture,Chairs,652.45,1,0.15,-65.27,717.72,3.8,80,True
+TX-10407,2025-02-10,Europe,Consumer,Furniture,Bookcases,625.5,2,0.1,-35.78,661.28,4.8,72,True
+TX-10408,2025-02-11,Asia Pacific,Consumer,Furniture,Bookcases,910.47,2,0.1,141.29,769.18,3.8,68,True
+TX-10409,2025-02-12,North America,Corporate,Apparel,Athletic,146.36,1,0.2,24.48,121.88,3.7,100,True
+TX-10410,2025-02-13,North America,Consumer,Office Supplies,Appliances,141.93,3,0.05,49.24,92.69,4.9,87,True
+TX-10411,2025-02-14,Europe,Home Office,Office Supplies,Binders,113.91,1,0.05,15.96,97.95,4.8,76,True
+TX-10412,2025-02-15,Europe,Home Office,Office Supplies,Binders,94.31,1,0.1,17.86,76.45,3.6,50,True
+TX-10413,2025-02-16,Europe,Home Office,Electronics,Laptops,211.19,1,0.0,29.65,181.54,4.2,80,False
+TX-10414,2025-02-17,Asia Pacific,Consumer,Furniture,Bookcases,3424.5,5,0.0,795.94,2628.56,5.0,69,False
+TX-10415,2025-02-18,Latin America,Consumer,Furniture,Bookcases,953.18,3,0.0,320.85,632.33,4.3,75,False
+TX-10416,2025-02-19,North America,Home Office,Furniture,Tables,760.69,2,0.1,147.8,612.89,3.8,90,True
+TX-10417,2025-02-20,Latin America,Home Office,Office Supplies,Appliances,52.87,1,0.0,8.43,44.44,3.6,92,False
+TX-10418,2025-02-21,Asia Pacific,Corporate,Electronics,Laptops,1768.56,2,0.0,374.01,1394.55,4.0,81,False
+TX-10419,2025-02-22,Europe,Consumer,Apparel,Casual,92.3,2,0.05,26.61,65.69,4.4,75,True
+TX-10420,2025-02-23,North America,Consumer,Office Supplies,Paper,181.45,8,0.2,14.44,167.01,3.9,57,True
+TX-10421,2025-02-24,Europe,Home Office,Office Supplies,Appliances,129.6,1,0.0,48.2,81.4,4.3,93,False
+TX-10422,2025-02-25,Europe,Consumer,Furniture,Bookcases,238.05,2,0.1,43.37,194.68,3.1,81,True
+TX-10423,2025-02-26,North America,Corporate,Office Supplies,Storage,322.34,5,0.1,86.98,235.36,3.2,65,True
+TX-10424,2025-02-27,Asia Pacific,Consumer,Electronics,Accessories,1977.31,3,0.0,596.81,1380.5,4.5,97,False
+TX-10425,2025-02-28,Europe,Home Office,Electronics,Accessories,5349.42,8,0.05,1113.31,4236.11,4.9,100,True
+TX-10426,2025-03-01,Asia Pacific,Consumer,Office Supplies,Storage,351.22,5,0.0,58.2,293.02,3.8,75,False
+TX-10427,2025-03-02,Latin America,Consumer,Electronics,Laptops,973.54,2,0.0,260.13,713.41,4.3,65,False
+TX-10428,2025-03-03,Europe,Corporate,Electronics,Accessories,1481.78,3,0.05,257.76,1224.02,3.2,79,True
+TX-10429,2025-03-04,Europe,Corporate,Furniture,Bookcases,5520.32,10,0.0,1179.38,4340.94,3.7,65,False
+TX-10430,2025-03-05,Asia Pacific,Consumer,Furniture,Tables,2003.73,5,0.1,222.79,1780.94,4.2,66,True
+TX-10431,2025-03-06,Europe,Corporate,Office Supplies,Paper,383.36,3,0.0,139.14,244.22,4.7,86,False
+TX-10432,2025-03-07,North America,Consumer,Electronics,Accessories,437.76,2,0.0,108.86,328.9,4.6,70,False
+TX-10433,2025-03-08,Europe,Consumer,Furniture,Furnishings,163.19,1,0.1,-9.53,172.72,3.6,87,True
+TX-10434,2025-03-09,North America,Consumer,Furniture,Bookcases,222.75,1,0.1,50.64,172.11,4.7,60,True
+TX-10435,2025-03-10,North America,Consumer,Furniture,Chairs,3136.48,10,0.3,217.5,2918.98,4.4,82,True
+TX-10436,2025-03-11,Asia Pacific,Consumer,Electronics,Phones,3193.01,3,0.0,663.64,2529.37,4.1,37,False
+TX-10437,2025-03-12,Europe,Home Office,Office Supplies,Paper,422.0,3,0.0,120.38,301.62,4.3,42,False
+TX-10438,2025-03-13,Latin America,Corporate,Electronics,Laptops,7777.14,8,0.15,1052.22,6724.92,4.6,68,True
+TX-10439,2025-03-14,North America,Corporate,Furniture,Chairs,639.0,1,0.15,-11.21,650.21,4.1,61,True
+TX-10440,2025-03-15,Europe,Consumer,Electronics,Monitors,1207.26,3,0.3,-57.13,1264.39,4.1,86,True
+TX-10441,2025-03-16,Asia Pacific,Consumer,Furniture,Bookcases,1919.21,4,0.0,577.77,1341.44,4.8,71,False
+TX-10442,2025-03-17,North America,Consumer,Office Supplies,Binders,108.76,1,0.05,33.26,75.5,4.3,63,True
+TX-10443,2025-03-18,Asia Pacific,Home Office,Furniture,Tables,1438.66,5,0.3,-62.43,1501.09,3.7,93,True
+TX-10444,2025-03-19,North America,Home Office,Office Supplies,Storage,72.61,2,0.0,19.4,53.21,4.0,55,False
+TX-10445,2025-03-20,North America,Home Office,Office Supplies,Appliances,41.25,2,0.1,6.37,34.88,3.9,79,True
+TX-10446,2025-03-21,Europe,Corporate,Apparel,Footwear,33.12,1,0.05,8.74,24.38,4.3,100,True
+TX-10447,2025-03-22,North America,Corporate,Furniture,Tables,2893.31,4,0.0,234.4,2658.91,4.6,84,False
+TX-10448,2025-03-23,North America,Consumer,Furniture,Tables,2222.85,4,0.05,529.21,1693.64,4.2,88,True
+TX-10449,2025-03-24,Europe,Consumer,Furniture,Chairs,590.16,3,0.1,63.05,527.11,4.0,84,True
+TX-10450,2025-03-25,Asia Pacific,Corporate,Electronics,Laptops,1987.61,4,0.05,161.5,1826.11,4.1,88,True
+TX-10451,2025-03-26,Latin America,Consumer,Office Supplies,Storage,251.94,2,0.1,29.2,222.74,4.3,92,True
+TX-10452,2025-03-27,Europe,Consumer,Office Supplies,Appliances,214.76,2,0.05,66.03,148.73,4.5,65,True
+TX-10453,2025-03-28,North America,Corporate,Furniture,Chairs,772.97,1,0.0,127.19,645.78,4.5,92,False
+TX-10454,2025-03-29,North America,Consumer,Furniture,Tables,1068.64,4,0.2,159.39,909.25,5.0,100,True
+TX-10455,2025-03-30,North America,Home Office,Furniture,Bookcases,202.83,1,0.0,64.34,138.49,4.2,54,False
+TX-10456,2025-03-31,Asia Pacific,Consumer,Electronics,Accessories,206.85,1,0.2,18.92,187.93,5.0,69,True
+TX-10457,2025-04-01,Europe,Consumer,Apparel,Athletic,187.87,4,0.0,89.02,98.85,3.3,71,False
+TX-10458,2025-04-02,Asia Pacific,Home Office,Electronics,Monitors,795.27,1,0.0,237.4,557.87,3.1,55,False
+TX-10459,2025-04-03,North America,Consumer,Electronics,Accessories,908.75,2,0.0,220.92,687.83,4.6,89,False
+TX-10460,2025-04-04,North America,Corporate,Office Supplies,Storage,95.58,1,0.05,20.68,74.9,3.7,55,True
+TX-10461,2025-04-05,North America,Consumer,Furniture,Bookcases,832.41,2,0.05,6.43,825.98,3.8,77,True
+TX-10462,2025-04-06,North America,Consumer,Electronics,Accessories,666.83,1,0.0,188.93,477.9,3.7,85,False
+TX-10463,2025-04-07,North America,Corporate,Apparel,Casual,124.85,3,0.0,54.16,70.69,3.9,72,False
+TX-10464,2025-04-08,Latin America,Corporate,Apparel,Casual,108.21,3,0.0,43.22,64.99,4.0,88,False
+TX-10465,2025-04-09,North America,Consumer,Furniture,Chairs,581.83,1,0.0,-36.01,617.84,4.0,100,False
+TX-10466,2025-04-10,North America,Corporate,Furniture,Chairs,654.53,1,0.0,70.74,583.79,4.7,76,False
+TX-10467,2025-04-11,North America,Consumer,Office Supplies,Binders,266.6,4,0.0,89.32,177.28,4.5,43,False
+TX-10468,2025-04-12,Europe,Corporate,Furniture,Tables,2758.28,4,0.05,-150.4,2908.68,5.0,79,True
+TX-10469,2025-04-13,Europe,Corporate,Office Supplies,Binders,451.47,4,0.05,118.05,333.42,3.8,89,True
+TX-10470,2025-04-14,Europe,Consumer,Office Supplies,Binders,214.09,2,0.0,86.8,127.29,4.2,73,False
+TX-10471,2025-04-15,North America,Consumer,Furniture,Tables,570.77,1,0.05,184.22,386.55,4.5,82,True
+TX-10472,2025-04-16,Europe,Corporate,Furniture,Bookcases,1509.84,3,0.3,-77.5,1587.34,3.9,76,True
+TX-10473,2025-04-17,Asia Pacific,Consumer,Office Supplies,Storage,423.47,4,0.0,96.59,326.88,4.4,94,False
+TX-10474,2025-04-18,Asia Pacific,Consumer,Apparel,Footwear,302.17,8,0.2,65.96,236.21,5.0,63,True
+TX-10475,2025-04-19,North America,Corporate,Furniture,Chairs,677.12,1,0.05,105.91,571.21,3.4,68,True
+TX-10476,2025-04-20,Asia Pacific,Home Office,Electronics,Accessories,1674.21,2,0.15,108.33,1565.88,4.3,73,True
+TX-10477,2025-04-21,Europe,Corporate,Electronics,Monitors,3588.36,10,0.0,674.04,2914.32,3.5,61,False
+TX-10478,2025-04-22,North America,Consumer,Electronics,Laptops,349.26,1,0.05,82.98,266.28,3.9,72,True
+TX-10479,2025-04-23,North America,Home Office,Furniture,Tables,1497.17,2,0.0,253.95,1243.22,3.7,60,False
+TX-10480,2025-04-24,North America,Consumer,Office Supplies,Storage,145.99,4,0.05,44.16,101.83,3.6,83,True
+TX-10481,2025-04-25,Asia Pacific,Corporate,Office Supplies,Appliances,60.39,1,0.0,13.65,46.74,4.0,66,False
+TX-10482,2025-04-26,North America,Corporate,Furniture,Bookcases,1209.27,2,0.1,284.29,924.98,4.2,100,True
+TX-10483,2025-04-27,Europe,Consumer,Furniture,Chairs,470.39,4,0.0,108.15,362.24,5.0,73,False
+TX-10484,2025-04-28,North America,Home Office,Furniture,Furnishings,2204.38,4,0.0,514.75,1689.63,4.4,40,False
+TX-10485,2025-04-29,Europe,Home Office,Electronics,Phones,1143.07,1,0.0,302.4,840.67,4.9,92,False
+TX-10486,2025-04-30,Europe,Corporate,Apparel,Athletic,260.03,2,0.2,68.03,192.0,3.4,81,True
+TX-10487,2025-05-01,Europe,Consumer,Apparel,Athletic,689.2,8,0.15,238.79,450.41,4.2,91,True
+TX-10488,2025-05-02,Europe,Consumer,Apparel,Casual,269.67,2,0.15,34.31,235.36,5.0,69,True
+TX-10489,2025-05-03,Europe,Consumer,Furniture,Tables,637.27,3,0.0,190.51,446.76,4.0,52,False
+TX-10490,2025-05-04,Latin America,Home Office,Office Supplies,Appliances,173.72,2,0.2,25.74,147.98,2.9,100,True
+TX-10491,2025-05-05,North America,Consumer,Electronics,Phones,515.66,4,0.15,21.39,494.27,5.0,71,True
+TX-10492,2025-05-06,Latin America,Consumer,Furniture,Tables,750.6,1,0.05,82.58,668.02,3.7,68,True
+TX-10493,2025-05-07,Asia Pacific,Corporate,Furniture,Chairs,631.58,1,0.2,67.2,564.38,4.0,84,True
+TX-10494,2025-05-08,Asia Pacific,Consumer,Office Supplies,Appliances,90.75,2,0.0,25.99,64.76,3.9,81,False
+TX-10495,2025-05-09,Asia Pacific,Consumer,Office Supplies,Storage,68.73,1,0.0,15.25,53.48,3.5,74,False
+TX-10496,2025-05-10,North America,Consumer,Apparel,Athletic,145.67,1,0.05,30.16,115.51,4.8,93,True
+TX-10497,2025-05-11,North America,Consumer,Electronics,Phones,1536.06,4,0.1,226.58,1309.48,5.0,58,True
+TX-10498,2025-05-12,Latin America,Corporate,Electronics,Accessories,4639.4,5,0.05,941.17,3698.23,3.6,100,True
+TX-10499,2025-05-13,Europe,Home Office,Apparel,Outerwear,87.56,1,0.0,22.61,64.95,4.7,61,False
+TX-10500,2025-05-14,Europe,Home Office,Apparel,Footwear,364.97,2,0.0,94.08,270.89,3.6,85,False

@@ -225,6 +225,10 @@ pub enum Error {
     ScalarUnsupportedError{
         name: String
     },
+    MissingRequiredKWArg{
+        name: String
+    },
+    Custom(String),
     PolarsError(polars::prelude::PolarsError)
 }
 
@@ -240,6 +244,8 @@ pub fn format_error(error: Error) -> String {
         } => format!("Error: expected {expected_min}-{expected_max} number of argumens, got {got}"),
         Error::ScalarShapeError { shape } => format!("Error: failed to convert to lisp expr, shape is {} by {}", shape.0, shape.1),
         Error::ScalarUnsupportedError { name } => format!("Error: unsupported scalar conversion from type '{name}'"),
+        Error::MissingRequiredKWArg { name } => format!("Error: missing required keyword argument '{name}'"),
+        Error::Custom(message) => format!("Error: {message}"),
         Error::PolarsError(perror) => format!("Error: {}", perror)
     }
 }
