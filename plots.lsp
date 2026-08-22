@@ -44,4 +44,11 @@
   :x-title "Category"
   :y-title "Profit ($)")
 
+(time-series-plot lf
+  :x "date"
+  :y "sales"
+  :title "Daily Sales Over Time"
+  :x-title "Date"
+  :y-title "Sales ($)")
+
 (print lf)
