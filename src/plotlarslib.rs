@@ -1,4 +1,4 @@
-use plotlars::{Plot, ScatterPlot, BarPlot, PieChart, Histogram};
+use plotlars::{Plot, ScatterPlot, BarPlot, PieChart, Histogram, BoxPlot};
 use crate::types::{Expr, Error};
 use crate::stdlib;
 use polars::prelude::*;
@@ -170,6 +170,60 @@ pub fn histogram(args: Vec<Expr>) -> Result<Expr, Error> {
         .maybe_group(group.as_deref())
         .maybe_opacity(opacity)
         .maybe_facet(facet.as_deref())
+        .build();
+
+    plot.plot();
+
+    Ok(stdlib::nil())
+}
+
+pub fn box_plot(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args.first()
+        .ok_or_else(|| Error::MissingRequiredKWArg { name: "dataframe".to_string() })?
+        .clone()
+        .expect_lazy_frame()?;
+
+    let df = lf.collect().map_err(Error::PolarsError)?;
+
+    // Required arguments (accepts :labels / :x, and :values / :y)
+    let labels = kw(&args, ":labels")
+        .or_else(|| kw(&args, ":x"))
+        .ok_or_else(|| Error::MissingRequiredKWArg { name: ":labels".to_string() })?
+        .expect_string()?;
+
+    let values = kw(&args, ":values")
+        .or_else(|| kw(&args, ":y"))
+        .ok_or_else(|| Error::MissingRequiredKWArg { name: ":values".to_string() })?
+        .expect_string()?;
+
+    // Optional arguments
+    let title = kw(&args, ":title").map(|k| k.expect_string()).transpose()?;
+    let x_title = kw(&args, ":x-title").map(|k| k.expect_string()).transpose()?;
+    let y_title = kw(&args, ":y-title").map(|k| k.expect_string()).transpose()?;
+    let group = kw(&args, ":group").map(|k| k.expect_string()).transpose()?;
+    let opacity = kw(&args, ":opacity").map(|k| k.expect_float()).transpose()?;
+    let facet = kw(&args, ":facet").map(|k| k.expect_string()).transpose()?;
+    let jitter = kw(&args, ":jitter").map(|k| k.expect_float()).transpose()?;
+    let point_offset = kw(&args, ":point-offset").map(|k| k.expect_float()).transpose()?;
+    let box_points = if has_flag(&args, ":box-points") {
+        Some(true)
+    } else {
+        None
+    };
+
+    let plot = BoxPlot::builder()
+        .data(&df)
+        .labels(labels.as_str())
+        .values(values.as_str())
+        .maybe_plot_title(title.as_deref())
+        .maybe_x_title(x_title.as_deref())
+        .maybe_y_title(y_title.as_deref())
+        .maybe_group(group.as_deref())
+        .maybe_opacity(opacity)
+        .maybe_facet(facet.as_deref())
+        .maybe_box_points(box_points)
+        .maybe_point_offset(point_offset)
+        .maybe_jitter(jitter)
         .build();
 
     plot.plot();

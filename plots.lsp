@@ -37,4 +37,11 @@
   :x-title "Profit ($)"
   :y-title "Count")
 
+(box-plot lf
+  :labels "category"
+  :values "profit"
+  :title "Profit Spread across Categories"
+  :x-title "Category"
+  :y-title "Profit ($)")
+
 (print lf)
