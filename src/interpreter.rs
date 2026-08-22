@@ -111,6 +111,12 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                         var = eval(Expr::List(expr2), env, state)?;
                     }
                     return Ok(var);
+                },
+                "ask" => {
+                    let question = list[1].clone().expect_string()?;
+                    let runtime = tokio::runtime::Runtime::new().unwrap();
+                    let answer = runtime.block_on(crate::ai::ask_ai(&question, env)).unwrap();
+                    return Ok(Expr::String(answer));
                 }
                 _ => {}
             }

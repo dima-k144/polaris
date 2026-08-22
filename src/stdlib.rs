@@ -989,13 +989,6 @@ fn collect_(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(nil())
 }
 
-pub fn ask(args: Vec<Expr>) -> Result<Expr, Error> {
-    let question = args[0].clone().expect_string()?;
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    let answer = runtime.block_on(crate::ai::ask_ai(&question)).unwrap();
-    Ok(Expr::String(answer))
-}
-
 pub fn insert_native_function(defines: &mut HashMap<String, Expr>, name: &str, body: fn(Vec<Expr>) -> Result<Expr, Error>,
     min_args: u8, max_args: u8) {
         defines.insert(name.to_string(), Expr::NativeFunction { body, min_args, max_args });
@@ -1010,9 +1003,6 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     // Native Functions: (defines, name, function_pointer, min_args, max_args)
     insert_native_function(&mut defines, "print", print, 0, u8::MAX);
     insert_native_function(&mut defines, "list", list, 0, u8::MAX);
-
-    // AI
-    insert_native_function(&mut defines, "ask", ask, 1, 1);
 
     // Arithmetic
     insert_native_function(&mut defines, "+", plus, 1, u8::MAX);

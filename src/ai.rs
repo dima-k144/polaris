@@ -1,7 +1,32 @@
 use reqwest::Client;
 use serde_json::json;
+use std::cell::RefCell;
+use std::rc::Rc;
+use crate::types::Env;
+use crate::types::*;
+use polars::prelude::LazyFrame;
 
-pub async fn ask_ai(prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
+pub fn collect_context(env: &Rc<RefCell<Env>>) -> String {
+    let mut context = String::from("Here's the context about user's current environment with variables\nUser env: {");
+    for (name, value) in env.borrow().defines.iter() {
+        match value {
+            Expr::LazyFrame(lf) => {
+                let lf_info = lf.clone().collect_schema().unwrap();
+                context.push_str(&format!("{name}: LazyFrame {{ {:?} }}", lf_info));
+            },
+            Expr::NativeFunction { body, min_args, max_args } => {
+
+            },
+            _ => { 
+                if name == "nil" { continue; }
+                context.push_str(&format!("{name}: {value}"))
+            }
+        }
+    }
+    context
+}
+
+pub async fn ask_ai(prompt: &str, env: &Rc<RefCell<Env>>) -> Result<String, Box<dyn std::error::Error>> {
     let api_key = String::from("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");
     
     let system_oprompt = r#"
@@ -192,6 +217,10 @@ pub async fn ask_ai(prompt: &str) -> Result<String, Box<dyn std::error::Error>> 
                 {
                     "role": "system",
                     "content": system_oprompt
+                },
+                {
+                    "role": "system",
+                    "content": collect_context(env)
                 },
                 {
                     "role": "user",

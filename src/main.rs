@@ -1,5 +1,8 @@
 use std::io::{self, Write};
 use std::fs;
+use std::cell::RefCell;
+use std::rc::Rc;
+use crate::types::Env;
 
 use crate::ai::ask_ai;
 use crate::interpreter::eval_string;
@@ -26,11 +29,11 @@ fn is_complete_input(input: &String) -> bool {
     open_parens_count == closed_parens_count && double_quotes_count % 2 == 0
 }
 
-fn handle_error(error: crate::types::Error, input: String) {
+fn handle_error(error: crate::types::Error, input: String, env: &Rc<RefCell<Env>>) {
     println!("{}", crate::types::format_error(error.clone()));
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let prompt = format!("User has encountered an error:{}\nUser's code:\n{}\n", crate::types::format_error(error), input);
-    let answer = runtime.block_on(crate::ai::ask_ai(&prompt)).unwrap();
+    let answer = runtime.block_on(crate::ai::ask_ai(&prompt, env)).unwrap();
     termimad::print_text(&answer);
 }
 
@@ -53,10 +56,10 @@ fn repl() {
             Ok(val) => {
                 match val.to_string() {
                     Ok(str) => println!("{str}"),
-                    Err(err) => handle_error(err, input),
+                    Err(err) => handle_error(err, input, &env),
                 }
             },
-            Err(err) => handle_error(err, input),
+            Err(err) => handle_error(err, input, &env),
         };
     }
 }
@@ -74,10 +77,10 @@ fn main() {
                 Ok(val) => {
                     match val.to_string() {
                         Ok(str) => println!("{str}"),
-                        Err(err) => handle_error(err, contents),
+                        Err(err) => handle_error(err, contents, &env),
                     }
                 },
-                Err(err) => handle_error(err, contents),
+                Err(err) => handle_error(err, contents, &env),
             };
         }
         return; // Exit without entering REPL
