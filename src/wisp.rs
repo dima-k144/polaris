@@ -1,0 +1,208 @@
+use crate::types::Error;
+
+pub fn preprocess_wisp(input: &str) -> Result<String, Error> {
+    let mut result = String::new();
+    let mut indent_stack: Vec<usize> = Vec::new();
+    let mut paren_depth: usize = 0;
+    let mut bracket_depth: usize = 0;
+    let mut brace_depth: usize = 0;
+    let mut in_string = false;
+    let mut consecutive_empty_lines = 0;
+
+    for raw_line in input.lines() {
+        let line_without_comment = strip_comments(raw_line);
+        let trimmed = line_without_comment.trim();
+
+        if trimmed.is_empty() {
+            consecutive_empty_lines += 1;
+            if consecutive_empty_lines >= 2 {
+                while indent_stack.pop().is_some() {
+                    result.push_str(") ");
+                }
+            }
+            result.push('\n');
+            continue;
+        }
+        consecutive_empty_lines = 0;
+
+        // If inside an open paren/bracket/brace or multiline string, pass through directly
+        if in_string || paren_depth > 0 || bracket_depth > 0 || brace_depth > 0 {
+            update_delimiters(
+                trimmed,
+                &mut in_string,
+                &mut paren_depth,
+                &mut bracket_depth,
+                &mut brace_depth,
+            );
+            result.push_str(trimmed);
+            result.push('\n');
+            continue;
+        }
+
+        // Standard parenthesized S-expression at top-level: bypass indent stack
+        if trimmed.starts_with('(') || trimmed.starts_with('[') || trimmed.starts_with('{') {
+            while indent_stack.pop().is_some() {
+                result.push_str(") ");
+            }
+            update_delimiters(
+                trimmed,
+                &mut in_string,
+                &mut paren_depth,
+                &mut bracket_depth,
+                &mut brace_depth,
+            );
+            result.push_str(trimmed);
+            result.push('\n');
+            continue;
+        }
+
+        let indent = raw_line
+            .chars()
+            .take_while(|c| *c == ' ' || *c == '\t')
+            .map(|c| if c == '\t' { 4 } else { 1 })
+            .sum::<usize>();
+
+        let is_dot_continuation = trimmed == "." || trimmed.starts_with(". ");
+        let is_colon_only = trimmed == ":";
+
+        while let Some(&top) = indent_stack.last() {
+            if indent < top {
+                indent_stack.pop();
+                result.push_str(") ");
+            } else {
+                break;
+            }
+        }
+
+        let content_to_process = if is_dot_continuation {
+            if trimmed == "." { "" } else { &trimmed[2..] }
+        } else if is_colon_only {
+            ""
+        } else {
+            trimmed
+        };
+
+        if is_dot_continuation {
+            let expanded = expand_inline_colons(content_to_process);
+            result.push_str(&expanded);
+        } else if is_colon_only {
+            indent_stack.push(indent);
+            result.push_str("(");
+        } else {
+            if indent_stack.last().map_or(true, |&top| indent > top) {
+                indent_stack.push(indent);
+                result.push_str("(");
+            } else {
+                result.push_str(") (");
+            }
+            let expanded = expand_inline_colons(content_to_process);
+            result.push_str(&expanded);
+        }
+
+        update_delimiters(
+            content_to_process,
+            &mut in_string,
+            &mut paren_depth,
+            &mut bracket_depth,
+            &mut brace_depth,
+        );
+        result.push('\n');
+    }
+
+    while indent_stack.pop().is_some() {
+        result.push_str(") ");
+    }
+
+    Ok(result)
+}
+
+fn strip_comments(s: &str) -> &str {
+    let mut in_str = false;
+    let mut escape = false;
+    for (i, c) in s.char_indices() {
+        if escape {
+            escape = false;
+            continue;
+        }
+        if c == '\\' {
+            escape = true;
+        } else if c == '"' {
+            in_str = !in_str;
+        } else if c == ';' && !in_str {
+            return &s[..i];
+        }
+    }
+    s
+}
+
+fn update_delimiters(
+    s: &str,
+    in_string: &mut bool,
+    paren_depth: &mut usize,
+    bracket_depth: &mut usize,
+    brace_depth: &mut usize,
+) {
+    let mut escape = false;
+    for c in s.chars() {
+        if escape {
+            escape = false;
+            continue;
+        }
+        if c == '\\' {
+            escape = true;
+            continue;
+        }
+        if c == '"' {
+            *in_string = !*in_string;
+        } else if !*in_string {
+            match c {
+                '(' => *paren_depth += 1,
+                ')' => *paren_depth = paren_depth.saturating_sub(1),
+                '[' => *bracket_depth += 1,
+                ']' => *bracket_depth = bracket_depth.saturating_sub(1),
+                '{' => *brace_depth += 1,
+                '}' => *brace_depth = brace_depth.saturating_sub(1),
+                _ => {}
+            }
+        }
+    }
+}
+
+fn expand_inline_colons(line: &str) -> String {
+    let mut trimmed = line.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+
+    let mut prefix_parens = 0;
+    if trimmed.starts_with(": ") {
+        prefix_parens += 1;
+        trimmed = &trimmed[2..];
+    } else if trimmed == ":" {
+        return "()".to_string();
+    }
+
+    let mut ends_with_empty_colon = false;
+    if trimmed.ends_with(" :") {
+        ends_with_empty_colon = true;
+        trimmed = &trimmed[..trimmed.len() - 2];
+    }
+
+    let parts: Vec<&str> = trimmed.split(" : ").collect();
+    let inline_colons = parts.len().saturating_sub(1);
+
+    let mut out = "(".repeat(prefix_parens);
+    out.push_str(parts[0]);
+
+    for part in &parts[1..] {
+        out.push_str(" (");
+        out.push_str(part);
+    }
+
+    if ends_with_empty_colon {
+        out.push_str(" ()");
+    }
+
+    out.push_str(&")".repeat(inline_colons + prefix_parens));
+    out.replace("\\:", ":")
+}

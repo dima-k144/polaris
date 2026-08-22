@@ -210,7 +210,9 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
 }
 
 pub fn eval_string(source: String, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Expr, Error> {
-    let mut tokens = crate::lexer::scan(&source)?; 
+    let s_expr_source = crate::wisp::preprocess_wisp(&source)?;
+    println!("{}", s_expr_source);
+    let mut tokens = crate::lexer::scan(&s_expr_source)?;
     let exprs = crate::parser::parse(&mut tokens)?;
     let mut result = None;
     for expr in exprs {
