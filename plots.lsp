@@ -19,4 +19,8 @@
   :x-title "Category"
   :y-title "Total Sales ($)")
 
+(pie-plot lf
+  :labels "category"
+  :title "Distribution by Category")
+
 (print lf)

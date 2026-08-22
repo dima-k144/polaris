@@ -1,4 +1,4 @@
-use plotlars::{Plot, ScatterPlot, BarPlot};
+use plotlars::{Plot, ScatterPlot, BarPlot, PieChart};
 use crate::types::{Expr, Error};
 use crate::stdlib;
 use polars::prelude::*;
@@ -102,6 +102,39 @@ pub fn bar_plot(args: Vec<Expr>) -> Result<Expr, Error> {
         .maybe_y_title(y_title.as_deref())
         .maybe_group(group.as_deref())
         .maybe_error(error.as_deref())
+        .build();
+
+    plot.plot();
+
+    Ok(stdlib::nil())
+}
+
+pub fn pie_plot(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args.first()
+        .ok_or_else(|| Error::MissingRequiredKWArg { name: "dataframe".to_string() })?
+        .clone()
+        .expect_lazy_frame()?;
+
+    let df = lf.collect().map_err(Error::PolarsError)?;
+
+    // Required arguments
+    let labels = require_kw(&args, ":labels")?.expect_string()?;
+
+    // Optional arguments
+    let title = kw(&args, ":title").map(|k| k.expect_string()).transpose()?;
+    let hole = kw(&args, ":hole").map(|k| k.expect_float()).transpose()?;
+    let pull = kw(&args, ":pull").map(|k| k.expect_float()).transpose()?;
+    let rotation = kw(&args, ":rotation").map(|k| k.expect_float()).transpose()?;
+    let facet = kw(&args, ":facet").map(|k| k.expect_string()).transpose()?;
+
+    let plot = PieChart::builder()
+        .data(&df)
+        .labels(labels.as_str())
+        .maybe_plot_title(title.as_deref())
+        .maybe_hole(hole)
+        .maybe_pull(pull)
+        .maybe_rotation(rotation)
+        .maybe_facet(facet.as_deref())
         .build();
 
     plot.plot();
