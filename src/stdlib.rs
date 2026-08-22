@@ -1106,6 +1106,7 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "scatter-plot", plotlarslib::scatter_plot, 1, u8::MAX);
     insert_native_function(&mut defines, "bar-plot", plotlarslib::bar_plot, 1, u8::MAX);
     insert_native_function(&mut defines, "pie-plot", plotlarslib::pie_plot, 1, u8::MAX);
+    insert_native_function(&mut defines, "histogram", plotlarslib::histogram, 1, u8::MAX);
 
     // Polars to lisp
     insert_native_function(&mut defines, "scalar", scalar, 1, 1);

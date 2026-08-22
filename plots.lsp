@@ -23,4 +23,18 @@
   :labels "category"
   :title "Distribution by Category")
 
+(histogram lf
+  :x "sales"
+  :title "Sales Distribution"
+  :x-title "Sales Amount ($)"
+  :y-title "Frequency")
+
+(histogram lf
+  :x "profit"
+  :group "region"
+  :opacity 0.6
+  :title "Profit Distribution by Region"
+  :x-title "Profit ($)"
+  :y-title "Count")
+
 (print lf)
