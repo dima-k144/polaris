@@ -260,7 +260,7 @@ pub async fn ask_ai(prompt: &str, env: &Rc<RefCell<Env>>) -> Result<String, Box<
     let api_key = std::env::var("OPENROUTER_API_KEY").unwrap_or_else(|_| {
         "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".to_string()
     });
-    let model = "qwen/qwen3.8-27b";
+    let model = "google/gemini-3.7-flash";
 
     let request_future = Client::new()
         .post("https://openrouter.ai/api/v1/chat/completions")
@@ -342,7 +342,7 @@ Below is language specification
 "#;
 
     let context = collect_context(env);
-    let model = "qwen/qwen3.8-27b";
+    let model = "google/gemini-3.7-flash";
 
     let client = Client::new();
     let response = tokio::select! {
@@ -436,7 +436,7 @@ Respond ONLY with valid JSON matching this schema:
         .post("https://openrouter.ai/api/v1/chat/completions")
         .bearer_auth(api_key)
         .json(&json!({
-            "model": "qwen/qwen3.8-27b",
+            "model": "google/gemini-3.7-flash",
             "messages": [
                 { "role": "system", "content": system_instructions },
                 { "role": "system", "content": LANGUAGE_SPEC },
@@ -604,7 +604,7 @@ Keep the points direct and concise.
         .post("https://openrouter.ai/api/v1/chat/completions")
         .bearer_auth(api_key)
         .json(&json!({
-            "model": "qwen/qwen3.8-27b",
+            "model": "google/gemini-3.7-flash",
             "messages": [
                 { "role": "system", "content": system_instructions },
                 { "role": "user", "content": profile_data }
@@ -695,7 +695,7 @@ RULES:
         .post("https://openrouter.ai/api/v1/chat/completions")
         .bearer_auth(api_key)
         .json(&json!({
-            "model": "qwen/qwen3.8-27b",
+            "model": "google/gemini-3.7-flash",
             "messages": [
                 { "role": "system", "content": system_instructions },
                 { "role": "system", "content": LANGUAGE_SPEC },
@@ -792,7 +792,7 @@ Return ONLY pure MLisp code without markdown backticks or explanations.
         .post("https://openrouter.ai/api/v1/chat/completions")
         .bearer_auth(api_key)
         .json(&json!({
-            "model": "qwen/qwen3.8-27b",
+            "model": "google/gemini-3.7-flash",
             "messages": [
                 { "role": "system", "content": system_instructions },
                 { "role": "system", "content": LANGUAGE_SPEC },
@@ -834,4 +834,86 @@ Return ONLY pure MLisp code without markdown backticks or explanations.
         .to_string();
 
     Ok(extract_lisp_code(&raw_code))
+}
+
+pub async fn unstructured_to_csv(input_path: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let raw_content = std::fs::read_to_string(input_path)?;
+
+    // Limit context length if the input file is very large
+    let sample = if raw_content.len() > 20_000 {
+        &raw_content[..20_000]
+    } else {
+        &raw_content[..]
+    };
+
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(
+        ProgressStyle::with_template("{spinner:.cyan} {msg}")
+            .unwrap()
+            .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", " "]),
+    );
+    pb.set_message("Converting unstructured data to CSV via AI...");
+    pb.enable_steady_tick(Duration::from_millis(80));
+
+    let api_key = std::env::var("OPENROUTER_API_KEY").unwrap_or_else(|_| {
+        "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".to_string()
+    });
+
+    let system_instructions = r#"
+You are an expert unstructured-to-tabular data parsing engine.
+Your sole job is to infer the underlying entities/records in the provided unstructured text and format them into a clean, valid RFC-4180 CSV.
+
+RULES:
+1. Row 1 MUST be standard comma-separated column headers. Infer sensible, snake_case column names.
+2. Every subsequent line must be a CSV row with equal number of columns.
+3. Wrap values containing commas, quotes, or newlines in double quotes.
+4. Output ONLY valid CSV text.
+5. DO NOT wrap output in markdown codeblocks (no ```csv or ```).
+6. DO NOT include explanations, notes, intros, or summaries.
+"#;
+
+    let client = Client::new();
+    let response_future = client
+        .post("https://openrouter.ai/api/v1/chat/completions")
+        .bearer_auth(api_key)
+        .json(&json!({
+            "model": "google/gemini-3.7-flash",
+            "messages": [
+                { "role": "system", "content": system_instructions },
+                { "role": "user", "content": sample }
+            ],
+            "temperature": 0.1
+        }))
+        .send();
+
+    let response_res = tokio::select! {
+        res = response_future => res,
+        _ = tokio::signal::ctrl_c() => {
+            pb.finish_and_clear();
+            return Err("AI conversion cancelled by user.".into());
+        }
+    };
+
+    let response = response_res?;
+    let json_resp: serde_json::Value = response.json().await?;
+    pb.finish_and_clear();
+
+    let raw_csv = json_resp["choices"][0]["message"]["content"]
+        .as_str()
+        .unwrap_or("")
+        .trim();
+
+    let clean_csv = extract_lisp_code(raw_csv);
+
+    // Generate output path (e.g., "data.log" -> "data.csv")
+    let in_path = std::path::Path::new(input_path);
+    let output_path = in_path
+        .with_extension("csv")
+        .to_str()
+        .unwrap_or("output.csv")
+        .to_string();
+
+    std::fs::write(&output_path, clean_csv)?;
+
+    Ok(output_path)
 }

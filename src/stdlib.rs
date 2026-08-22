@@ -8,6 +8,7 @@ use crate::types::{Env, Error, Expr::{self, PolarsExpr}};
 use crate::plotlarslib;
 use crate::ai;
 use crate::interpreter::{eval_string, State};
+use std::io::Cursor;
 
 pub fn nil() -> Expr { Expr::Symbol(String::from("nil")) }
 
@@ -1065,6 +1066,21 @@ fn ai_plot(args: Vec<Expr>) -> Result<Expr, Error> {
         .map_err(|e| Error::Custom(format!("Plot execution failed: {}", crate::types::format_error(e))))
 }
 
+// (ai-to-csv "path/to/unstructured_file.txt") -> "path/to/unstructured_file.csv"
+fn ai_to_csv(args: Vec<Expr>) -> Result<Expr, Error> {
+    let input_path = args[0].clone().expect_string()?;
+
+    let runtime = tokio::runtime::Runtime::new().map_err(|e| {
+        Error::Custom(format!("Failed to create async runtime: {e}"))
+    })?;
+
+    let output_file = runtime
+        .block_on(ai::unstructured_to_csv(&input_path))
+        .map_err(|err| Error::Custom(format!("AI CSV conversion failed: {err}")))?;
+
+    Ok(Expr::String(output_file))
+}
+
 pub fn std_env() -> Rc<RefCell<Env>> {
     let mut defines = HashMap::new();
 
@@ -1075,6 +1091,7 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "ai-explain", ai_explain, 1, 1);
     insert_native_function(&mut defines, "ai-clean", ai_clean, 1, 2);
     insert_native_function(&mut defines, "ai-plot", ai_plot, 2, 2);
+    insert_native_function(&mut defines, "ai-to-csv", ai_to_csv, 1, 1);
 
     // Native Functions: (defines, name, function_pointer, min_args, max_args)
     insert_native_function(&mut defines, "print", print, 0, u8::MAX);
