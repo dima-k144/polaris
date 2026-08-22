@@ -34,7 +34,19 @@ fn handle_error(error: crate::types::Error, input: String, env: &Rc<RefCell<Env>
     let err_str = crate::types::format_error(error);
     println!("{err_str}");
 
-    let runtime = tokio::runtime::Runtime::new().unwrap();
+    // If cancelled by user, return to the prompt without asking for AI fix
+    if err_str.contains("cancelled by user") {
+        return;
+    }
+
+    let runtime = match tokio::runtime::Runtime::new() {
+        Ok(rt) => rt,
+        Err(e) => {
+            eprintln!("Runtime error: {e}");
+            return;
+        }
+    };
+
     match runtime.block_on(suggest_fix(&err_str, &input, env)) {
         Ok(fix) => {
             termimad::print_text(&format!("**AI Diagnosis:** {}", fix.explanation));

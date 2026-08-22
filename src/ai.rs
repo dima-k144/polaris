@@ -9,6 +9,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use std::time::Duration;
 use serde::Deserialize;
 use polars::prelude::*;
+use tokio::signal;
 
 static LANGUAGE_SPEC: &str = r#"
 # MLisp: Language Specification & AI Prompt Guide
@@ -227,21 +228,22 @@ pub fn collect_context(env: &Rc<RefCell<Env>>) -> String {
 }
 
 pub async fn ask_ai(prompt: &str, env: &Rc<RefCell<Env>>) -> Result<String, Box<dyn std::error::Error>> {
-    // 1. Create and configure spinner
+    // 1. Configure the spinner
     let pb = ProgressBar::new_spinner();
     pb.set_style(
-        ProgressStyle::with_template("{spinner:.cyan} {msg}")
+        ProgressStyle::with_template("{spinner:.cyan} {msg} \x1b[90m(Ctrl+C to cancel)\x1b[0m")
             .unwrap()
             .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", " "]),
     );
     pb.set_message("AI is thinking...");
     pb.enable_steady_tick(Duration::from_millis(80));
 
-    let api_key = String::from("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");
+    let api_key = std::env::var("OPENROUTER_API_KEY").unwrap_or_else(|_| {
+        "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".to_string()
+    });
     let model = "qwen/qwen3.8-27b";
-    
-    // 2. Perform the async network request
-    let response_res = Client::new()
+
+    let request_future = Client::new()
         .post("https://openrouter.ai/api/v1/chat/completions")
         .bearer_auth(api_key)
         .json(&json!({
@@ -252,8 +254,16 @@ pub async fn ask_ai(prompt: &str, env: &Rc<RefCell<Env>>) -> Result<String, Box<
                 { "role": "user", "content": prompt }
             ]
         }))
-        .send()
-        .await;
+        .send();
+
+    // 2. Race the HTTP network request against the Ctrl+C signal
+    let response_res = tokio::select! {
+        res = request_future => res,
+        _ = signal::ctrl_c() => {
+            pb.finish_and_clear();
+            return Err("AI request cancelled by user.".into());
+        }
+    };
 
     let response = match response_res {
         Ok(res) => res,
@@ -263,9 +273,16 @@ pub async fn ask_ai(prompt: &str, env: &Rc<RefCell<Env>>) -> Result<String, Box<
         }
     };
 
-    let json: serde_json::Value = response.json().await?;
+    // 3. Race JSON reading against Ctrl+C as well
+    let json_future = response.json::<serde_json::Value>();
+    let json: serde_json::Value = tokio::select! {
+        parsed = json_future => parsed?,
+        _ = signal::ctrl_c() => {
+            pb.finish_and_clear();
+            return Err("AI response stream cancelled by user.".into());
+        }
+    };
 
-    // 3. Clear or finish the spinner once complete
     pb.finish_and_clear();
 
     Ok(json["choices"][0]["message"]["content"]
@@ -309,25 +326,30 @@ Below is language specification
     let model = "qwen/qwen3.8-27b";
 
     let client = Client::new();
-    let response = client
-        .post("https://openrouter.ai/api/v1/chat/completions")
-        .bearer_auth(api_key)
-        .json(&json!({
-            "model": model,
-            "messages": [
-                { "role": "system", "content": system_instructions },
-                { "role": "system", "content": LANGUAGE_SPEC},
-                { "role": "system", "content": context },
-                { "role": "user", "content": user_query }
-            ],
-            "temperature": 0.1
-        }))
-        .send()
-        .await
-        .map_err(|e| {
+    let response = tokio::select! {
+        res = client.post("https://openrouter.ai/api/v1/chat/completions")
+            .bearer_auth(api_key)
+            .json(&json!({
+                "model": model,
+                "messages": [
+                    { "role": "system", "content": system_instructions },
+                    { "role": "system", "content": LANGUAGE_SPEC},
+                    { "role": "system", "content": context },
+                    { "role": "user", "content": user_query }
+                ],
+                "temperature": 0.1
+            }))
+            .send() => {
+                res.map_err(|e| {
+                    pb.finish_and_clear();
+                    Error::Custom(format!("AI network error: {e}"))
+                })?
+            },
+        _ = tokio::signal::ctrl_c() => {
             pb.finish_and_clear();
-            Error::Custom(format!("AI network error: {e}"))
-        })?;
+            return Err(Error::Custom("AI code generation cancelled by user.".into()));
+        }
+    };
 
     let json_resp: serde_json::Value = response
         .json()
@@ -390,7 +412,8 @@ Respond ONLY with valid JSON matching this schema:
     );
 
     let client = Client::new();
-    let response = client
+    let client = Client::new();
+    let response_future = client
         .post("https://openrouter.ai/api/v1/chat/completions")
         .bearer_auth(api_key)
         .json(&json!({
@@ -404,10 +427,17 @@ Respond ONLY with valid JSON matching this schema:
             "response_format": { "type": "json_object" },
             "temperature": 0.1
         }))
-        .send()
-        .await;
+        .send();
 
-    let response = match response {
+    let response_res = tokio::select! {
+        res = response_future => res,
+        _ = tokio::signal::ctrl_c() => {
+            pb.finish_and_clear();
+            return Err("AI error diagnosis cancelled by user.".into());
+        }
+    };
+
+    let response = match response_res {
         Ok(res) => res,
         Err(err) => {
             pb.finish_and_clear();
@@ -415,7 +445,14 @@ Respond ONLY with valid JSON matching this schema:
         }
     };
 
-    let json_resp: serde_json::Value = response.json().await?;
+    let json_future = response.json::<serde_json::Value>();
+    let json_resp: serde_json::Value = tokio::select! {
+        res = json_future => res?,
+        _ = tokio::signal::ctrl_c() => {
+            pb.finish_and_clear();
+            return Err("AI response stream cancelled by user.".into());
+        }
+    };
     pb.finish_and_clear();
 
     let content = json_resp["choices"][0]["message"]["content"]
@@ -520,7 +557,7 @@ Keep the points direct and concise.
 "#;
 
     let client = Client::new();
-    let response = client
+    let response_future = client
         .post("https://openrouter.ai/api/v1/chat/completions")
         .bearer_auth(api_key)
         .json(&json!({
@@ -531,10 +568,17 @@ Keep the points direct and concise.
             ],
             "temperature": 0.2
         }))
-        .send()
-        .await;
+        .send();
 
-    let response = match response {
+    let response_res = tokio::select! {
+        res = response_future => res,
+        _ = tokio::signal::ctrl_c() => {
+            pb.finish_and_clear();
+            return Err("AI dataframe explanation cancelled by user.".into());
+        }
+    };
+
+    let response = match response_res {
         Ok(res) => res,
         Err(err) => {
             pb.finish_and_clear();
@@ -542,7 +586,14 @@ Keep the points direct and concise.
         }
     };
 
-    let json_resp: serde_json::Value = response.json().await?;
+    let json_future = response.json::<serde_json::Value>();
+    let json_resp: serde_json::Value = tokio::select! {
+        res = json_future => res?,
+        _ = tokio::signal::ctrl_c() => {
+            pb.finish_and_clear();
+            return Err("AI response stream cancelled by user.".into());
+        }
+    };
     pb.finish_and_clear();
 
     Ok(json_resp["choices"][0]["message"]["content"]
@@ -597,8 +648,8 @@ RULES:
     );
 
     let client = Client::new();
-    let response = client
-        .post("[https://openrouter.ai/api/v1/chat/completions](https://openrouter.ai/api/v1/chat/completions)")
+    let response_future = client
+        .post("https://openrouter.ai/api/v1/chat/completions")
         .bearer_auth(api_key)
         .json(&json!({
             "model": "qwen/qwen3.8-27b",
@@ -609,10 +660,17 @@ RULES:
             ],
             "temperature": 0.1
         }))
-        .send()
-        .await;
+        .send();
 
-    let response = match response {
+    let response_res = tokio::select! {
+        res = response_future => res,
+        _ = tokio::signal::ctrl_c() => {
+            pb.finish_and_clear();
+            return Err("AI data cleaning generation cancelled by user.".into());
+        }
+    };
+
+    let response = match response_res {
         Ok(res) => res,
         Err(err) => {
             pb.finish_and_clear();
@@ -620,7 +678,14 @@ RULES:
         }
     };
 
-    let json_resp: serde_json::Value = response.json().await?;
+    let json_future = response.json::<serde_json::Value>();
+    let json_resp: serde_json::Value = tokio::select! {
+        res = json_future => res?,
+        _ = tokio::signal::ctrl_c() => {
+            pb.finish_and_clear();
+            return Err("AI response stream cancelled by user.".into());
+        }
+    };
     pb.finish_and_clear();
 
     let raw_code = json_resp["choices"][0]["message"]["content"]

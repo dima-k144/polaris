@@ -114,8 +114,14 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                 },
                 "ask" => {
                     let question = list[1].clone().expect_string()?;
-                    let runtime = tokio::runtime::Runtime::new().unwrap();
-                    let answer = runtime.block_on(crate::ai::ask_ai(&question, env)).unwrap();
+                    let runtime = tokio::runtime::Runtime::new().map_err(|e| {
+                        Error::Custom(format!("Failed to initialize async runtime: {e}"))
+                    })?;
+                    
+                    let answer = runtime
+                        .block_on(crate::ai::ask_ai(&question, env))
+                        .map_err(|e| Error::Custom(format!("{e}")))?;
+                        
                     return Ok(Expr::String(answer));
                 },
                 "ai-query" => {
