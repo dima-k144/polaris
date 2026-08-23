@@ -49,6 +49,8 @@ pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Result<Expr, Error> {
         Ok(Expr::String(inner.to_string()))
     } else if token.0 == "$" {
         Ok(Expr::List(vec![Expr::Symbol(String::from("col")), parse1(tokens)?]))
+    } else if token.0 == "'" {
+        Ok(Expr::List(vec![Expr::Symbol(String::from("quote")), parse1(tokens)?]))
     } else {
         Ok(Expr::Symbol(token.0))
     }

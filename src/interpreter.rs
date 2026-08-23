@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Deref};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -112,6 +112,12 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     }
                     return Ok(var);
                 },
+                "quote" => {
+                    match list[1].clone() {
+                        Expr::SourceInfo(expr, _) => return Ok(*expr),
+                        _ => return Ok(expr)
+                    }
+                },
                 "ask" => {
                     let question = list[1].clone().expect_string()?;
                     let runtime = tokio::runtime::Runtime::new().map_err(|e| {
@@ -209,9 +215,13 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
     }
 }
 
+pub fn pretty_wisp(source: String) -> String {
+    source.replace("\n)", ")\n")
+}
+
 pub fn eval_string(source: String, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Expr, Error> {
     let s_expr_source = crate::wisp::preprocess_wisp(&source)?;
-    println!("{}", s_expr_source);
+    println!("{}", pretty_wisp(s_expr_source.clone()));
     let mut tokens = crate::lexer::scan(&s_expr_source)?;
     let exprs = crate::parser::parse(&mut tokens)?;
     let mut result = None;

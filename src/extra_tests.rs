@@ -490,6 +490,62 @@ scalar
         let env = std_env();
         let mut state = State { line: 0 };
         let result = eval_string(code.to_string(), &env, &mut state);
+
+        assert!(result.is_ok());
+        if let Expr::LazyFrame(lf) = result.unwrap() {
+            let df = lf.collect().unwrap();
+            let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
+            let half_ages: Vec<f64> = df.column("half_age").unwrap().f64().unwrap().iter().flatten().collect();
+
+            assert_eq!(df.shape(), (1, 2));
+            assert_eq!(names, vec!["Alice"]);
+            assert_eq!(half_ages, vec![12.5]);
+        } else {
+            panic!("Expected LazyFrame result");
+        }
+    }
+
+    #[test]
+    fn test_wisp_cast_and_arithmetic2() {
+        let code = r#"
+-> (read-csv "data1.csv")
+    filter : = $"id" 1
+    with-column $"half_age" 
+        / (cast $"age" :float) 2.0
+    select $"name" $"half_age"
+    "#;
+        let env = std_env();
+        let mut state = State { line: 0 };
+        let result = eval_string(code.to_string(), &env, &mut state);
+    
+        assert!(result.is_ok());
+        if let Expr::LazyFrame(lf) = result.unwrap() {
+            let df = lf.collect().unwrap();
+            let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
+            let half_ages: Vec<f64> = df.column("half_age").unwrap().f64().unwrap().iter().flatten().collect();
+        
+            assert_eq!(df.shape(), (1, 2));
+            assert_eq!(names, vec!["Alice"]);
+            assert_eq!(half_ages, vec![12.5]);
+        } else {
+            panic!("Expected LazyFrame result");
+        }
+    }
+
+    #[test]
+    fn test_wisp_cast_and_arithmetic3() {
+        let code = r#"
+-> (read-csv "data1.csv")
+    filter : = $"id" 1
+    with-column $"half_age" 
+        /
+            cast $"age" :float
+            . 2.0
+    select $"name" $"half_age"
+    "#;
+        let env = std_env();
+        let mut state = State { line: 0 };
+        let result = eval_string(code.to_string(), &env, &mut state);
     
         assert!(result.is_ok());
         if let Expr::LazyFrame(lf) = result.unwrap() {

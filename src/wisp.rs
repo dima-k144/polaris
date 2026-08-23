@@ -83,6 +83,17 @@ pub fn preprocess_wisp(input: &str) -> Result<String, Error> {
         };
 
         if is_dot_continuation {
+            // A "." line continues the *enclosing* form. The previous sibling
+            // at this indent (e.g. `cast …`) auto-opened a "(" — close it (and
+            // anything else at this level) so the content lands in the parent.
+            while let Some(&top) = indent_stack.last() {
+                if top >= indent {
+                    indent_stack.pop();
+                    result.push_str(") ");
+                } else {
+                    break;
+                }
+            }
             let expanded = expand_inline_colons(content_to_process);
             result.push_str(&expanded);
         } else if is_colon_only {
@@ -205,4 +216,56 @@ fn expand_inline_colons(line: &str) -> String {
 
     out.push_str(&")".repeat(inline_colons + prefix_parens));
     out.replace("\\:", ":")
+}
+
+fn count_indent_level(s: &String) -> usize {
+    s.chars().take_while(|&c| c == ' ').count()
+}
+
+fn parent(i: usize, lines: &Vec::<String>) -> Option<usize> {
+    for j in i..0 {
+        if count_indent_level(&lines[j]) == count_indent_level(&lines[i]) {
+            return Some(j)
+        }
+    }
+    None
+}
+
+pub fn preprocess_wisp2(input: &str) -> Result<String, Error> {
+    let mut lines: Vec::<String> = input.lines().map(String::from).collect();
+    lines.insert(0, "".to_string());
+    lines.push("".to_string());
+
+    let mut unclosed_parens = 0;
+    for i in 1..lines.len() {
+        let indent_level = count_indent_level(&lines[i]);
+        println!("{}", indent_level);
+
+        if lines[i].trim().starts_with('(') || lines[i - 1].trim().starts_with('(') {
+            continue;
+        }
+
+        if lines[i].trim().is_empty() {
+            for _ in 0..unclosed_parens {
+                lines[i-1].push(')');
+            }
+            unclosed_parens = 0;
+        }
+
+        if !lines[i].trim().is_empty() {
+            lines[i].insert(indent_level, '(');
+            lines[i].push(')');
+        }
+
+        if count_indent_level(&lines[i-1]) < indent_level {
+            lines[i-1].pop();
+            unclosed_parens += 1;
+        }
+
+        if count_indent_level(&lines[i-1]) > indent_level {
+            lines[i-1].push(')');
+        }
+    }
+
+    Ok(lines.join("\n"))
 }

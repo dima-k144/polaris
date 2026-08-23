@@ -36,7 +36,7 @@ pub fn scan(source: &str) -> Result<Vec<(String, usize)>, Error> {
         }
 
         match c {
-            '(' | ')' | '[' | ']' | '{' | '}' | '$' => {
+            '(' | ')' | '[' | ']' | '{' | '}' | '$' | '\'' => {
                 if !item.is_empty() {
                     tokens.push((item, line));
                     item = String::new();
