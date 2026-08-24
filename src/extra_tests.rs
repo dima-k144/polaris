@@ -168,11 +168,12 @@ define d2 (read-csv "data2.csv")
     #[test]
     fn test_wisp_polars_fill_null_and_when() {
         let code = r#"
-    defun is_senior ()
-        when (>= $"age" 25) "Senior" "Junior"
-    -> (read-csv "data3.csv")
-        with-column $"city" (fill-null $"city" "Unknown")
-        with-column $"is_senior" (is_senior)
+defun is_senior ()
+    when (>= $"age" 25) "Senior" "Junior"
+
+-> (read-csv "data3.csv")
+    with-column $"city" (fill-null $"city" "Unknown")
+    with-column $"is_senior" (is_senior)
     "#;
         let env = std_env();
         let mut state = State { line: 0 };
@@ -199,9 +200,9 @@ define d2 (read-csv "data2.csv")
     fn test_wisp_filter_and_sort_descending() {
         let code = r#"
 -> (read-csv "data1.csv")
-  filter : > $"age" 23
-  sort $"age" :desc
-  select $"name" $"age"
+    filter : > $"age" 23
+    sort $"age" :desc
+    select $"name" $"age"
 "#;
         let env = std_env();
         let mut state = State { line: 0 };
@@ -278,8 +279,8 @@ define d2 (read-csv "data2.csv")
     fn test_wisp_aggregation_and_scalar() {
         let code = r#"
 scalar
-  -> (read-csv "data1.csv")
-    agg : sum $"age"
+    -> (read-csv "data1.csv")
+        agg : sum $"age"
 "#;
         let env = std_env();
         let mut state = State { line: 0 };
@@ -430,9 +431,9 @@ scalar
     fn test_wisp_cumulative_sum() {
         let code = r#"
 -> (read-csv "data1.csv")
-        sort $"id"
-        with-column $"running_age" : cum-sum $"age"
-        select $"name" $"running_age"
+    sort $"id"
+    with-column $"running_age" : cum-sum $"age"
+    select $"name" $"running_age"
     "#;
         let env = std_env();
         let mut state = State { line: 0 };
@@ -482,10 +483,10 @@ scalar
     #[test]
     fn test_wisp_cast_and_arithmetic() {
         let code = r#"
-    -> (read-csv "data1.csv")
-      filter : = $"id" 1
-      with-column $"half_age" : / (cast $"age" :float) 2.0
-      select $"name" $"half_age"
+-> (read-csv "data1.csv")
+    filter : = $"id" 1
+    with-column $"half_age" : / (cast $"age" :float) 2.0
+    select $"name" $"half_age"
     "#;
         let env = std_env();
         let mut state = State { line: 0 };

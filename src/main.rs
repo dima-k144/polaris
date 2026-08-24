@@ -10,10 +10,10 @@ use crate::ai::ask_ai;
 use crate::interpreter::eval_string;
 use crate::ai::suggest_fix;
 
-use mimalloc::MiMalloc;
+use tikv_jemallocator::Jemalloc;
 
 #[global_allocator]
-static GLOBAL: MiMalloc = MiMalloc;
+static GLOBAL: Jemalloc = Jemalloc;
 
 mod lexer;
 mod parser;

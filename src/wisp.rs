@@ -269,3 +269,52 @@ pub fn preprocess_wisp2(input: &str) -> Result<String, Error> {
 
     Ok(lines.join("\n"))
 }
+
+fn indent(line: &str) -> usize {
+    if line.trim().is_empty() { 0 }
+    else { line.len() - line.trim_start_matches(' ').len() }
+}
+
+pub fn preprocess_wisp3(input: &str) -> Result<String, Error> {
+    let mut lines: Vec::<String> = input.lines().map(String::from).collect();
+    lines.push("".to_string());
+    lines.push("".to_string());
+    let mut i = 0;
+
+    while i != lines.len() {
+        // empty line
+        if lines[i].trim().is_empty() { i += 1; continue; }
+
+        // traditional s exp
+        if lines[i].trim().starts_with('(') {
+            while !lines[i].trim().is_empty() {
+                i += 1;
+            }
+            continue;
+        }
+
+        // add (
+        let cur_indent = indent(&lines[i]);
+        lines[i].insert(cur_indent, '(');
+
+        // handle :
+        if lines[i].contains(" : ") {
+            for _ in 0..lines[i].matches(" : ").count() {
+                lines[i].push(')');
+            }
+            lines[i] = lines[i].replace(" : ", " ( ");
+        }
+
+        if indent(&lines[i]) == indent(&lines[i + 1]) {
+            lines[i].push(')');
+        } else if indent(&lines[i]) > indent(&lines[i + 1]) {
+            let diff = (indent(&lines[i]) / 4) - (indent(&lines[i + 1]) / 4);
+            lines[i].push(')'); 
+            for _ in 0..diff { lines[i].push(')'); }
+        }
+
+        i += 1;
+    }
+
+    Ok(lines.join("\n"))
+}

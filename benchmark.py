@@ -10,7 +10,7 @@ import polars as pl
 # 1. Dataset Configuration
 # ---------------------------------------------------------
 DATA_PATH = "benchmark_data.parquet"
-NUM_ROWS = 50_000_000
+NUM_ROWS = 100_000_000
 WARMUP_RUNS = 1
 BENCHMARK_RUNS = 3
 

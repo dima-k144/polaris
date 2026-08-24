@@ -105,9 +105,9 @@ fn divide(args: Vec<Expr>) -> Result<Expr, Error> {
 
     if has_polars_expr_arg {
         // Cast the initial expression to Float64 so division produces f64
-        let mut expr = args[0].clone().expect_polars_expr()?.cast(DataType::Float64);
+        let mut expr = args[0].clone().expect_polars_expr()?;
         for arg in args.iter().skip(1) {
-            let next_expr = arg.clone().expect_polars_expr()?.cast(DataType::Float64);
+            let next_expr = arg.clone().expect_polars_expr()?;
             expr = expr / next_expr;
         }
         Ok(Expr::PolarsExpr(expr))
@@ -988,7 +988,7 @@ fn scalar(args: Vec<Expr>) -> Result<Expr, Error> {
 
 fn collect_(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
-    lf.collect().unwrap();
+    lf.collect_with_engine(polars::prelude::Engine::Streaming).unwrap();
     Ok(nil())
 }
 

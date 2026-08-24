@@ -220,8 +220,9 @@ pub fn pretty_wisp(source: String) -> String {
 }
 
 pub fn eval_string(source: String, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Expr, Error> {
-    let s_expr_source = crate::wisp::preprocess_wisp(&source)?;
-    println!("{}", pretty_wisp(s_expr_source.clone()));
+    let s_expr_source = crate::wisp::preprocess_wisp3(&source)?;
+    println!("wisp: {}", s_expr_source.clone());
+    println!("end wisp");
     let mut tokens = crate::lexer::scan(&s_expr_source)?;
     let exprs = crate::parser::parse(&mut tokens)?;
     let mut result = None;
