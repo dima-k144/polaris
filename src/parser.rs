@@ -1,5 +1,24 @@
 use crate::types::{Expr, Error};
 
+pub fn is_dot_list(expr: &Expr) -> bool {
+    match expr {
+        Expr::List(list) => {
+            if list.is_empty() { return false; }
+            match &list[0] {
+                Expr::Symbol(symbol) => {
+                    if symbol == "." {
+                        true
+                    } else {
+                        false
+                    }
+                },
+                _ => false
+            }
+        },
+        _ => false
+    }
+}
+
 pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Result<Expr, Error> {
     if tokens.is_empty() {
         return Err(Error::Custom("Unexpected end of input".to_string()));
@@ -35,7 +54,14 @@ pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Result<Expr, Error> {
 
         let mut items = Vec::<Expr>::new();
         while !tokens.is_empty() && tokens[0].0 != closing {
-            items.push(parse1(tokens)?);
+            let item = parse1(tokens)?;
+            if is_dot_list(&item) {
+                for x in item.expect_list()?.iter().skip(1) {
+                    items.push(x.clone());
+                }
+            } else {
+                items.push(item);
+            }
         }
 
         if tokens.is_empty() {
