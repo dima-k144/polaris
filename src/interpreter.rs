@@ -118,56 +118,6 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                         _ => return Ok(expr)
                     }
                 },
-                "ask" => {
-                    let question = list[1].clone().expect_string()?;
-                    let runtime = tokio::runtime::Runtime::new().map_err(|e| {
-                        Error::Custom(format!("Failed to initialize async runtime: {e}"))
-                    })?;
-                    
-                    let answer = runtime
-                        .block_on(crate::ai::ask_ai(&question, env))
-                        .map_err(|e| Error::Custom(format!("{e}")))?;
-                        
-                    return Ok(Expr::String(answer));
-                },
-                "ai-query" => {
-                    if list.len() < 2 {
-                        return Err(Error::WrongNumberOfArguments {
-                            expected_min: 1,
-                            expected_max: 1,
-                            got: (list.len() - 1) as u8,
-                        });
-                    }
-
-                    // 1. Evaluate the argument to get the prompt string
-                    let prompt_expr = eval(list[1].clone(), env, state)?;
-                    let prompt = prompt_expr.expect_string()?;
-
-                    // 2. Query LLM asynchronously
-                    let rt = tokio::runtime::Runtime::new()
-                        .map_err(|e| Error::Custom(format!("Runtime error: {e}")))?;
-                    
-                    let generated_code = rt.block_on(crate::ai::generate_mlisp_code(&prompt, env))?;
-                    
-                    // Optional: Print generated expression for visibility
-                    println!("\x1b[90m; Generated: {}\x1b[0m", generated_code);
-
-                    // 3. Scan & parse generated code
-                    let mut tokens = crate::lexer::scan(&generated_code)?;
-                    let parsed_exprs = crate::parser::parse(&mut tokens)?;
-
-                    if parsed_exprs.is_empty() {
-                        return Ok(crate::stdlib::nil());
-                    }
-
-                    // 4. Evaluate the generated expression in current env
-                    let mut result = crate::stdlib::nil();
-                    for expr in parsed_exprs {
-                        result = eval(expr, env, state)?;
-                    }
-
-                    return Ok(result);
-                }
                 _ => {}
             }
 
