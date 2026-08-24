@@ -1,11 +1,11 @@
-use crate::types::{Expr, Error};
+use crate::types::{Expr, ExprValue, Error};
 
-pub fn is_dot_list(expr: &Expr) -> bool {
-    match expr {
-        Expr::List(list) => {
+pub fn is_dot_list(info: &Expr) -> bool {
+    match info.value.clone() {
+        ExprValue::List(list) => {
             if list.is_empty() { return false; }
-            match &list[0] {
-                Expr::Symbol(symbol) => {
+            match &list[0].value {
+                ExprValue::Symbol(symbol) => {
                     if symbol == "." {
                         true
                     } else {
@@ -35,12 +35,12 @@ pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Result<Expr, Error> {
     if first_char.is_ascii_digit() || (token.0.len() > 1 && first_char == '-' && token.0.chars().nth(1).unwrap().is_ascii_digit()) {
         if token.0.contains('.') {
             match token.0.parse::<f64>() {
-                Ok(value) => Ok(Expr::SourceInfo(Box::new(Expr::Float(value)), line)),
+                Ok(value) => Ok(Expr{value: ExprValue::Float(value), line: Some(line)}),
                 Err(_) => Err(Error::FailedToParseNumber { number: token.0 }),
             }
         } else {
             match token.0.parse::<i64>() {
-                Ok(value) => Ok(Expr::SourceInfo(Box::new(Expr::Int(value)), line)),
+                Ok(value) => Ok(Expr{value: ExprValue::Int(value), line: Some(line)}),
                 Err(_) => Err(Error::FailedToParseNumber { number: token.0 }),
             }
         }
@@ -69,16 +69,20 @@ pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Result<Expr, Error> {
         }
 
         tokens.remove(0); // consume closing paren/bracket/brace
-        Ok(Expr::List(items))
+        Ok(Expr { value: ExprValue::List(items), line: Some(line) })
     } else if first_char == '"' {
         let inner = &token.0[1..token.0.len().saturating_sub(1)];
-        Ok(Expr::String(inner.to_string()))
+        Ok(Expr { value: ExprValue::String(inner.to_string()), line: Some(line) })
     } else if token.0 == "$" {
-        Ok(Expr::List(vec![Expr::Symbol(String::from("col")), parse1(tokens)?]))
+        let first = Expr { value: ExprValue::Symbol(String::from("col")), line: Some(line) };
+        let second = parse1(tokens)?;
+        Ok(Expr { value: ExprValue::List(vec![first, second]), line: Some(line) })
     } else if token.0 == "'" {
-        Ok(Expr::List(vec![Expr::Symbol(String::from("quote")), parse1(tokens)?]))
+        let first = Expr { value: ExprValue::Symbol(String::from("quote")), line: Some(line) };
+        let second = parse1(tokens)?;
+        Ok(Expr { value: ExprValue::List(vec![first, second]), line: Some(line) })
     } else {
-        Ok(Expr::Symbol(token.0))
+        Ok(Expr { value: ExprValue::Symbol(token.0), line: Some(line) })
     }
 }
 

@@ -2,7 +2,8 @@ use std::{collections::HashMap, ops::Deref};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::types::{Env, Expr, Error};
+use crate::stdlib;
+use crate::types::{Env, Expr, ExprValue, Error};
 
 pub struct State {
     pub line: usize
@@ -24,9 +25,8 @@ pub fn define(symbol: &String, value: Expr, env: &Rc<RefCell<Env>>) {
 }
 
 pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Expr, Error> {
-    match expr.clone() {
-        Expr::SourceInfo(expr, line) => { state.line = line; eval(*expr, env, state) },
-        Expr::Symbol(symbol) => {
+    match expr.value.clone() {
+        ExprValue::Symbol(symbol) => {
             if symbol.starts_with(":") {
                 Ok(expr)
             } else {
@@ -36,7 +36,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                 }
             }
         }
-        Expr::List(list) => {
+        ExprValue::List(list) => {
             let symbol = list[0].clone().expect_symbol()?;
 
             match symbol.as_str() {
@@ -52,8 +52,8 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                         params.push(param.expect_symbol()?)
                     }
                     let body = list.get(2..).unwrap().to_vec();
-                    let func = Expr::UserFunction { body: body, params: params, name: None };
-                    return Ok(func)
+                    let func = ExprValue::UserFunction { body: body, params: params, name: None };
+                    return Ok(Expr { value: func, line: None })
                 },
                 "defun" => {
                     let name = list[1].clone().expect_symbol()?;
@@ -62,7 +62,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                         params.push(param.expect_symbol()?)
                     }
                     let body = list.get(3..).unwrap().to_vec();
-                    let func = Expr::UserFunction { body: body, params: params, name: Some(name.clone()) };
+                    let func = Expr { value: ExprValue::UserFunction { body: body, params: params, name: Some(name.clone()) }, line: None };
                     define(&name.clone(), func.clone(), env);
                     return Ok(func)
                 },
@@ -96,7 +96,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
 
                     // Evaluate all body expressions sequentially and return the result of the last one
                     let body = &list[2..];
-                    let mut result = Expr::Symbol("nil".into());
+                    let mut result = stdlib::nil();
                     for expr in body {
                         result = eval(expr.clone(), &child_env, state)?;
                     }
@@ -108,15 +108,12 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     for i in 2..list.len() {
                         let mut expr2 = list[i].clone().expect_list()?;
                         expr2.insert(1, var.clone());
-                        var = eval(Expr::List(expr2), env, state)?;
+                        var = eval(Expr { value: ExprValue::List(expr2), line: None }, env, state)?;
                     }
                     return Ok(var);
                 },
                 "quote" => {
-                    match list[1].clone() {
-                        Expr::SourceInfo(expr, _) => return Ok(*expr),
-                        _ => return Ok(expr)
-                    }
+                    return Ok(list[1].clone());
                 },
                 _ => {}
             }
@@ -131,15 +128,15 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                 args.push(eval(list[j].clone(), env, state)?);
             }
 
-            match func {
-                Expr::NativeFunction{ body, min_args, max_args } => {
+            match func.value {
+                ExprValue::NativeFunction{ body, min_args, max_args } => {
                     if args.len() < min_args as usize {
                         return Err(Error::WrongNumberOfArguments { expected_min: min_args, expected_max: max_args, got: args.len() as u8 });
                     }
                     
                     return body(args);
                 },
-                Expr::UserFunction { body, params, name } => {
+                ExprValue::UserFunction { body, params, name } => {
                     if args.len() < params.len() {
                         return Err(Error::WrongNumberOfArguments { 
                             expected_min: params.len() as u8, expected_max: params.len() as u8, got: args.len() as u8 
@@ -152,7 +149,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                         define(param, arg, &child_env);
                     }
 
-                    let mut result = Expr::Symbol("nil".into());
+                    let mut result = stdlib::nil();
                     for expr in body {
                         result = eval(expr, &child_env, state)?;
                     }

@@ -4,11 +4,39 @@ use polars::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
-use crate::types::{Env, Error, Expr::{self, PolarsExpr}};
+use crate::types::{Env, Error, Expr, ExprValue::{self, PolarsExpr}};
 use crate::plotlarslib;
 use crate::interpreter::{eval_string, State};
 
-pub fn nil() -> Expr { Expr::Symbol(String::from("nil")) }
+pub fn nil() -> Expr { return Expr{ value: ExprValue::String("nil".to_string()), line: None } }
+
+pub fn new_int(value: i64) -> Expr {
+    Expr { value: ExprValue::Int(value), line: None }
+}
+
+pub fn new_float(value: f64) -> Expr {
+    Expr { value: ExprValue::Float(value), line: None }
+}
+
+pub fn new_string(value: String) -> Expr {
+    Expr { value: ExprValue::String(value), line: None }
+}
+
+pub fn new_list(value: Vec<Expr>) -> Expr {
+    Expr { value: ExprValue::List(value), line: None }
+}
+
+pub fn new_polars_expr(value: polars::prelude::Expr) -> Expr {
+    Expr { value: ExprValue::PolarsExpr(value), line: None }
+}
+
+pub fn new_lazy_frame(value: LazyFrame) -> Expr {
+    Expr { value: ExprValue::LazyFrame(value), line: None }
+}
+
+pub fn new_symbol(value: String) -> Expr {
+    Expr { value: ExprValue::Symbol(value), line: None }
+}
 
 fn print(args: Vec<Expr>) -> Result<Expr, Error> {
     for arg in args {
@@ -18,86 +46,86 @@ fn print(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 fn list(args: Vec<Expr>) -> Result<Expr, Error> {
-    Ok(Expr::List(args))
+    Ok(new_list(args))
 }
 
 fn plus(args: Vec<Expr>) -> Result<Expr, Error> {
-    let has_polars_expr_arg = args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(_)));
-    let has_float_arg = args.iter().any(|arg| matches!(arg, Expr::Float(_)));
+    let has_polars_expr_arg = args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)));
+    let has_float_arg = args.iter().any(|arg| matches!(arg.value, ExprValue::Float(_)));
 
     if has_polars_expr_arg {
         let mut expr = args[0].clone().expect_polars_expr()?;
         for arg in args.iter().skip(1) {
             expr = expr + arg.clone().expect_polars_expr()?;
         }
-        Ok(Expr::PolarsExpr(expr))
+        Ok(new_polars_expr(expr))
     } else if has_float_arg {
         let mut sum = 0.0;
         for arg in args {
             sum += arg.expect_number()?.to_float();
         }
-        Ok(Expr::Float(sum))
+        Ok(new_float(sum))
     } else {
         let mut sum = 0;
         for arg in args {
             sum += arg.expect_number()?.to_int();
         }
-        Ok(Expr::Int(sum))
+        Ok(new_int(sum))
     }
 }
 
 fn minus(args: Vec<Expr>) -> Result<Expr, Error> {
-    let has_polars_expr_arg = args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(_)));
-    let has_float_arg = args.iter().any(|arg| matches!(arg, Expr::Float(_)));
+    let has_polars_expr_arg = args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)));
+    let has_float_arg = args.iter().any(|arg| matches!(arg.value, ExprValue::Float(_)));
 
     if has_polars_expr_arg {
         let mut expr = args[0].clone().expect_polars_expr()?;
         for arg in args.iter().skip(1) {
             expr = expr - arg.clone().expect_polars_expr()?;
         }
-        Ok(Expr::PolarsExpr(expr))
+        Ok(new_polars_expr(expr))
     } else if has_float_arg {
         let mut value = args[0].clone().expect_number()?.to_float();
         for arg in args.iter().skip(1) {
             value -= arg.clone().expect_number()?.to_float();
         }
-        Ok(Expr::Float(value))
+        Ok(new_float(value))
     } else {
         let mut value = args[0].clone().expect_number()?.to_int();
         for arg in args.iter().skip(1) {
             value -= arg.clone().expect_number()?.to_int();
         }
-        Ok(Expr::Int(value))
+        Ok(new_int(value))
     }
 }
 
 fn mult(args: Vec<Expr>) -> Result<Expr, Error> {
-    let has_polars_expr_arg = args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(_)));
-    let has_float_arg = args.iter().any(|arg| matches!(arg, Expr::Float(_)));
+    let has_polars_expr_arg = args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)));
+    let has_float_arg = args.iter().any(|arg| matches!(arg.value, ExprValue::Float(_)));
 
     if has_polars_expr_arg {
         let mut expr = args[0].clone().expect_polars_expr()?;
         for arg in args.iter().skip(1) {
             expr = expr * arg.clone().expect_polars_expr()?;
         }
-        Ok(Expr::PolarsExpr(expr))
+        Ok(new_polars_expr(expr))
     } else if has_float_arg {
         let mut value = args[0].clone().expect_number()?.to_float();
         for arg in args.iter().skip(1) {
             value *= arg.clone().expect_number()?.to_float();
         }
-        Ok(Expr::Float(value))
+        Ok(new_float(value))
     } else {
         let mut value = args[0].clone().expect_number()?.to_int();
         for arg in args.iter().skip(1) {
             value *= arg.clone().expect_number()?.to_int();
         }
-        Ok(Expr::Int(value))
+        Ok(new_int(value))
     }
 }
 
 fn divide(args: Vec<Expr>) -> Result<Expr, Error> {
-    let has_polars_expr_arg = args.iter().any(|arg| matches!(arg, Expr::PolarsExpr(_)));
+    let has_polars_expr_arg = args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)));
     // let has_float_arg = args.iter().any(|arg| matches!(arg, Expr::Float(_)));
     // Always compute real division in f64
 
@@ -108,13 +136,13 @@ fn divide(args: Vec<Expr>) -> Result<Expr, Error> {
             let next_expr = arg.clone().expect_polars_expr()?;
             expr = expr / next_expr;
         }
-        Ok(Expr::PolarsExpr(expr))
+        Ok(new_polars_expr(expr))
     } else {
         let mut value = args[0].clone().expect_number()?.to_float();
         for arg in args.iter().skip(1) {
             value /= arg.clone().expect_number()?.to_float();
         }
-        Ok(Expr::Float(value))
+        Ok(new_float(value))
     }
 }
 
@@ -123,7 +151,7 @@ fn read_csv(args: Vec<Expr>) -> Result<Expr, Error> {
     match LazyCsvReader::new(path.as_str().into())
         .with_has_header(true)
         .finish() {
-            Ok(lf) => Ok(Expr::LazyFrame(lf)),
+            Ok(lf) => Ok(new_lazy_frame(lf)),
             Err(err) => Err(Error::PolarsError(err)),
         }
 }
@@ -188,7 +216,7 @@ fn sink(args: Vec<Expr>) -> Result<Expr, Error> {
 fn read_parquet(args: Vec<Expr>) -> Result<Expr, Error> {
     let path = args[0].clone().expect_string()?;
     match LazyFrame::scan_parquet(path.as_str().into(), ScanArgsParquet::default()) {
-        Ok(lf) => Ok(Expr::LazyFrame(lf)),
+        Ok(lf) => Ok(new_lazy_frame(lf)),
         Err(err) => Err(Error::PolarsError(err)),
     }
 }
@@ -214,19 +242,19 @@ fn write_parquet(args: Vec<Expr>) -> Result<Expr, Error> {
 
 fn head(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
-    Ok(Expr::LazyFrame(lf.limit(10)))
+    Ok(new_lazy_frame(lf.limit(10)))
 }
 
 fn tail(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
-    Ok(Expr::LazyFrame(lf.slice(-10, 10)))
+    Ok(new_lazy_frame(lf.slice(-10, 10)))
 }
 
 fn slice(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let offset = args[1].clone().expect_int()?;
     let len = args[2].clone().expect_int()?;
-    Ok(Expr::LazyFrame(lf.slice(offset, len as u32)))
+    Ok(new_lazy_frame(lf.slice(offset, len as u32)))
 }
 
 fn schema(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -236,27 +264,27 @@ fn schema(args: Vec<Expr>) -> Result<Expr, Error> {
     let mut fields = Vec::<Expr>::new();
     for field in schema.iter_fields() {
         
-        fields.push(Expr::List(vec![Expr::String(field.name.into_string()), Expr::String(field.dtype.to_string())]));
+        fields.push(new_list(vec![new_string(field.name.into_string()), new_string(field.dtype.to_string())]));
     }
-    result.push(Expr::List(fields));
-    Ok(Expr::List(result))
+    result.push(new_list(fields));
+    Ok(new_list(result))
 }
 
 fn shape(args: Vec<Expr>) -> Result<Expr, Error> {
     let mut lf = args[0].clone().expect_lazy_frame()?;  
     let shape = lf.collect().unwrap().shape();
-    Ok(Expr::List(vec![Expr::Int(shape.0 as i64), Expr::Int(shape.1 as i64)]))
+    Ok(new_list(vec![new_int(shape.0 as i64), new_int(shape.1 as i64)]))
 }
 
 fn col_(args: Vec<Expr>) -> Result<Expr, Error> {
-    Ok(Expr::PolarsExpr(col(args[0].clone().expect_string()?)))
+    Ok(new_polars_expr(col(args[0].clone().expect_string()?)))
 }
 
 fn lit_(args: Vec<Expr>) -> Result<Expr, Error> {
-    match args[0].clone() {
-        Expr::Int(num) => Ok(Expr::PolarsExpr(lit(num))),
-        Expr::Float(num) => Ok(Expr::PolarsExpr(lit(num))),
-        Expr::String(string) => Ok(Expr::PolarsExpr(lit(string))),
+    match args[0].value.clone() {
+        ExprValue::Int(num) => Ok(new_polars_expr(lit(num))),
+        ExprValue::Float(num) => Ok(new_polars_expr(lit(num))),
+        ExprValue::String(string) => Ok(new_polars_expr(lit(string))),
         _ => Err(Error::WrongType { expected: String::from("number"), got: args[0].clone() })
     }
 }
@@ -264,95 +292,95 @@ fn lit_(args: Vec<Expr>) -> Result<Expr, Error> {
 fn eq(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let lit = args[1].clone().expect_polars_expr()?;
-    Ok(Expr::PolarsExpr(expr.eq(lit)))
+    Ok(new_polars_expr(expr.eq(lit)))
 }
 
 fn neq(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let lit = args[1].clone().expect_polars_expr()?;
-    Ok(Expr::PolarsExpr(expr.neq(lit)))
+    Ok(new_polars_expr(expr.neq(lit)))
 }
 
 fn gt(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let lit = args[1].clone().expect_polars_expr()?;
-    Ok(Expr::PolarsExpr(expr.gt(lit)))
+    Ok(new_polars_expr(expr.gt(lit)))
 }
 
 fn lt(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let lit = args[1].clone().expect_polars_expr()?;
-    Ok(Expr::PolarsExpr(expr.lt(lit)))
+    Ok(new_polars_expr(expr.lt(lit)))
 }
 
 fn gt_eq(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let lit = args[1].clone().expect_polars_expr()?;
-    Ok(Expr::PolarsExpr(expr.gt_eq(lit)))
+    Ok(new_polars_expr(expr.gt_eq(lit)))
 }
 
 fn lt_eq(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let lit = args[1].clone().expect_polars_expr()?;
-    Ok(Expr::PolarsExpr(expr.lt_eq(lit)))
+    Ok(new_polars_expr(expr.lt_eq(lit)))
 }
 
 fn not(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
-    Ok(Expr::PolarsExpr(expr.not()))
+    Ok(new_polars_expr(expr.not()))
 }
 
 fn and(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr1 = args[0].clone().expect_polars_expr()?;
     let expr2 = args[1].clone().expect_polars_expr()?;
-    Ok(Expr::PolarsExpr(expr1.and(expr2)))
+    Ok(new_polars_expr(expr1.and(expr2)))
 }
 
 fn or(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr1 = args[0].clone().expect_polars_expr()?;
     let expr2 = args[1].clone().expect_polars_expr()?;
-    Ok(Expr::PolarsExpr(expr1.or(expr2)))
+    Ok(new_polars_expr(expr1.or(expr2)))
 }
 
 fn sum(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
-    Ok(Expr::PolarsExpr(expr.sum()))
+    Ok(new_polars_expr(expr.sum()))
 }
 
 fn mean(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
-    Ok(Expr::PolarsExpr(expr.mean()))
+    Ok(new_polars_expr(expr.mean()))
 }
 
 fn median(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
-    Ok(Expr::PolarsExpr(expr.median()))
+    Ok(new_polars_expr(expr.median()))
 }
 
 fn count(args: Vec<Expr>) -> Result<Expr, Error> {
     if args.is_empty() {
         // (count) without arguments returns the total number of rows
-        Ok(Expr::PolarsExpr(polars::prelude::len()))
+        Ok(new_polars_expr(polars::prelude::len()))
     } else {
         // (count $"col") returns non-null count for that column
         let expr = args[0].clone().expect_polars_expr()?;
-        Ok(Expr::PolarsExpr(expr.count()))
+        Ok(new_polars_expr(expr.count()))
     }
 }
 
 fn min(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
-    Ok(Expr::PolarsExpr(expr.min()))
+    Ok(new_polars_expr(expr.min()))
 }
 
 fn max(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
-    Ok(Expr::PolarsExpr(expr.max()))
+    Ok(new_polars_expr(expr.max()))
 }
 
 fn n_unique(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
-    Ok(Expr::PolarsExpr(expr.n_unique()))
+    Ok(new_polars_expr(expr.n_unique()))
 }
 
 fn std_dev(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -363,7 +391,7 @@ fn std_dev(args: Vec<Expr>) -> Result<Expr, Error> {
     } else {
         1
     };
-    Ok(Expr::PolarsExpr(expr.std(ddof)))
+    Ok(new_polars_expr(expr.std(ddof)))
 }
 
 fn select(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -372,13 +400,13 @@ fn select(args: Vec<Expr>) -> Result<Expr, Error> {
     for arg in args.iter().skip(1) {
         exprs.push(arg.clone().expect_polars_expr()?);
     }
-    Ok(Expr::LazyFrame(lf.select(exprs)))
+    Ok(new_lazy_frame(lf.select(exprs)))
 }
 
 fn filter(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let expr = args[1].clone().expect_polars_expr()?;
-    Ok(Expr::LazyFrame(lf.filter(expr)))
+    Ok(new_lazy_frame(lf.filter(expr)))
 }
 
 fn with_column(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -391,7 +419,7 @@ fn with_column(args: Vec<Expr>) -> Result<Expr, Error> {
             panic!("Shouldnt happen");
         }
     };
-    Ok(Expr::LazyFrame(lf.with_column(value.alias(&alias))))
+    Ok(new_lazy_frame(lf.with_column(value.alias(&alias))))
 }
 
 fn sort(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -408,15 +436,15 @@ fn sort(args: Vec<Expr>) -> Result<Expr, Error> {
     };
 
     let options = SortMultipleOptions::new().with_order_descending(descending);
-    Ok(Expr::LazyFrame(lf.sort_by_exprs(vec![by_expr], options)))
+    Ok(new_lazy_frame(lf.sort_by_exprs(vec![by_expr], options)))
 }
 
 fn group_by(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
 
     // Support either a single grouping column or a list of grouping columns
-    let group_keys = match &args[1] {
-        Expr::List(cols) => {
+    let group_keys = match &args[1].value {
+        ExprValue::List(cols) => {
             let mut exprs = Vec::new();
             for col_expr in cols {
                 exprs.push(col_expr.clone().expect_polars_expr()?);
@@ -432,13 +460,13 @@ fn group_by(args: Vec<Expr>) -> Result<Expr, Error> {
         agg_exprs.push(arg.clone().expect_polars_expr()?);
     }
 
-    Ok(Expr::LazyFrame(lf.group_by(group_keys).agg(agg_exprs)))
+    Ok(new_lazy_frame(lf.group_by(group_keys).agg(agg_exprs)))
 }
 
 fn alias(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let name = args[1].clone().expect_string()?;
-    Ok(Expr::PolarsExpr(expr.alias(&name)))
+    Ok(new_polars_expr(expr.alias(&name)))
 }
 
 fn agg(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -451,7 +479,7 @@ fn agg(args: Vec<Expr>) -> Result<Expr, Error> {
     }
     
     // Polars aggregates entire lazy frames via select
-    Ok(Expr::LazyFrame(lf.select(exprs)))
+    Ok(new_lazy_frame(lf.select(exprs)))
 }
 
 fn join(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -459,8 +487,8 @@ fn join(args: Vec<Expr>) -> Result<Expr, Error> {
     let right_lf = args[1].clone().expect_lazy_frame()?;
     
     // Parse left key(s)
-    let left_on = match &args[2] {
-        Expr::List(cols) => {
+    let left_on = match &args[2].value {
+        ExprValue::List(cols) => {
             let mut exprs = Vec::new();
             for c in cols {
                 exprs.push(c.clone().expect_polars_expr()?);
@@ -471,8 +499,8 @@ fn join(args: Vec<Expr>) -> Result<Expr, Error> {
     };
 
     // Parse right key(s)
-    let right_on = match &args[3] {
-        Expr::List(cols) => {
+    let right_on = match &args[3].value {
+        ExprValue::List(cols) => {
             let mut exprs = Vec::new();
             for c in cols {
                 exprs.push(c.clone().expect_polars_expr()?);
@@ -503,61 +531,61 @@ fn join(args: Vec<Expr>) -> Result<Expr, Error> {
         JoinArgs::new(how),
     );
 
-    Ok(Expr::LazyFrame(joined))
+    Ok(new_lazy_frame(joined))
 }
 
 fn is_null_(args: Vec<Expr>) -> Result<Expr, Error> {
     let col = args[0].clone().expect_polars_expr()?;
-    Ok(Expr::PolarsExpr(is_null(col)))
+    Ok(new_polars_expr(is_null(col)))
 }
 
 fn is_not_null_(args: Vec<Expr>) -> Result<Expr, Error> {
     let col = args[0].clone().expect_polars_expr()?;
-    Ok(Expr::PolarsExpr(is_not_null(col)))
+    Ok(new_polars_expr(is_not_null(col)))
 }
 
 fn fill_null_(args: Vec<Expr>) -> Result<Expr, Error> {
     let col = args[0].clone().expect_polars_expr()?;
     let value = args[1].clone().expect_polars_expr()?;
-    Ok(Expr::PolarsExpr(col.fill_null(value)))
+    Ok(new_polars_expr(col.fill_null(value)))
 }
 
 fn drop_nulls(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     if args.len() == 1 {
-        Ok(Expr::LazyFrame(lf.drop_nulls(None)))
+        Ok(new_lazy_frame(lf.drop_nulls(None)))
     } else {
         let mut col_names = Vec::<String>::new();
 
         let mut extract_name = |expr: &Expr| -> Result<(), Error> {
-            match expr {
-                Expr::String(s) | Expr::Symbol(s) => {
+            match expr.value.clone() {
+                ExprValue::String(s) | ExprValue::Symbol(s) => {
                     col_names.push(s.clone());
                     Ok(())
                 }
-                Expr::PolarsExpr(polars::prelude::Expr::Column(name)) => {
+                ExprValue::PolarsExpr(polars::prelude::Expr::Column(name)) => {
                     col_names.push(name.to_string());
                     Ok(())
                 }
                 other => Err(Error::WrongType {
                     expected: String::from("column name or $col"),
-                    got: other.clone(),
+                    got: expr.clone(),
                 }),
             }
         };
 
         for arg in args.iter().skip(1) {
-            match arg {
-                Expr::List(list) => {
+            match arg.value.clone() {
+                ExprValue::List(list) => {
                     for item in list {
-                        extract_name(item)?;
+                        extract_name(&item)?;
                     }
                 }
                 _ => extract_name(arg)?,
             }
         }
 
-        Ok(Expr::LazyFrame(lf.drop_nulls(Some(cols(col_names).into()))))
+        Ok(new_lazy_frame(lf.drop_nulls(Some(cols(col_names).into()))))
     }
 }
 
@@ -565,10 +593,10 @@ fn when(args: Vec<Expr>) -> Result<Expr, Error> {
     let condition = args[0].clone().expect_polars_expr()?;
     let on_true = args[1].clone().expect_polars_expr()?;
     match args.len() {
-        2 => Ok(PolarsExpr(polars::prelude::when(condition).then(on_true).otherwise(polars::prelude::lit(polars::prelude::NULL)))),
+        2 => Ok(new_polars_expr(polars::prelude::when(condition).then(on_true).otherwise(polars::prelude::lit(polars::prelude::NULL)))),
         _ => {
             let on_false = args[2].clone().expect_polars_expr()?;
-            Ok(PolarsExpr(polars::prelude::when(condition).then(on_true).otherwise(on_false)))
+            Ok(new_polars_expr(polars::prelude::when(condition).then(on_true).otherwise(on_false)))
         }
     }
 }
@@ -578,14 +606,14 @@ fn str_contains(args: Vec<Expr>) -> Result<Expr, Error> {
     if args.len() < 2 {
         return Err(Error::WrongType {
             expected: "2 arguments (column, pattern)".into(),
-            got: Expr::List(args),
+            got: args[0].clone(),
         });
     }
     let col_expr = args[0].clone().expect_polars_expr()?;
     let pat_expr = args[1].clone().expect_polars_expr()?;
     
     // Polars: expr.str().contains(pattern, strict)
-    Ok(Expr::PolarsExpr(col_expr.str().contains(pat_expr, true)))
+    Ok(new_polars_expr(col_expr.str().contains(pat_expr, true)))
 }
 
 // (str-replace $"city" "^Lon" "New-Lon")
@@ -595,7 +623,7 @@ fn str_replace(args: Vec<Expr>) -> Result<Expr, Error> {
     let rep_expr = args[2].clone().expect_polars_expr()?;
 
     // false = interpret pattern as regex, not literal
-    Ok(Expr::PolarsExpr(col_expr.str().replace(pat_expr, rep_expr, false)))
+    Ok(new_polars_expr(col_expr.str().replace(pat_expr, rep_expr, false)))
 }
 
 // (str-extract $"code" "([A-Z]+)-(\\d+)" 1)
@@ -604,15 +632,15 @@ fn str_extract(args: Vec<Expr>) -> Result<Expr, Error> {
     let pat_expr = args[1].clone().expect_polars_expr()?;
     let group_idx = args[2].clone().expect_int()? as usize;
 
-    Ok(Expr::PolarsExpr(col_expr.str().extract(pat_expr, group_idx)))
+    Ok(new_polars_expr(col_expr.str().extract(pat_expr, group_idx)))
 }
 
 // (over <expr> <partition_col1> ...) or (over <expr> (<col1> <col2>))
 fn over(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
 
-    let partition_by = match &args[1] {
-        Expr::List(cols) => {
+    let partition_by = match &args[1].value {
+        ExprValue::List(cols) => {
             let mut exprs = Vec::new();
             for col_expr in cols {
                 exprs.push(col_expr.clone().expect_polars_expr()?);
@@ -629,7 +657,7 @@ fn over(args: Vec<Expr>) -> Result<Expr, Error> {
     };
 
     match expr.over(partition_by) {
-        Ok(result) => Ok(Expr::PolarsExpr(result)),
+        Ok(result) => Ok(new_polars_expr(result)),
         Err(err) => Err(Error::PolarsError(err)),
     } 
 }
@@ -638,7 +666,7 @@ fn over(args: Vec<Expr>) -> Result<Expr, Error> {
 fn shift(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let offset = args[1].clone().expect_int()? as i64;
-    Ok(Expr::PolarsExpr(expr.shift(lit(offset))))
+    Ok(new_polars_expr(expr.shift(lit(offset))))
 }
 
 // (cum-sum $"col")
@@ -650,7 +678,7 @@ fn cum_sum(args: Vec<Expr>) -> Result<Expr, Error> {
         false
     };
     
-    Ok(Expr::PolarsExpr(expr.cum_sum(reverse)))
+    Ok(new_polars_expr(expr.cum_sum(reverse)))
 }
 
 // (cum-min $"col")
@@ -661,7 +689,7 @@ fn cum_min(args: Vec<Expr>) -> Result<Expr, Error> {
     } else {
         false
     };
-    Ok(Expr::PolarsExpr(expr.cum_min(reverse)))
+    Ok(new_polars_expr(expr.cum_min(reverse)))
 }
 
 // (cum-max $"col")
@@ -672,7 +700,7 @@ fn cum_max(args: Vec<Expr>) -> Result<Expr, Error> {
     } else {
         false
     };
-    Ok(Expr::PolarsExpr(expr.cum_max(reverse)))
+    Ok(new_polars_expr(expr.cum_max(reverse)))
 }
 
 // (cum-count $"col")
@@ -683,7 +711,7 @@ fn cum_count(args: Vec<Expr>) -> Result<Expr, Error> {
     } else {
         false
     };
-    Ok(Expr::PolarsExpr(expr.cum_count(reverse)))
+    Ok(new_polars_expr(expr.cum_count(reverse)))
 }
 
 // (rank $"col") or (rank $"col" :dense)
@@ -707,7 +735,7 @@ fn rank(args: Vec<Expr>) -> Result<Expr, Error> {
         descending: false,
     };
 
-    Ok(Expr::PolarsExpr(expr.rank(options, None)))
+    Ok(new_polars_expr(expr.rank(options, None)))
 }
 
 // (to-date $"col" "%Y-%m-%d") or (to-date $"col") -> ISO-8601 default
@@ -726,7 +754,7 @@ fn to_date(args: Vec<Expr>) -> Result<Expr, Error> {
         cache: true,
     };
 
-    Ok(Expr::PolarsExpr(col_expr.str().to_date(options)))
+    Ok(new_polars_expr(col_expr.str().to_date(options)))
 } 
 
 // (to-datetime $"col" "%Y-%m-%d %H:%M:%S")
@@ -746,7 +774,7 @@ fn to_datetime(args: Vec<Expr>) -> Result<Expr, Error> {
     };
 
     // Defaults to Microseconds timeunit, no timezone
-    Ok(Expr::PolarsExpr(col_expr.str().to_datetime(
+    Ok(new_polars_expr(col_expr.str().to_datetime(
         Some(TimeUnit::Microseconds),
         None,
         options,
@@ -757,50 +785,50 @@ fn to_datetime(args: Vec<Expr>) -> Result<Expr, Error> {
 // (dt-year $"date_col")
 fn dt_year(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
-    Ok(Expr::PolarsExpr(col_expr.dt().year()))
+    Ok(new_polars_expr(col_expr.dt().year()))
 }
 
 // (dt-month $"date_col")
 fn dt_month(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
-    Ok(Expr::PolarsExpr(col_expr.dt().month()))
+    Ok(new_polars_expr(col_expr.dt().month()))
 }
 
 // (dt-day $"date_col")
 fn dt_day(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
-    Ok(Expr::PolarsExpr(col_expr.dt().day()))
+    Ok(new_polars_expr(col_expr.dt().day()))
 }
 
 // (dt-hour $"datetime_col")
 fn dt_hour(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
-    Ok(Expr::PolarsExpr(col_expr.dt().hour()))
+    Ok(new_polars_expr(col_expr.dt().hour()))
 }
 
 // (dt-format $"date_col" "%B %d, %Y")
 fn dt_format(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let format = args[1].clone().expect_string()?;
-    Ok(Expr::PolarsExpr(col_expr.dt().to_string(&format)))
+    Ok(new_polars_expr(col_expr.dt().to_string(&format)))
 }
 
 // Helper to extract a column name string from String, Symbol, or $col Expr
 fn extract_col_name(expr: &Expr) -> Result<String, Error> {
-    match expr {
-        Expr::String(s) | Expr::Symbol(s) => Ok(s.clone()),
-        Expr::PolarsExpr(polars::prelude::Expr::Column(name)) => Ok(name.to_string()),
+    match expr.value.clone() {
+        ExprValue::String(s) | ExprValue::Symbol(s) => Ok(s.clone()),
+        ExprValue::PolarsExpr(polars::prelude::Expr::Column(name)) => Ok(name.to_string()),
         other => Err(Error::WrongType {
             expected: String::from("column name or $col"),
-            got: other.clone(),
+            got: expr.clone(),
         }),
     }
 }
 
 // Helper to extract a Vec<String> from either a single item or Expr::List
 fn extract_col_names(arg: &Expr) -> Result<Vec<String>, Error> {
-    match arg {
-        Expr::List(list) => list.iter().map(extract_col_name).collect(),
+    match arg.value.clone() {
+        ExprValue::List(list) => list.iter().map(extract_col_name).collect(),
         _ => Ok(vec![extract_col_name(arg)?]),
     }
 }
@@ -851,7 +879,7 @@ fn pivot_(args: Vec<Expr>) -> Result<Expr, Error> {
         Default::default(),
     );
 
-    Ok(Expr::LazyFrame(pivoted))
+    Ok(new_lazy_frame(pivoted))
 }
 
 fn melt_(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -878,22 +906,22 @@ fn melt_(args: Vec<Expr>) -> Result<Expr, Error> {
         value_name: val_name,
     };
 
-    Ok(Expr::LazyFrame(lf.unpivot(unpivot_args)))
+    Ok(new_lazy_frame(lf.unpivot(unpivot_args)))
 }
 
 fn concat_(args: Vec<Expr>) -> Result<Expr, Error> {
     let mut frames = Vec::<LazyFrame>::new();
     let mut how_str: Option<String> = None;
 
-    let items = match &args[0] {
-        Expr::List(list) => list.as_slice(),
+    let items = match &args[0].value {
+        ExprValue::List(list) => list.as_slice(),
         _ => &args[..],
     };
 
     for item in items {
-        match item {
-            Expr::LazyFrame(lf) => frames.push(lf.clone()),
-            Expr::Symbol(s) if s.starts_with(':') => how_str = Some(s.clone()),
+        match item.value.clone() {
+            ExprValue::LazyFrame(lf) => frames.push(lf.clone()),
+            ExprValue::Symbol(s) if s.starts_with(':') => how_str = Some(s.clone()),
             _ => {
                 if let Ok(lf) = item.clone().expect_lazy_frame() {
                     frames.push(lf);
@@ -925,7 +953,7 @@ fn concat_(args: Vec<Expr>) -> Result<Expr, Error> {
         }
     };
 
-    Ok(Expr::LazyFrame(concatted))
+    Ok(new_lazy_frame(concatted))
 }
 
 fn cast_(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -939,7 +967,7 @@ fn cast_(args: Vec<Expr>) -> Result<Expr, Error> {
         ":bool" => DataType::Boolean,
         other => return Err(Error::Custom(format!("Unknown cast target: {}", other))),
     };
-    Ok(Expr::PolarsExpr(col_expr.cast(target_type)))
+    Ok(new_polars_expr(col_expr.cast(target_type)))
 }
 
 // (scalar expr) — materialize a 1x1 result into a Lisp scalar
@@ -950,21 +978,21 @@ fn scalar(args: Vec<Expr>) -> Result<Expr, Error> {
     let row = df.get(0).unwrap();
     match row[0].clone() {
         AnyValue::Null => Ok(nil()),
-        AnyValue::Boolean(b) => if b { Ok(Expr::Symbol("true".to_string())) } else { Ok(Expr::Symbol("false".to_string())) },
-        AnyValue::String(s) => Ok(Expr::String(s.to_string())),
-        AnyValue::UInt8(i) => Ok(Expr::Int(i.into())),
-        AnyValue::UInt16(i) => Ok(Expr::Int(i.into())),
-        AnyValue::UInt32(i) => Ok(Expr::Int(i.into())),
-        AnyValue::UInt64(i) => Ok(Expr::Int(i as i64)),
-        AnyValue::UInt128(i) => Ok(Expr::Int(i as i64)),
-        AnyValue::Int8(i) => Ok(Expr::Int(i as i64)),
-        AnyValue::Int16(i) => Ok(Expr::Int(i as i64)),
-        AnyValue::Int32(i) => Ok(Expr::Int(i as i64)),
-        AnyValue::Int64(i) => Ok(Expr::Int(i as i64)),
-        AnyValue::Int128(i) => Ok(Expr::Int(i as i64)),
-        AnyValue::Float16(f) => Ok(Expr::Float(f.into())),
-        AnyValue::Float32(f) => Ok(Expr::Float(f.into())),
-        AnyValue::Float64(f) => Ok(Expr::Float(f.into())),
+        AnyValue::Boolean(b) => if b { Ok(new_symbol("true".to_string())) } else { Ok(new_symbol("false".to_string())) },
+        AnyValue::String(s) => Ok(new_string(s.to_string())),
+        AnyValue::UInt8(i) => Ok(new_int(i.into())),
+        AnyValue::UInt16(i) => Ok(new_int(i.into())),
+        AnyValue::UInt32(i) => Ok(new_int(i.into())),
+        AnyValue::UInt64(i) => Ok(new_int(i as i64)),
+        AnyValue::UInt128(i) => Ok(new_int(i as i64)),
+        AnyValue::Int8(i) => Ok(new_int(i as i64)),
+        AnyValue::Int16(i) => Ok(new_int(i as i64)),
+        AnyValue::Int32(i) => Ok(new_int(i as i64)),
+        AnyValue::Int64(i) => Ok(new_int(i as i64)),
+        AnyValue::Int128(i) => Ok(new_int(i as i64)),
+        AnyValue::Float16(f) => Ok(new_float(f.into())),
+        AnyValue::Float32(f) => Ok(new_float(f.into())),
+        AnyValue::Float64(f) => Ok(new_float(f.into())),
         AnyValue::Date(_) => Err(Error::ScalarUnsupportedError { name: "Date".to_string() }),
         AnyValue::Datetime(_, time_unit, time_zone) => Err(Error::ScalarUnsupportedError { name: "DateTime".to_string() }),
         AnyValue::DatetimeOwned(_, time_unit, time_zone) => Err(Error::ScalarUnsupportedError { name: "DatetimeOwned".to_string() }),
@@ -977,7 +1005,7 @@ fn scalar(args: Vec<Expr>) -> Result<Expr, Error> {
         AnyValue::List(series) => Err(Error::ScalarUnsupportedError { name: "List".to_string() }),
         AnyValue::Struct(_, struct_array, fields) => Err(Error::ScalarUnsupportedError { name: "Struct".to_string() }),
         AnyValue::StructOwned(_) => Err(Error::ScalarUnsupportedError { name: "StructOwned".to_string() }),
-        AnyValue::StringOwned(pl_small_str) => Ok(Expr::String(pl_small_str.to_string())),
+        AnyValue::StringOwned(pl_small_str) => Ok(new_string(pl_small_str.to_string())),
         AnyValue::Binary(items) => Err(Error::ScalarUnsupportedError { name: "Binary".to_string() }),
         AnyValue::BinaryOwned(items) => Err(Error::ScalarUnsupportedError { name: "BinaryOwned".to_string() }),
         _ => Err(Error::ScalarUnsupportedError { name: "Unknown".to_string() })
@@ -992,7 +1020,7 @@ fn collect_(args: Vec<Expr>) -> Result<Expr, Error> {
 
 pub fn insert_native_function(defines: &mut HashMap<String, Expr>, name: &str, body: fn(Vec<Expr>) -> Result<Expr, Error>,
     min_args: u8, max_args: u8) {
-        defines.insert(name.to_string(), Expr::NativeFunction { body, min_args, max_args });
+        defines.insert(name.to_string(), Expr {value: ExprValue::NativeFunction { body, min_args, max_args }, line: None });
 }
 
 pub fn std_env() -> Rc<RefCell<Env>> {

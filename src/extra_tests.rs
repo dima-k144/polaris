@@ -2,7 +2,7 @@
 mod tests {
     use crate::interpreter::{eval_string, State};
     use crate::stdlib::std_env;
-    use crate::types::Expr;
+    use crate::types::{Expr, ExprValue};
     use polars::prelude::*;
 
     #[test]
@@ -17,7 +17,7 @@ mod tests {
         let mut state = State { line: 0 };
         let result = eval_string(code.to_string(), &env, &mut state);
         assert!(result.is_ok());
-        if let Expr::LazyFrame(lf) = result.unwrap() {
+        if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             assert_eq!(df.shape(), (4, 2));
 
@@ -45,7 +45,7 @@ define df
         let mut state = State { line: 0 };
         let result = eval_string(code.to_string(), &env, &mut state);
         assert!(result.is_ok());
-        if let Expr::LazyFrame(lf) = result.unwrap() {
+        if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             assert_eq!(df.shape(), (4, 2));
 
@@ -71,7 +71,7 @@ define df
         let mut state = State { line: 0 };
         let result = eval_string(code.to_string(), &env, &mut state);
         assert!(result.is_ok());
-        if let Expr::LazyFrame(lf) = result.unwrap() {
+        if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             assert_eq!(df.shape(), (5, 5));
 
@@ -97,7 +97,7 @@ define d2 (read-csv "data2.csv")
         let mut state = State { line: 0 };
         let result = eval_string(code.to_string(), &env, &mut state);
         assert!(result.is_ok());
-        if let Expr::LazyFrame(lf) = result.unwrap() {
+        if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             assert_eq!(df.shape(), (3, 3));
 
@@ -126,7 +126,7 @@ define d2 (read-csv "data2.csv")
         let mut state = State { line: 0 };
         let result = eval_string(code.to_string(), &env, &mut state);
         assert!(result.is_ok());
-        if let Expr::LazyFrame(lf) = result.unwrap() {
+        if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             // Sort by department to guarantee deterministic row order
             let df = lf.sort(["department"], SortMultipleOptions::default()).collect().unwrap();
             assert_eq!(df.shape(), (3, 3));
@@ -154,7 +154,7 @@ define d2 (read-csv "data2.csv")
         let mut state = State { line: 0 };
         let result = eval_string(code.to_string(), &env, &mut state);
         assert!(result.is_ok());
-        if let Expr::LazyFrame(lf) = result.unwrap() {
+        if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             assert_eq!(df.shape(), (4, 4));
 
@@ -179,7 +179,7 @@ defun is_senior ()
         let mut state = State { line: 0 };
         let result = eval_string(code.to_string(), &env, &mut state);
         assert!(result.is_ok());
-        if let Expr::LazyFrame(lf) = result.unwrap() {
+        if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             assert_eq!(df.shape(), (5, 5));
 
@@ -209,7 +209,7 @@ defun is_senior ()
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
-        if let Expr::LazyFrame(lf) = result.unwrap() {
+        if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
             let ages: Vec<i64> = df.column("age").unwrap().i64().unwrap().iter().flatten().collect();
@@ -235,7 +235,7 @@ defun is_senior ()
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
-        if let Expr::LazyFrame(lf) = result.unwrap() {
+        if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
             let next_ages: Vec<i64> = df.column("age_next_year").unwrap().i64().unwrap().iter().flatten().collect();
@@ -262,7 +262,7 @@ defun is_senior ()
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
-        if let Expr::LazyFrame(lf) = result.unwrap() {
+        if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
             let cities: Vec<&str> = df.column("city_mod").unwrap().str().unwrap().iter().flatten().collect();
@@ -287,7 +287,7 @@ scalar
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
-        if let Expr::Int(total_age) = result.unwrap() {
+        if let ExprValue::Int(total_age) = result.unwrap().value {
             assert_eq!(total_age, 140);
         } else {
             panic!("Expected Int scalar result");
@@ -308,7 +308,7 @@ scalar
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
-        if let Expr::LazyFrame(lf) = result.unwrap() {
+        if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             let categories: Vec<&str> = df.column("category").unwrap().str().unwrap().iter().flatten().collect();
 
@@ -332,7 +332,7 @@ scalar
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
-        if let Expr::LazyFrame(lf) = result.unwrap() {
+        if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
             let cities: Vec<&str> = df.column("city").unwrap().str().unwrap().iter().flatten().collect();
@@ -361,7 +361,7 @@ scalar
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
-        if let Expr::LazyFrame(lf) = result.unwrap() {
+        if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
             let cities: Vec<&str> = df.column("city").unwrap().str().unwrap().iter().flatten().collect();
@@ -387,7 +387,7 @@ scalar
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
-        if let Expr::LazyFrame(lf) = result.unwrap() {
+        if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
             let ages: Vec<i64> = df.column("age").unwrap().i64().unwrap().iter().flatten().collect();
@@ -414,7 +414,7 @@ scalar
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
-        if let Expr::LazyFrame(lf) = result.unwrap() {
+        if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
             let codes: Vec<&str> = df.column("code").unwrap().str().unwrap().iter().flatten().collect();
@@ -440,7 +440,7 @@ scalar
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
-        if let Expr::LazyFrame(lf) = result.unwrap() {
+        if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
             let running_ages: Vec<i64> = df.column("running_age").unwrap().i64().unwrap().iter().flatten().collect();
@@ -467,7 +467,7 @@ scalar
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
-        if let Expr::LazyFrame(lf) = result.unwrap() {
+        if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
             let running_ages: Vec<i64> = df.column("running_age").unwrap().i64().unwrap().iter().flatten().collect();
@@ -493,7 +493,7 @@ scalar
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
-        if let Expr::LazyFrame(lf) = result.unwrap() {
+        if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
             let half_ages: Vec<f64> = df.column("half_age").unwrap().f64().unwrap().iter().flatten().collect();
@@ -520,7 +520,7 @@ scalar
         let result = eval_string(code.to_string(), &env, &mut state);
     
         assert!(result.is_ok());
-        if let Expr::LazyFrame(lf) = result.unwrap() {
+        if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
             let half_ages: Vec<f64> = df.column("half_age").unwrap().f64().unwrap().iter().flatten().collect();
@@ -549,7 +549,7 @@ scalar
         let result = eval_string(code.to_string(), &env, &mut state);
     
         assert!(result.is_ok());
-        if let Expr::LazyFrame(lf) = result.unwrap() {
+        if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
             let half_ages: Vec<f64> = df.column("half_age").unwrap().f64().unwrap().iter().flatten().collect();

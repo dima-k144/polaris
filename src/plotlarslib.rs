@@ -1,11 +1,11 @@
 use plotlars::{Plot, ScatterPlot, BarPlot, PieChart, Histogram, BoxPlot, TimeSeriesPlot, LinePlot};
-use crate::types::{Expr, Error};
+use crate::types::{Expr, ExprValue, Error};
 use crate::stdlib;
 use polars::prelude::*;
 
 fn kw(args: &[Expr], name: &str) -> Option<Expr> {
     for (i, arg) in args.iter().enumerate() {
-        if let Expr::Symbol(symbol) = arg {
+        if let ExprValue::Symbol(symbol) = arg.value.clone() {
             if symbol == name {
                 return args.get(i + 1).cloned();
             }
@@ -22,7 +22,7 @@ fn require_kw(args: &[Expr], name: &str) -> Result<Expr, Error> {
 }
 
 fn has_flag(args: &[Expr], name: &str) -> bool {
-    args.iter().any(|arg| matches!(arg, Expr::Symbol(s) if s == name))
+    args.iter().any(|arg| matches!(arg.value.clone(), ExprValue::Symbol(s) if s == name))
 }
 
 pub fn scatter_plot(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -267,15 +267,17 @@ pub fn time_series_plot(args: Vec<Expr>) -> Result<Expr, Error> {
 
     // Optional additional series (expects a list of strings or single string)
     let additional_series = match kw(&args, ":additional-series") {
-        Some(Expr::List(list)) => {
-            let mut series_vec = Vec::new();
-            for item in list {
-                series_vec.push(item.expect_string()?);
+        Some(some) => match some.value.clone() {
+            ExprValue::List(list) => {
+                let mut series_vec = Vec::new();
+                for item in list {
+                    series_vec.push(item.expect_string()?);
+                }
+                Some(series_vec)
             }
-            Some(series_vec)
-        }
-        Some(Expr::String(s)) => Some(vec![s]),
-        Some(other) => return Err(Error::WrongType { expected: "list or string".into(), got: other }),
+            ExprValue::String(s) => Some(vec![s]),
+            other => return Err(Error::WrongType { expected: "list or string".into(), got: some.clone() }),
+        },
         None => None,
     };
 
@@ -330,15 +332,17 @@ pub fn line_plot(args: Vec<Expr>) -> Result<Expr, Error> {
 
     // Optional additional lines (expects a list of strings or a single string)
     let additional_lines = match kw(&args, ":additional-lines") {
-        Some(Expr::List(list)) => {
-            let mut lines_vec = Vec::new();
-            for item in list {
-                lines_vec.push(item.expect_string()?);
+        Some(some) => match some.value.clone() {
+            ExprValue::List(list) => {
+                let mut lines_vec = Vec::new();
+                for item in list {
+                    lines_vec.push(item.expect_string()?);
+                }
+                Some(lines_vec)
             }
-            Some(lines_vec)
-        }
-        Some(Expr::String(s)) => Some(vec![s]),
-        Some(other) => return Err(Error::WrongType { expected: "list or string".into(), got: other }),
+            ExprValue::String(s) => Some(vec![s]),
+            other => return Err(Error::WrongType { expected: "list or string".into(), got: some }),
+        },
         None => None,
     };
 
