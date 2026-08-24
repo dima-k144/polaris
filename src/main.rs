@@ -23,6 +23,7 @@ mod stdlib;
 mod core_tests;
 mod polars_tests;
 mod extra_tests;
+mod preprocessor_test;
 mod ai;
 mod plotlarslib;
 mod wisp;

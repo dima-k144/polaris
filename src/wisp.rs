@@ -1,6 +1,6 @@
 use crate::types::Error;
 
-pub fn preprocess_wisp(input: &str) -> Result<String, Error> {
+pub fn preprocess_wisp_____(input: &str) -> Result<String, Error> {
     let mut result = String::new();
     let mut indent_stack: Vec<usize> = Vec::new();
     let mut paren_depth: usize = 0;
@@ -231,7 +231,7 @@ fn parent(i: usize, lines: &Vec::<String>) -> Option<usize> {
     None
 }
 
-pub fn preprocess_wisp2(input: &str) -> Result<String, Error> {
+pub fn preprocess_wisp2_____(input: &str) -> Result<String, Error> {
     let mut lines: Vec::<String> = input.lines().map(String::from).collect();
     lines.insert(0, "".to_string());
     lines.push("".to_string());
@@ -278,7 +278,6 @@ fn indent(line: &str) -> usize {
 pub fn preprocess_wisp3(input: &str) -> Result<String, Error> {
     let mut lines: Vec::<String> = input.lines().map(String::from).collect();
     lines.push("".to_string());
-    lines.push("".to_string());
     let mut i = 0;
 
     while i != lines.len() {
@@ -302,7 +301,7 @@ pub fn preprocess_wisp3(input: &str) -> Result<String, Error> {
             for _ in 0..lines[i].matches(" : ").count() {
                 lines[i].push(')');
             }
-            lines[i] = lines[i].replace(" : ", " ( ");
+            lines[i] = lines[i].replace(" : ", " (");
         }
 
         if indent(&lines[i]) == indent(&lines[i + 1]) {
