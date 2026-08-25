@@ -2113,4 +2113,109 @@ mod tests {
         expected_df.with_column(sku_info.into()).unwrap();
         assert_eq!(df, expected_df);
     }
+
+    #[test]
+    fn test_sort_multi_column_mixed_orders() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Pass list expressions for columns and ordering symbols
+        let code = r#"
+            (sort (read-csv "data1.csv") (list $"city" $"age") '(:asc :desc))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval sort multi-column mixed failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[3i64, 1, 5, 2, 4],
+            "name" => &["Charlie", "Alice", "Evan", "Bob", "Diana"],
+            "age" => &[22i64, 25, 35, 30, 28],
+            "city" => &["Berlin", "London", "Madrid", "Paris", "Rome"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_sort_multi_column_desc() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Pass list expression for columns and :desc symbol
+        let code = r#"
+            (sort (read-csv "data1.csv") (list $"age" $"id") :desc)
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval sort multi-column desc failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[5i64, 2, 4, 1, 3],
+            "name" => &["Evan", "Bob", "Diana", "Alice", "Charlie"],
+            "age" => &[35i64, 30, 28, 25, 22],
+            "city" => &["Madrid", "Paris", "Rome", "London", "Berlin"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_slice_expr() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Explicit slice on column expression: start at offset 1, take 3 items
+        let code = r#"
+            (select (read-csv "data1.csv") (slice-expr $"name" 1 3))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval slice-expr failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "name" => &["Bob", "Charlie", "Diana"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_get_expr() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Index specific elements (first: 0, last: -1) using get
+        let code = r#"
+            (select (read-csv "data1.csv")
+                    (alias (get $"name" 0) "first_name")
+                    (alias (get $"name" -1) "last_name"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval get expr failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "first_name" => &["Alice"],
+            "last_name" => &["Evan"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
 }

@@ -444,21 +444,77 @@ fn with_column(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_lazy_frame(lf.with_column(value.alias(&alias))))
 }
 
+// --- 1. Multi-column Sorting with Mixed Orders ---
+// Examples in Lisp:
+//   (sort df $"a")
+//   (sort df $"a" :desc)
+//   (sort df ($"a" $"b") (:desc :asc))
+//   (sort df ($"a" $"b") :desc) ; sets descending for all
 fn sort(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
-    let by_expr = args[1].clone().expect_polars_expr()?;
-    
-    let descending = if args.len() > 2 {
-        match args[2].clone().expect_symbol()?.as_str() {
-            ":desc" => true,
-            _ => false,
+
+    // 1. Extract by expressions
+    let by_exprs: Vec<polars::prelude::Expr> = match &args[1].value {
+        ExprValue::List(items) => {
+            let mut exprs = Vec::with_capacity(items.len());
+            for item in items {
+                exprs.push(item.clone().expect_polars_expr()?);
+            }
+            exprs
         }
-    } else {
-        false
+        _ => vec![args[1].clone().expect_polars_expr()?],
     };
 
-    let options = SortMultipleOptions::new().with_order_descending(descending);
-    Ok(new_lazy_frame(lf.sort_by_exprs(vec![by_expr], options)))
+    // 2. Extract descending flags
+    let descending: Vec<bool> = if args.len() > 2 {
+        match &args[2].value {
+            ExprValue::List(items) => {
+                let mut desc = Vec::with_capacity(items.len());
+                for item in items {
+                    let sym = item.clone().expect_symbol()?;
+                    desc.push(matches!(sym.as_str(), ":desc" | ":descending" | "true"));
+                }
+                desc
+            }
+            _ => {
+                let sym = args[2].clone().expect_symbol()?;
+                let is_desc = matches!(sym.as_str(), ":desc" | ":descending" | "true");
+                vec![is_desc; by_exprs.len()]
+            }
+        }
+    } else {
+        vec![false; by_exprs.len()]
+    };
+
+    if !descending.is_empty() && descending.len() != by_exprs.len() {
+        return Err(Error::Custom(format!(
+            "Number of sort orders ({}) does not match number of columns ({})",
+            descending.len(),
+            by_exprs.len()
+        )));
+    }
+
+    let options = SortMultipleOptions::new().with_order_descending_multi(descending);
+    Ok(new_lazy_frame(lf.sort_by_exprs(by_exprs, options)))
+}
+
+// (slice-expr $"col" offset length)
+fn expr_slice(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    let offset = args[1].clone().expect_int()?;
+    let length = args[2].clone().expect_int()?;
+
+    Ok(new_polars_expr(expr.slice(lit(offset), lit(length as u32))))
+}
+
+// (get $"col" 0) -> first element
+// (get $"col" -1) -> last element
+fn expr_get(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    let index = args[1].clone().expect_int()?;
+
+    // Set null_on_oob to true (returns null if out of bounds) or false (raises an error)
+    Ok(new_polars_expr(expr.get(lit(index), true)))
 }
 
 fn group_by(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -1226,6 +1282,10 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "max", max, 1, 1);
     insert_native_function(&mut defines, "n-unique", n_unique, 1, 1);
     insert_native_function(&mut defines, "std", std_dev, 1, 2);
+
+    // Register Series slicing and indexing
+    insert_native_function(&mut defines, "slice-expr", expr_slice, 3, 3);
+    insert_native_function(&mut defines, "get", expr_get, 2, 2);
 
     // LazyFrame Operations
     insert_native_function(&mut defines, "select", select, 1, u8::MAX);
