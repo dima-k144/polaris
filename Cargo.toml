@@ -9,7 +9,7 @@ polars = {
     features = [
         "lazy", "csv", "semi_anti_join", "strings", "regex", "cum_agg", "rank",
         "temporal", "dtype-date", "dtype-datetime", "dtype-duration", "dtype-time",
-        "parquet", "streaming", "pivot", "rolling_window",
+        "parquet", "streaming", "pivot", "rolling_window", "extract_groups",
         "performant", "cse", "nightly"
    ] 
 }

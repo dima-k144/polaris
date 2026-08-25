@@ -1059,6 +1059,63 @@ fn rolling_median(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(expr.rolling_median(opts)))
 }
 
+// (str-split $"col" ",")
+fn str_split(args: Vec<Expr>) -> Result<Expr, Error> {
+    let col_expr = args[0].clone().expect_polars_expr()?;
+    let pat_expr = args[1].clone().expect_polars_expr()?;
+    Ok(new_polars_expr(col_expr.str().split(pat_expr)))
+}
+
+// (str-strip $"col" [chars])
+fn str_strip(args: Vec<Expr>) -> Result<Expr, Error> {
+    let col_expr = args[0].clone().expect_polars_expr()?;
+    let expr = if args.len() > 1 {
+        args[1].clone().expect_polars_expr()?
+    } else {
+        polars::prelude::lit(polars::prelude::NULL)
+    };
+    Ok(new_polars_expr(col_expr.str().strip_chars(expr)))
+}
+
+// (str-strip-start $"col" [chars])
+fn str_strip_start(args: Vec<Expr>) -> Result<Expr, Error> {
+    let col_expr = args[0].clone().expect_polars_expr()?;
+    let expr = if args.len() > 1 {
+        args[1].clone().expect_polars_expr()?
+    } else {
+        polars::prelude::lit(polars::prelude::NULL)
+    };
+    Ok(new_polars_expr(col_expr.str().strip_chars_start(expr)))
+}
+
+// (str-strip-end $"col" [chars])
+fn str_strip_end(args: Vec<Expr>) -> Result<Expr, Error> {
+    let col_expr = args[0].clone().expect_polars_expr()?;
+    let expr = if args.len() > 1 {
+        args[1].clone().expect_polars_expr()?
+    } else {
+        polars::prelude::lit(polars::prelude::NULL)
+    };
+    Ok(new_polars_expr(col_expr.str().strip_chars_end(expr)))
+}
+
+// (str-slice $"col" offset length)
+fn str_slice(args: Vec<Expr>) -> Result<Expr, Error> {
+    let col_expr = args[0].clone().expect_polars_expr()?;
+    let offset = args[1].clone().expect_int()?;
+    let length = args[2].clone().expect_int()?;
+    Ok(new_polars_expr(col_expr.str().slice(lit(offset), lit(length))))
+}
+
+// (str-extract-groups $"col" "([A-Z]+)-(\\d+)")
+fn str_extract_groups(args: Vec<Expr>) -> Result<Expr, Error> {
+    let col_expr = args[0].clone().expect_polars_expr()?;
+    let pat = args[1].clone().expect_string()?;
+    
+    let res = col_expr.str().extract_groups(&pat).map_err(Error::PolarsError)?;
+    Ok(new_polars_expr(res))
+}
+
 // (scalar expr) — materialize a 1x1 result into a Lisp scalar
 fn scalar(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
@@ -1191,6 +1248,12 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "str-contains", str_contains, 2, 2);
     insert_native_function(&mut defines, "str-replace", str_replace, 3, 3);
     insert_native_function(&mut defines, "str-extract", str_extract, 3, 3);
+    insert_native_function(&mut defines, "str-split", str_split, 2, 2);
+    insert_native_function(&mut defines, "str-strip", str_strip, 1, 2);
+    insert_native_function(&mut defines, "str-strip-start", str_strip_start, 1, 2);
+    insert_native_function(&mut defines, "str-strip-end", str_strip_end, 1, 2);
+    insert_native_function(&mut defines, "str-slice", str_slice, 3, 3);
+    insert_native_function(&mut defines, "str-extract-groups", str_extract_groups, 2, 2);
 
     // Window & Cumulative Functions
     insert_native_function(&mut defines, "over", over, 2, u8::MAX);

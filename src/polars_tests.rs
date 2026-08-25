@@ -1863,4 +1863,254 @@ mod tests {
 
         assert_eq!(df, expected_df);
     }
+
+    #[test]
+    fn test_str_split() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Split sku into list of parts separated by "-"
+        let code = r#"
+            (with-column (read-csv "data4.csv") $"sku_parts" (str-split $"sku" "-"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval with-column 'str-split' failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let sku_parts: Series = Series::new(
+            PlSmallStr::from_static("sku_parts"),
+            &[
+                Series::new(PlSmallStr::from_static(""), &["PROD", "101", "US"]),
+                Series::new(PlSmallStr::from_static(""), &["DEV", "202", "EU"]),
+                Series::new(PlSmallStr::from_static(""), &["PROD", "303", "APAC"]),
+                Series::new(PlSmallStr::from_static(""), &["STAGING", "404", "US"]),
+                Series::new(PlSmallStr::from_static(""), &["DEV", "505", "LATAM"]),
+            ],
+        );
+
+        let mut expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &["Alice Johnson", "Bob Smith", "Charlie Brown", "Diana Prince", "Evan Wright"],
+            "email" => &[
+                "alice.j@example.com",
+                "bob_smith@work.org",
+                "charlie@test.net",
+                "diana.p@example.com",
+                "evan_w@domain.io",
+            ],
+            "sku" => &[
+                "PROD-101-US",
+                "DEV-202-EU",
+                "PROD-303-APAC",
+                "STAGING-404-US",
+                "DEV-505-LATAM",
+            ],
+        ).expect("failed to construct expected DataFrame");
+
+        expected_df.with_column(sku_parts.into()).unwrap();
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_str_slice() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Extract first 4 characters of the SKU column
+        let code = r#"
+            (with-column (read-csv "data4.csv") $"prefix" (str-slice $"sku" 0 4))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval with-column 'str-slice' failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &["Alice Johnson", "Bob Smith", "Charlie Brown", "Diana Prince", "Evan Wright"],
+            "email" => &[
+                "alice.j@example.com",
+                "bob_smith@work.org",
+                "charlie@test.net",
+                "diana.p@example.com",
+                "evan_w@domain.io",
+            ],
+            "sku" => &[
+                "PROD-101-US",
+                "DEV-202-EU",
+                "PROD-303-APAC",
+                "STAGING-404-US",
+                "DEV-505-LATAM",
+            ],
+            "prefix" => &[
+                Some("PROD"),
+                Some("DEV-"),
+                Some("PROD"),
+                Some("STAG"),
+                Some("DEV-"),
+            ],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_str_strip() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Strip character set ("PRODLATAMUS-") from both ends of sku
+        let code = r#"
+            (with-column (read-csv "data4.csv") $"stripped" (str-strip $"sku" "PRODLATAMUS-"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval with-column 'str-strip' failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &["Alice Johnson", "Bob Smith", "Charlie Brown", "Diana Prince", "Evan Wright"],
+            "email" => &[
+                "alice.j@example.com",
+                "bob_smith@work.org",
+                "charlie@test.net",
+                "diana.p@example.com",
+                "evan_w@domain.io",
+            ],
+            "sku" => &[
+                "PROD-101-US",
+                "DEV-202-EU",
+                "PROD-303-APAC",
+                "STAGING-404-US",
+                "DEV-505-LATAM",
+            ],
+            "stripped" => &[
+                Some("101"),
+                Some("EV-202-E"),
+                Some("303-APAC"),
+                Some("GING-404"),
+                Some("EV-505"),
+            ],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_str_strip_start_and_end() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (-> (read-csv "data4.csv")
+                (with-column $"no_lead" (str-strip-start $"sku" "PRODEV-"))
+                (with-column $"no_trail" (str-strip-end $"sku" "-USEUAPACLATAM")))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval strip start/end failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &["Alice Johnson", "Bob Smith", "Charlie Brown", "Diana Prince", "Evan Wright"],
+            "email" => &[
+                "alice.j@example.com",
+                "bob_smith@work.org",
+                "charlie@test.net",
+                "diana.p@example.com",
+                "evan_w@domain.io",
+            ],
+            "sku" => &[
+                "PROD-101-US",
+                "DEV-202-EU",
+                "PROD-303-APAC",
+                "STAGING-404-US",
+                "DEV-505-LATAM",
+            ],
+            "no_lead" => &[
+                Some("101-US"),
+                Some("202-EU"),
+                Some("303-APAC"),
+                Some("STAGING-404-US"),
+                Some("505-LATAM"),
+            ],
+            "no_trail" => &[
+                Some("PROD-101"),
+                Some("DEV-202"),
+                Some("PROD-303"),
+                Some("STAGING-404"),
+                Some("DEV-505"),
+            ],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_str_extract_groups() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Extract named capture groups from SKU: env, code, and region
+        let code = r#"
+            (with-column (read-csv "data4.csv") $"sku_info" 
+                         (str-extract-groups $"sku" "^(?<env>[A-Z]+)-(?<code>[0-9]+)-(?<region>[A-Z]+)$"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval with-column 'str-extract-groups' failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let env_s = Column::new(PlSmallStr::from_static("env"), &["PROD", "DEV", "PROD", "STAGING", "DEV"]);
+        let code_s = Column::new(PlSmallStr::from_static("code"), &["101", "202", "303", "404", "505"]);
+        let region_s = Column::new(PlSmallStr::from_static("region"), &["US", "EU", "APAC", "US", "LATAM"]);
+
+        let sku_info = StructChunked::from_columns(
+            PlSmallStr::from_static("sku_info"),
+            5,
+            &[env_s, code_s, region_s],
+        )
+        .expect("failed to build struct column")
+        .into_series();
+
+        let mut expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &["Alice Johnson", "Bob Smith", "Charlie Brown", "Diana Prince", "Evan Wright"],
+            "email" => &[
+                "alice.j@example.com",
+                "bob_smith@work.org",
+                "charlie@test.net",
+                "diana.p@example.com",
+                "evan_w@domain.io",
+            ],
+            "sku" => &[
+                "PROD-101-US",
+                "DEV-202-EU",
+                "PROD-303-APAC",
+                "STAGING-404-US",
+                "DEV-505-LATAM",
+            ],
+        ).expect("failed to construct expected DataFrame");
+
+        expected_df.with_column(sku_info.into()).unwrap();
+        assert_eq!(df, expected_df);
+    }
 }
