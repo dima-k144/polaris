@@ -1760,4 +1760,107 @@ mod tests {
         let res = eval_string(code, &env, &mut state);
         assert!(matches!(res, Err(Error::ScalarShapeError { .. })));
     }
+
+    #[test]
+    fn test_rolling_mean() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (with-column (select (read-csv "data1.csv") $"id" $"age") $"roll_mean" (rolling-mean $"age" 2))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval rolling-mean failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "age" => &[25i64, 30, 22, 28, 35],
+            "roll_mean" => &[25.0f64, 27.5, 26.0, 25.0, 31.5],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_rolling_sum() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (with-column (select (read-csv "data1.csv") $"id" $"age") $"roll_sum" (rolling-sum $"age" 2))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval rolling-sum failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "age" => &[25i64, 30, 22, 28, 35],
+            "roll_sum" => &[25i64, 55, 52, 50, 63],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_rolling_min_and_max() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (-> (select (read-csv "data1.csv") $"id" $"age")
+                (with-column $"roll_min" (rolling-min $"age" 2))
+                (with-column $"roll_max" (rolling-max $"age" 2)))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval rolling-min/max failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "age" => &[25i64, 30, 22, 28, 35],
+            "roll_min" => &[25i64, 25, 22, 22, 28],
+            "roll_max" => &[25i64, 30, 30, 28, 35],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_rolling_median() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (with-column (select (read-csv "data1.csv") $"id" $"age") $"roll_median" (rolling-median $"age" 3))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval rolling-median failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "age" => &[25i64, 30, 22, 28, 35],
+            "roll_median" => &[25.0f64, 27.5, 25.0, 28.0, 28.0],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
 }

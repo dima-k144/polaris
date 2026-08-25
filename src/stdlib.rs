@@ -7,6 +7,7 @@ use std::sync::Arc;
 use crate::types::{Env, Error, Expr, ExprValue::{self, PolarsExpr}};
 use crate::plotlarslib;
 use crate::interpreter::{eval_string, State};
+use polars::prelude::RollingOptionsFixedWindow;
 
 pub fn nil() -> Expr { return Expr{ value: ExprValue::String("nil".to_string()), line: None } }
 
@@ -991,6 +992,73 @@ fn cast_(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(col_expr.cast(target_type)))
 }
 
+// Helper to construct window options: (expr, window_size, [min_periods], [center])
+fn parse_rolling_options(args: &[Expr]) -> Result<(polars::prelude::Expr, RollingOptionsFixedWindow), Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    let window_size = args[1].clone().expect_int()? as usize;
+
+    let min_periods = if args.len() > 2 {
+        args[2].clone().expect_int()? as usize
+    } else {
+        1
+    };
+
+    let center = if args.len() > 3 {
+        match args[3].clone().expect_symbol()?.as_str() {
+            ":center" | "true" => true,
+            _ => false,
+        }
+    } else {
+        false
+    };
+
+    let options = RollingOptionsFixedWindow {
+        window_size,
+        min_periods,
+        weights: None,
+        center,
+        fn_params: None,
+    };
+
+    Ok((expr, options))
+}
+
+// (rolling-mean $"col" 5) or (rolling-mean $"col" 5 1 :center)
+fn rolling_mean(args: Vec<Expr>) -> Result<Expr, Error> {
+    let (expr, opts) = parse_rolling_options(&args)?;
+    Ok(new_polars_expr(expr.rolling_mean(opts)))
+}
+
+// (rolling-sum $"col" 5)
+fn rolling_sum(args: Vec<Expr>) -> Result<Expr, Error> {
+    let (expr, opts) = parse_rolling_options(&args)?;
+    Ok(new_polars_expr(expr.rolling_sum(opts)))
+}
+
+// (rolling-min $"col" 5)
+fn rolling_min(args: Vec<Expr>) -> Result<Expr, Error> {
+    let (expr, opts) = parse_rolling_options(&args)?;
+    Ok(new_polars_expr(expr.rolling_min(opts)))
+}
+
+// (rolling-max $"col" 5)
+fn rolling_max(args: Vec<Expr>) -> Result<Expr, Error> {
+    let (expr, opts) = parse_rolling_options(&args)?;
+    Ok(new_polars_expr(expr.rolling_max(opts)))
+}
+
+// (rolling-std $"col" 5)
+fn rolling_std(args: Vec<Expr>) -> Result<Expr, Error> {
+    let (expr, opts) = parse_rolling_options(&args)?;
+    Ok(new_polars_expr(expr.rolling_std(opts)))
+}
+
+// (rolling-median $"col" 5)
+fn rolling_median(args: Vec<Expr>) -> Result<Expr, Error> {
+    let (expr, opts) = parse_rolling_options(&args)?;
+    Ok(new_polars_expr(expr.rolling_median(opts)))
+}
+
 // (scalar expr) — materialize a 1x1 result into a Lisp scalar
 fn scalar(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
@@ -1147,6 +1215,14 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "melt", melt_, 3, 5);
     insert_native_function(&mut defines, "unpivot", melt_, 3, 5);
     insert_native_function(&mut defines, "concat", concat_, 1, u8::MAX);
+
+    // Rolling / Window aggregations
+    insert_native_function(&mut defines, "rolling-mean", rolling_mean, 2, 4);
+    insert_native_function(&mut defines, "rolling-sum", rolling_sum, 2, 4);
+    insert_native_function(&mut defines, "rolling-min", rolling_min, 2, 4);
+    insert_native_function(&mut defines, "rolling-max", rolling_max, 2, 4);
+    insert_native_function(&mut defines, "rolling-median", rolling_median, 2, 4);
+    insert_native_function(&mut defines, "rolling-std", rolling_std, 2, 5);
 
     // Casting
     insert_native_function(&mut defines, "cast", cast_, 2, 2);
