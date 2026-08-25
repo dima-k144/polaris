@@ -14,7 +14,7 @@ mod tests {
     select $"name" $"city"
 "#;
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let result = eval_string(code.to_string(), &env, &mut state);
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
@@ -42,7 +42,7 @@ define df
     select $"name" $"city"
 "#;
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let result = eval_string(code.to_string(), &env, &mut state);
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
@@ -68,7 +68,7 @@ define df
     sort $"age_months" :desc
 "#;
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let result = eval_string(code.to_string(), &env, &mut state);
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
@@ -94,7 +94,7 @@ define d2 (read-csv "data2.csv")
     select $"name" $"department" $"salary"
 "#;
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let result = eval_string(code.to_string(), &env, &mut state);
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
@@ -123,7 +123,7 @@ define d2 (read-csv "data2.csv")
         alias (count) "count"
 "#;
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let result = eval_string(code.to_string(), &env, &mut state);
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
@@ -151,7 +151,7 @@ define d2 (read-csv "data2.csv")
         over (mean $"salary") $"department"
 "#;
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let result = eval_string(code.to_string(), &env, &mut state);
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
@@ -176,7 +176,7 @@ defun is_senior ()
     with-column $"is_senior" (is_senior)
     "#;
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let result = eval_string(code.to_string(), &env, &mut state);
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
@@ -205,7 +205,7 @@ defun is_senior ()
     select $"name" $"age"
 "#;
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
@@ -231,7 +231,7 @@ defun is_senior ()
     select $"name" $"age_next_year"
 "#;
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
@@ -258,7 +258,7 @@ defun is_senior ()
     sort $"name"
     "#;
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
@@ -283,7 +283,7 @@ scalar
         agg : sum $"age"
 "#;
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
@@ -304,7 +304,7 @@ scalar
     select $"name" $"category"
 "#;
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
@@ -328,7 +328,7 @@ scalar
     select $"name" $"city"
     "#;
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
@@ -357,7 +357,7 @@ scalar
     select $"name" $"city"
     "#;
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
@@ -383,7 +383,7 @@ scalar
     select $"name" $"age"
     "#;
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
@@ -410,7 +410,7 @@ scalar
     select $"name" $"code"
     "#;
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
@@ -436,7 +436,7 @@ scalar
     select $"name" $"running_age"
     "#;
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
@@ -463,7 +463,7 @@ scalar
     select $"name" $"running_age"
 "#;
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
@@ -489,7 +489,7 @@ scalar
     select $"name" $"half_age"
     "#;
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
@@ -516,7 +516,7 @@ scalar
     select $"name" $"half_age"
     "#;
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let result = eval_string(code.to_string(), &env, &mut state);
     
         assert!(result.is_ok());
@@ -545,7 +545,7 @@ scalar
     select $"name" $"half_age"
     "#;
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let result = eval_string(code.to_string(), &env, &mut state);
     
         assert!(result.is_ok());

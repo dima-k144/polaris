@@ -193,10 +193,7 @@ impl fmt::Display for ExprValue {
                     None => write!(f, "<lambda>"),
                 }
             }
-            ExprValue::LazyFrame(lf) => match lf.clone().collect() {
-                Ok(df) => write!(f, "{df}"),
-                Err(err) => write!(f, "<Failed to collect LazyFrame: {err}>"),
-            },
+            ExprValue::LazyFrame(lf) => write!(f, "<LazyFrame>"),
             ExprValue::PolarsExpr(pe) => write!(f, "{}", pe),
         }
     }
@@ -278,22 +275,4 @@ pub enum Error {
     },
     Custom(String),
     PolarsError(polars::prelude::PolarsError)
-}
-
-pub fn format_error(error: Error) -> String {
-    match error {
-        Error::UnclosedString => format!("Error: unclosed string"),
-        Error::UnclosedListExpr => format!("Error: unclosed list expression"),
-        Error::FailedToParseNumber { number } => format!("Error: failed to parse number '{number}'"),
-        Error::WrongType { expected, got } => format!("Error: expected {0}, got {1}", expected, got.type_to_str()),
-        Error::LookupNotFound { symbol } => format!("Error: symbol '{symbol}' is not defined"),
-        Error::WrongNumberOfArguments { 
-            expected_min, expected_max, got 
-        } => format!("Error: expected {expected_min}-{expected_max} number of argumens, got {got}"),
-        Error::ScalarShapeError { shape } => format!("Error: failed to convert to lisp expr, shape is {} by {}", shape.0, shape.1),
-        Error::ScalarUnsupportedError { name } => format!("Error: unsupported scalar conversion from type '{name}'"),
-        Error::MissingRequiredKWArg { name } => format!("Error: missing required keyword argument '{name}'"),
-        Error::Custom(message) => format!("Error: {message}"),
-        Error::PolarsError(perror) => format!("Error: {}", perror)
-    }
 }

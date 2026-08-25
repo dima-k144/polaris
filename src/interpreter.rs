@@ -6,7 +6,8 @@ use crate::stdlib;
 use crate::types::{Env, Expr, ExprValue, Error};
 
 pub struct State {
-    pub line: usize
+    pub line: usize,
+    pub file: Option<String>
 }
 
 pub fn lookup(symbol: &str, env: &Rc<RefCell<Env>>) -> Option<Expr> {
@@ -25,6 +26,10 @@ pub fn define(symbol: &String, value: Expr, env: &Rc<RefCell<Env>>) {
 }
 
 pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Expr, Error> {
+    if expr.line.is_some() {
+        state.line = expr.line.unwrap();
+    }
+
     match expr.value.clone() {
         ExprValue::Symbol(symbol) => {
             if symbol.starts_with(":") {
@@ -168,13 +173,15 @@ pub fn pretty_wisp(source: String) -> String {
 
 pub fn eval_string(source: String, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Expr, Error> {
     let s_expr_source = crate::wisp::preprocess_wisp3(&source)?;
-    println!("wisp: {}", s_expr_source.clone());
-    println!("end wisp");
+    //println!("wisp: {}", s_expr_source.clone());
+    //println!("end wisp");
     let mut tokens = crate::lexer::scan(&s_expr_source)?;
     let exprs = crate::parser::parse(&mut tokens)?;
-    let mut result = None;
+    
+    let mut last_res = stdlib::nil();
     for expr in exprs {
-        result = Some(crate::interpreter::eval(expr, env, state));
+        // Return immediately if an expression fails
+        last_res = crate::interpreter::eval(expr, env, state)?;
     }
-    result.unwrap()
+    Ok(last_res)
 }

@@ -6,7 +6,7 @@ mod tests {
     #[test]
     fn test_defun_basic() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (defun add (a b) (+ a b))
@@ -24,7 +24,7 @@ mod tests {
     #[test]
     fn test_defun_multi_expression_body() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (defun compute (x y)
@@ -44,7 +44,7 @@ mod tests {
     #[test]
     fn test_lambda_bound_with_define() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (define square (lambda (x) (* x x)))
@@ -62,7 +62,7 @@ mod tests {
     #[test]
     fn test_lambda_multiple_parameters() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (define calc (lambda (a b c) (- (+ a b) c)))
@@ -80,7 +80,7 @@ mod tests {
     #[test]
     fn test_defun_scoping_isolation() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (define x 100)
@@ -99,7 +99,7 @@ mod tests {
     #[test]
     fn test_let_basic() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (let (a 1 b 2 c 3) (+ a b c))
@@ -116,7 +116,7 @@ mod tests {
     //#[test]
     //fn test_let_scoping_isolation() {
     //    let env = std_env();
-    //    let mut state = State { line: 0 };
+    //    let mut state = State { line: 0, file: None };
 //
     //    let code = r#"
     //        (define x 100)
@@ -142,7 +142,7 @@ mod tests {
     #[test]
     fn test_let_multi_expression_body() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (let (a 5 b 10)
@@ -161,7 +161,7 @@ mod tests {
     #[test]
     fn test_let_nested() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (let (a 2 b 3)
@@ -180,7 +180,7 @@ mod tests {
     #[test]
     fn test_let_odd_bindings_error() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (let (a 1 b) (+ a 1))

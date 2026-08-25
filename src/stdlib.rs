@@ -40,7 +40,7 @@ pub fn new_symbol(value: String) -> Expr {
 
 fn print(args: Vec<Expr>) -> Result<Expr, Error> {
     for arg in args {
-        println!("{}", arg);
+        println!("{}", arg.to_string()?);
     }
     Ok(nil())
 }
@@ -400,12 +400,26 @@ fn select(args: Vec<Expr>) -> Result<Expr, Error> {
     for arg in args.iter().skip(1) {
         exprs.push(arg.clone().expect_polars_expr()?);
     }
+
+    // Eagerly validate all expressions against the current schema
+    lf.clone()
+        .select(exprs.clone())
+        .collect_schema()
+        .map_err(Error::PolarsError)?;
+
     Ok(new_lazy_frame(lf.select(exprs)))
 }
 
 fn filter(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let expr = args[1].clone().expect_polars_expr()?;
+
+    // Eagerly validate that all columns in `expr` exist in `lf`
+    lf.clone()
+        .select(vec![expr.clone()])
+        .collect_schema()
+        .map_err(Error::PolarsError)?;
+
     Ok(new_lazy_frame(lf.filter(expr)))
 }
 
@@ -419,6 +433,13 @@ fn with_column(args: Vec<Expr>) -> Result<Expr, Error> {
             panic!("Shouldnt happen");
         }
     };
+
+    // Eagerly validate `value`
+    lf.clone()
+        .select(vec![value.clone()])
+        .collect_schema()
+        .map_err(Error::PolarsError)?;
+
     Ok(new_lazy_frame(lf.with_column(value.alias(&alias))))
 }
 

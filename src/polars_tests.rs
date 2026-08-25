@@ -21,7 +21,7 @@ mod tests {
     #[test]
     fn test_filter_eq() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (filter (read-csv "data1.csv") (= $"age" 30))
@@ -47,7 +47,7 @@ mod tests {
     #[test]
     fn test_filter_neq() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (filter (read-csv "data1.csv") (!= $"age" 30))
@@ -73,7 +73,7 @@ mod tests {
     #[test]
     fn test_filter_gt() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (filter (read-csv "data1.csv") (> $"age" 25))
@@ -99,7 +99,7 @@ mod tests {
     #[test]
     fn test_filter_lt() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (filter (read-csv "data1.csv") (< $"age" 28))
@@ -125,7 +125,7 @@ mod tests {
     #[test]
     fn test_filter_gt_eq() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (filter (read-csv "data1.csv") (>= $"age" 28))
@@ -151,7 +151,7 @@ mod tests {
     #[test]
     fn test_filter_lt_eq() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
     
         let code = r#"
             (filter (read-csv "data1.csv") (<= $"age" 28))
@@ -177,7 +177,7 @@ mod tests {
     #[test]
     fn test_filter_and() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (filter (read-csv "data1.csv") (and (> $"age" 22) (< $"age" 35)))
@@ -203,7 +203,7 @@ mod tests {
     #[test]
     fn test_filter_or() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
     
         let code = r#"
             (filter (read-csv "data1.csv") (or (< $"age" 25) (>= $"age" 35)))
@@ -229,7 +229,7 @@ mod tests {
     #[test]
     fn test_filter_not() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (filter (read-csv "data1.csv") (not (> $"age" 25)))
@@ -255,7 +255,7 @@ mod tests {
     #[test]
     fn test_select_sum() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (select (read-csv "data1.csv") (sum $"age"))
@@ -278,7 +278,7 @@ mod tests {
     #[test]
     fn test_select_mean() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (select (read-csv "data1.csv") (mean $"age"))
@@ -301,7 +301,7 @@ mod tests {
     #[test]
     fn test_select_median() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (select (read-csv "data1.csv") (median $"age"))
@@ -324,7 +324,7 @@ mod tests {
     #[test]
     fn test_with_column_computed() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (with-column (read-csv "data1.csv") $"is_over_25" (> $"age" 25))
@@ -351,7 +351,7 @@ mod tests {
     #[test]
     fn test_sort_asc() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
     
         let code = r#"
             (sort (read-csv "data1.csv") $"age")
@@ -381,7 +381,7 @@ mod tests {
         use polars::prelude::*;
     
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
     
         // Group by city and compute mean age, then sort by city to ensure deterministic order
         let code = r#"
@@ -406,7 +406,7 @@ mod tests {
     #[test]
     fn test_agg_multiple() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (agg (read-csv "data1.csv") 
@@ -432,7 +432,7 @@ mod tests {
     #[test]
     fn test_join_inner() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (sort (join (read-csv "data1.csv") (read-csv "data2.csv") $"id" $"id" :inner) $"id")
@@ -460,7 +460,7 @@ mod tests {
     #[test]
     fn test_arithmetic_plus() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let res = eval_string("(+ 1 2 3 4)".to_string(), &env, &mut state)
             .expect("eval failed")
@@ -473,7 +473,7 @@ mod tests {
     #[test]
     fn test_arithmetic_minus() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let res = eval_string("(- 20 5 3 2)".to_string(), &env, &mut state)
             .expect("eval failed")
@@ -486,7 +486,7 @@ mod tests {
     #[test]
     fn test_arithmetic_mult() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let res = eval_string("(* 2 3 4)".to_string(), &env, &mut state)
             .expect("eval failed")
@@ -499,7 +499,7 @@ mod tests {
     #[test]
     fn test_arithmetic_divide() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let res = eval_string("(/ 100 2 5)".to_string(), &env, &mut state)
             .expect("eval failed")
@@ -512,7 +512,7 @@ mod tests {
     #[test]
     fn test_arithmetic_nested() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         // Evaluates: ((10 + 5) * 2) - (20 / 4) = (15 * 2) - 5 = 30 - 5 = 25
         let code = "(- (* (+ 10 5) 2) (/ 20 4))".to_string();
@@ -528,7 +528,7 @@ mod tests {
     #[test]
     fn test_polars_plus() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (with-column (select (read-csv "data1.csv") $"id" $"age") $"age_plus_5" (+ $"age" 5))
@@ -553,7 +553,7 @@ mod tests {
     #[test]
     fn test_polars_minus() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (with-column (select (read-csv "data1.csv") $"id" $"age") $"age_minus_2" (- $"age" 2))
@@ -578,7 +578,7 @@ mod tests {
     #[test]
     fn test_polars_mult() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (with-column (select (read-csv "data1.csv") $"id" $"age") $"age_double" (* $"age" 2))
@@ -603,7 +603,7 @@ mod tests {
     #[test]
     fn test_polars_divide() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (with-column (select (read-csv "data1.csv") $"id" $"age") $"age_half" (/ $"age" 2))
@@ -628,7 +628,7 @@ mod tests {
     #[test]
     fn test_is_null() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (filter (read-csv "data3.csv") (null? $"age"))
@@ -654,7 +654,7 @@ mod tests {
     #[test]
     fn test_is_not_null() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (filter (read-csv "data3.csv") (not-null? $"city"))
@@ -680,7 +680,7 @@ mod tests {
     #[test]
     fn test_fill_null() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (with-column (read-csv "data3.csv") $"age" (fill-null $"age" 0))
@@ -706,7 +706,7 @@ mod tests {
     #[test]
     fn test_drop_nulls_all() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (drop-nulls (read-csv "data3.csv"))
@@ -732,7 +732,7 @@ mod tests {
     #[test]
     fn test_drop_nulls_selected_columns() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (drop-nulls (read-csv "data3.csv") $"name" $"age")
@@ -758,7 +758,7 @@ mod tests {
     #[test]
     fn test_when_with_otherwise() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (with-column (read-csv "data1.csv") $"category" (when (>= $"age" 30) "senior" "junior"))
@@ -785,7 +785,7 @@ mod tests {
     #[test]
     fn test_when_without_otherwise() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (with-column (read-csv "data1.csv") $"status" (when (>= $"age" 30) "senior"))
@@ -812,7 +812,7 @@ mod tests {
     #[test]
     fn test_aggregations_min_max_count_nunique_std() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (agg (read-csv "data1.csv")
@@ -842,7 +842,7 @@ mod tests {
     #[test]
     fn test_write_csv_roundtrip() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let temp_output = "test_output.csv";
 
         // Filter and write to CSV
@@ -879,7 +879,7 @@ mod tests {
     #[test]
     fn test_str_contains() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         // Use a single backslash inside r#"..."#
         let code = r#"
@@ -906,7 +906,7 @@ mod tests {
     #[test]
     fn test_str_replace() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         // Mask the numbers in the SKU column with "XXX"
         let code = r#"
@@ -952,7 +952,7 @@ mod tests {
     #[test]
     fn test_str_extract() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         // Extract the numeric portion (capture group 1) from SKU
         let code = r#"
@@ -998,7 +998,7 @@ mod tests {
     #[test]
     fn test_window_over_mean() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         // Compute average age per city over the dataset without grouping
         let code = r#"
@@ -1026,7 +1026,7 @@ mod tests {
     #[test]
     fn test_window_shift_and_cumsum() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (-> (read-csv "data1.csv")
@@ -1056,7 +1056,7 @@ mod tests {
     #[test]
     fn test_to_date_and_components() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         // Parse date and extract year, month, and day components
         let code = r#"
@@ -1088,7 +1088,7 @@ mod tests {
     #[test]
     fn test_to_datetime_and_hour() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         // Parse datetime and extract hour component
         let code = r#"
@@ -1116,7 +1116,7 @@ mod tests {
     #[test]
     fn test_dt_format() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         // Parse date and reformat to custom display string
         let code = r#"
@@ -1144,7 +1144,7 @@ mod tests {
     #[test]
     fn test_filter_by_date_component() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         // Filter rows where year is greater than or equal to 2025
         let code = r#"
@@ -1172,7 +1172,7 @@ mod tests {
     #[test]
     fn test_write_and_read_parquet_roundtrip() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let temp_parquet = "test_output.parquet";
     
         // 1. Filter CSV data and write to Parquet
@@ -1209,7 +1209,7 @@ mod tests {
     #[test]
     fn test_parquet_query_pipeline() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let parquet_path = "data1.parquet";
     
         // Create fixture data1.parquet using polars directly before querying
@@ -1251,7 +1251,7 @@ mod tests {
     #[test]
     fn test_sink_csv_roundtrip() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let temp_output = "test_sink_output.csv";
 
         // Stream filtered lazy plan directly to CSV
@@ -1287,7 +1287,7 @@ mod tests {
     #[test]
     fn test_sink_parquet_roundtrip() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
         let temp_output = "test_sink_output.parquet";
 
         // Stream filtered lazy plan directly to Parquet
@@ -1323,7 +1323,7 @@ mod tests {
     #[test]
     fn test_pivot_basic() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (sort (pivot (read-csv "data1.csv") $"city" $"name" $"age") $"name")
@@ -1351,7 +1351,7 @@ mod tests {
     #[test]
     fn test_pivot_with_explicit_agg_sum() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (sort (pivot (read-csv "data1.csv") $"city" $"name" $"age" :sum) $"name")
@@ -1380,7 +1380,7 @@ mod tests {
     #[test]
     fn test_pivot_string_col_arguments() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         // Column names can be strings, but the subsequent sort must use a column expression $"name"
         let code = r#"
@@ -1409,7 +1409,7 @@ mod tests {
     #[test]
     fn test_pivot_pipeline_threading() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (-> (read-csv "data1.csv")
@@ -1439,7 +1439,7 @@ mod tests {
     #[test]
     fn test_melt_basic() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (melt (read-csv "data1.csv") (list $"id") (list $"name" $"city"))
@@ -1470,7 +1470,7 @@ mod tests {
     #[test]
     fn test_melt_custom_variable_and_value_names() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (melt (read-csv "data1.csv") (list $"id" $"name") (list $"age") "metric" "val")
@@ -1496,7 +1496,7 @@ mod tests {
     #[test]
     fn test_melt_string_column_arguments() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (melt (read-csv "data1.csv") (list "id") (list "name" "city"))
@@ -1527,7 +1527,7 @@ mod tests {
     #[test]
     fn test_unpivot_alias_and_pipeline() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         let code = r#"
             (-> (read-csv "data1.csv")
@@ -1555,7 +1555,7 @@ mod tests {
     #[test]
     fn test_concat_vertical_args() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         // Concatenate two filtered LazyFrames vertically via direct arguments
         let code = r#"
@@ -1584,7 +1584,7 @@ mod tests {
     #[test]
     fn test_concat_vertical_list() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         // Concatenate a list of LazyFrames vertically
         let code = r#"
@@ -1613,7 +1613,7 @@ mod tests {
     #[test]
     fn test_concat_horizontal() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         // Concatenate columns horizontally using the :horizontal strategy
         let code = r#"
@@ -1643,7 +1643,7 @@ mod tests {
     #[test]
     fn test_concat_diagonal() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
 
         // Diagonal concatenation of frames with non-matching schemas
         let code = r#"
@@ -1678,7 +1678,7 @@ mod tests {
     #[test]
     fn test_scalar_int() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
     
         // Aggregate to a 1x1 LazyFrame containing the sum of ages (140)
         let code = r#"
@@ -1696,7 +1696,7 @@ mod tests {
     #[test]
     fn test_scalar_float() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
     
         // Aggregate to a 1x1 LazyFrame containing the mean age (28.0)
         let code = r#"
@@ -1714,7 +1714,7 @@ mod tests {
     #[test]
     fn test_scalar_string() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
     
         // Filter to a single row and select 1 column to get a 1x1 String
         let code = r#"
@@ -1732,7 +1732,7 @@ mod tests {
     #[test]
     fn test_scalar_boolean() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
     
         // Materialize a 1x1 boolean expression
         let code = r#"
@@ -1750,7 +1750,7 @@ mod tests {
     #[test]
     fn test_scalar_shape_error() {
         let env = std_env();
-        let mut state = State { line: 0 };
+        let mut state = State { line: 0, file: None };
     
         // Attempting scalar conversion on a non-1x1 LazyFrame should fail with ScalarShapeError
         let code = r#"

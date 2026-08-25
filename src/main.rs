@@ -2,7 +2,7 @@ use std::io::{self, Write};
 use std::fs;
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::types::Env;
+use crate::types::Error;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 
@@ -32,8 +32,61 @@ fn is_complete_input(input: &String) -> bool {
     open_parens_count == closed_parens_count && double_quotes_count % 2 == 0
 }
 
-fn handle_error(error: crate::types::Error) {
-    println!("{}", crate::types::format_error(error));
+pub fn format_error_message(error: &Error) -> String {
+    match error {
+        Error::UnclosedString => format!("Error: unclosed string"),
+        Error::UnclosedListExpr => format!("Error: unclosed list expression"),
+        Error::FailedToParseNumber { number } => format!("Error: failed to parse number '{number}'"),
+        Error::WrongType { expected, got } => format!("Error: expected {0}, got {1}", expected, got.clone().type_to_str()),
+        Error::LookupNotFound { symbol } => format!("Error: symbol '{symbol}' is not defined"),
+        Error::WrongNumberOfArguments { 
+            expected_min, expected_max, got 
+        } => format!("Error: expected {expected_min}-{expected_max} number of argumens, got {got}"),
+        Error::ScalarShapeError { shape } => format!("Error: failed to convert to lisp expr, shape is {} by {}", shape.0, shape.1),
+        Error::ScalarUnsupportedError { name } => format!("Error: unsupported scalar conversion from type '{name}'"),
+        Error::MissingRequiredKWArg { name } => format!("Error: missing required keyword argument '{name}'"),
+        Error::Custom(message) => format!("Error: {message}"),
+        Error::PolarsError(perror) => format!("Error: {}", perror)
+    }
+}
+
+pub fn format_error_line_info(error: &Error, state: &interpreter::State) -> Option<String> {
+    match state.file.clone() {
+        Some(file) => {
+            let contents = fs::read_to_string(file).ok()?;
+            let lines: Vec<&str> = contents.lines().collect();
+            if lines.is_empty() {
+                return None;
+            }
+
+            let mut result = String::new();
+            result.push_str(&format!(" on line {}\n", state.line));
+
+            let start_line = state.line.saturating_sub(2);
+            let end_line = (state.line + 2).min(lines.len().saturating_sub(1));
+
+            for idx in start_line..=end_line {
+                if idx == state.line {
+                    result.push_str(&format!("{} | {} <- error here\n", idx, lines[idx]));
+                } else {
+                    result.push_str(&format!("{} | {}\n", idx, lines[idx]));
+                }
+            }
+
+            Some(result)
+        }
+        None => None,
+    }
+}
+
+fn handle_error(error: &Error, state: &interpreter::State) {
+    let error_message = format_error_message(error);
+    print!("{}", error_message);
+
+    match format_error_line_info(error, state) {
+        Some(line_info) => println!("{}", line_info),
+        None => {},
+    }
 }
 
 fn repl() {
@@ -80,13 +133,13 @@ fn repl() {
                 let _ = rl.add_history_entry(input.as_str());
 
                 // Evaluate MLisp expression
-                let mut state = interpreter::State { line: 0 };
+                let mut state = interpreter::State { line: 0, file: None };
                 match eval_string(input.clone(), &env, &mut state) {
                     Ok(val) => match val.to_string() {
                         Ok(str) => println!("{str}"),
-                        Err(err) => handle_error(err),
+                        Err(err) => handle_error(&err, &state),
                     },
-                    Err(err) => handle_error(err),
+                    Err(err) => handle_error(&err, &state),
                 };
             }
             Err(ReadlineError::Interrupted) => {
@@ -117,15 +170,15 @@ fn main() {
         for arg in lsp_files {
             let env = crate::stdlib::std_env();
             let contents = fs::read_to_string(arg).unwrap();
-            let mut state = interpreter::State { line: 0 };
+            let mut state = interpreter::State { line: 0, file: Some(arg.to_string()) };
             match eval_string(contents.clone(), &env, &mut state) {
                 Ok(val) => {
                     match val.to_string() {
                         Ok(str) => println!("{str}"),
-                        Err(err) => handle_error(err),
+                        Err(err) => handle_error(&err, &state),
                     }
                 },
-                Err(err) => handle_error(err),
+                Err(err) => handle_error(&err, &state),
             };
         }
         return; // Exit without entering REPL
