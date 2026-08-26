@@ -120,6 +120,16 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                 "quote" => {
                     return Ok(list[1].clone());
                 },
+                "if" => {
+                    let test = list[1].clone();
+                    let on_true = list[2].clone();
+                    let on_false = list[3].clone();
+                    if eval(test, env, state)?.expect_bool()? {
+                        return Ok(eval(on_true, env, state)?);
+                    } else {
+                        return Ok(eval(on_false, env, state)?);
+                    }
+                }
                 _ => {}
             }
 

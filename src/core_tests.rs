@@ -189,4 +189,211 @@ mod tests {
         let res = eval_string(code, &env, &mut state);
         assert!(res.is_err());
     }
+
+    #[test]
+    fn test_core_comparisons() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Greater than (>)
+        assert_eq!(
+            eval_string("(> 5 3)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            true
+        );
+        assert_eq!(
+            eval_string("(> 3 5)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            false
+        );
+        assert_eq!(
+            eval_string("(> 5.5 5.2)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            true
+        );
+        assert_eq!(
+            eval_string("(> 5.5 5)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            true
+        );
+
+        // Less than (<)
+        assert_eq!(
+            eval_string("(< 2 4)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            true
+        );
+        assert_eq!(
+            eval_string("(< 4 2)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            false
+        );
+        assert_eq!(
+            eval_string("(< 2.5 3)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            true
+        );
+
+        // Greater than or equal (>=)
+        assert_eq!(
+            eval_string("(>= 10 10)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            true
+        );
+        assert_eq!(
+            eval_string("(>= 11 10)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            true
+        );
+        assert_eq!(
+            eval_string("(>= 9 10)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            false
+        );
+        assert_eq!(
+            eval_string("(>= 10.0 10)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            true
+        );
+
+        // Less than or equal (<=)
+        assert_eq!(
+            eval_string("(<= 7 7)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            true
+        );
+        assert_eq!(
+            eval_string("(<= 6 7)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            true
+        );
+        assert_eq!(
+            eval_string("(<= 8 7)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            false
+        );
+        assert_eq!(
+            eval_string("(<= 7.0 7)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            true
+        );
+    }
+
+    #[test]
+    fn test_core_logical_operators() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // NOT
+        assert_eq!(
+            eval_string("(not true)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            false
+        );
+        assert_eq!(
+            eval_string("(not false)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            true
+        );
+
+        // AND
+        assert_eq!(
+            eval_string("(and true true)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            true
+        );
+        assert_eq!(
+            eval_string("(and true false)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            false
+        );
+        assert_eq!(
+            eval_string("(and false false)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            false
+        );
+
+        // OR
+        assert_eq!(
+            eval_string("(or true false)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            true
+        );
+        assert_eq!(
+            eval_string("(or false false)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            false
+        );
+        assert_eq!(
+            eval_string("(or true true)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            true
+        );
+    }
+
+    #[test]
+    fn test_core_logic_with_control_flow() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (let (x 15 y 20)
+                (if (and (> x 10) (<= y 20))
+                    "in-range"
+                    "out-of-range"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .unwrap()
+            .expect_string()
+            .unwrap();
+
+        assert_eq!(res, "in-range");
+    }
 }

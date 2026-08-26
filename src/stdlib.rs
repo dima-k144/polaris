@@ -11,6 +11,10 @@ use polars::prelude::RollingOptionsFixedWindow;
 
 pub fn nil() -> Expr { return Expr{ value: ExprValue::Nil, line: None } }
 
+pub fn true_() -> Expr { return Expr { value: ExprValue::Bool(true), line: None } }
+
+pub fn false_() -> Expr { return Expr { value: ExprValue::Bool(false), line: None } }
+
 pub fn new_int(value: i64) -> Expr {
     Expr { value: ExprValue::Int(value), line: None }
 }
@@ -294,57 +298,206 @@ fn lit_(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
-fn eq(args: Vec<Expr>) -> Result<Expr, Error> {
+fn eq_core(args: Vec<Expr>) -> Result<Expr, Error> {
+    if args[0] == args[1] {
+        Ok(new_bool(true))
+    } else {
+        Ok(new_bool(false))
+    }
+}
+
+fn eq_polars(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let lit = args[1].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.eq(lit)))
 }
 
-fn neq(args: Vec<Expr>) -> Result<Expr, Error> {
+fn eq(args: Vec<Expr>) -> Result<Expr, Error> {
+    if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
+        eq_polars(args)
+    } else {
+        eq_core(args)
+    }
+}
+
+fn neq_polars(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let lit = args[1].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.neq(lit)))
 }
 
-fn gt(args: Vec<Expr>) -> Result<Expr, Error> {
+fn neq_core(args: Vec<Expr>) -> Result<Expr, Error> {
+    if args[0] != args[1] {
+        Ok(new_bool(true))
+    } else {
+        Ok(new_bool(false))
+    }
+}
+
+fn neq(args: Vec<Expr>) -> Result<Expr, Error> {
+    if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
+        neq_polars(args)
+    } else {
+        neq_core(args)
+    }
+}
+
+// Helper function to compare two numbers natively
+fn cmp_numbers(a: &Expr, b: &Expr) -> Result<std::cmp::Ordering, Error> {
+    let num_a = a.clone().expect_number()?;
+    let num_b = b.clone().expect_number()?;
+
+    match (a.value.clone(), b.value.clone()) {
+        (ExprValue::Int(i1), ExprValue::Int(i2)) => Ok(i1.cmp(&i2)),
+        _ => {
+            let f1 = num_a.to_float();
+            let f2 = num_b.to_float();
+            f1.partial_cmp(&f2).ok_or_else(|| {
+                Error::Custom("Cannot compare NaN values".to_string())
+            })
+        }
+    }
+}
+
+// Greater than (>)
+fn gt_polars(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let lit = args[1].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.gt(lit)))
 }
 
-fn lt(args: Vec<Expr>) -> Result<Expr, Error> {
+fn gt_core(args: Vec<Expr>) -> Result<Expr, Error> {
+    let ord = cmp_numbers(&args[0], &args[1])?;
+    Ok(new_bool(ord == std::cmp::Ordering::Greater))
+}
+
+fn gt(args: Vec<Expr>) -> Result<Expr, Error> {
+    if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
+        gt_polars(args)
+    } else {
+        gt_core(args)
+    }
+}
+
+// Less than (<)
+fn lt_polars(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let lit = args[1].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.lt(lit)))
 }
 
-fn gt_eq(args: Vec<Expr>) -> Result<Expr, Error> {
+fn lt_core(args: Vec<Expr>) -> Result<Expr, Error> {
+    let ord = cmp_numbers(&args[0], &args[1])?;
+    Ok(new_bool(ord == std::cmp::Ordering::Less))
+}
+
+fn lt(args: Vec<Expr>) -> Result<Expr, Error> {
+    if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
+        lt_polars(args)
+    } else {
+        lt_core(args)
+    }
+}
+
+// Greater than or equal (>=)
+fn gt_eq_polars(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let lit = args[1].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.gt_eq(lit)))
 }
 
-fn lt_eq(args: Vec<Expr>) -> Result<Expr, Error> {
+fn gt_eq_core(args: Vec<Expr>) -> Result<Expr, Error> {
+    let ord = cmp_numbers(&args[0], &args[1])?;
+    Ok(new_bool(ord == std::cmp::Ordering::Greater || ord == std::cmp::Ordering::Equal))
+}
+
+fn gt_eq(args: Vec<Expr>) -> Result<Expr, Error> {
+    if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
+        gt_eq_polars(args)
+    } else {
+        gt_eq_core(args)
+    }
+}
+
+// Less than or equal (<=)
+fn lt_eq_polars(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let lit = args[1].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.lt_eq(lit)))
 }
 
-fn not(args: Vec<Expr>) -> Result<Expr, Error> {
+fn lt_eq_core(args: Vec<Expr>) -> Result<Expr, Error> {
+    let ord = cmp_numbers(&args[0], &args[1])?;
+    Ok(new_bool(ord == std::cmp::Ordering::Less || ord == std::cmp::Ordering::Equal))
+}
+
+fn lt_eq(args: Vec<Expr>) -> Result<Expr, Error> {
+    if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
+        lt_eq_polars(args)
+    } else {
+        lt_eq_core(args)
+    }
+}
+
+// NOT
+fn not_polars(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.not()))
 }
 
-fn and(args: Vec<Expr>) -> Result<Expr, Error> {
+fn not_core(args: Vec<Expr>) -> Result<Expr, Error> {
+    let b = args[0].clone().expect_bool()?;
+    Ok(new_bool(!b))
+}
+
+fn not(args: Vec<Expr>) -> Result<Expr, Error> {
+    if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
+        not_polars(args)
+    } else {
+        not_core(args)
+    }
+}
+
+// AND
+fn and_polars(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr1 = args[0].clone().expect_polars_expr()?;
     let expr2 = args[1].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr1.and(expr2)))
 }
 
-fn or(args: Vec<Expr>) -> Result<Expr, Error> {
+fn and_core(args: Vec<Expr>) -> Result<Expr, Error> {
+    let b1 = args[0].clone().expect_bool()?;
+    let b2 = args[1].clone().expect_bool()?;
+    Ok(new_bool(b1 && b2))
+}
+
+fn and(args: Vec<Expr>) -> Result<Expr, Error> {
+    if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
+        and_polars(args)
+    } else {
+        and_core(args)
+    }
+}
+
+// OR
+fn or_polars(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr1 = args[0].clone().expect_polars_expr()?;
     let expr2 = args[1].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr1.or(expr2)))
+}
+
+fn or_core(args: Vec<Expr>) -> Result<Expr, Error> {
+    let b1 = args[0].clone().expect_bool()?;
+    let b2 = args[1].clone().expect_bool()?;
+    Ok(new_bool(b1 || b2))
+}
+
+fn or(args: Vec<Expr>) -> Result<Expr, Error> {
+    if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
+        or_polars(args)
+    } else {
+        or_core(args)
+    }
 }
 
 fn sum(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -1234,6 +1387,8 @@ pub fn std_env() -> Rc<RefCell<Env>> {
 
     // Constant symbol
     defines.insert("nil".to_string(), nil());
+    defines.insert("true".to_string(), true_());
+    defines.insert("false".to_string(), false_());
 
     // Native Functions: (defines, name, function_pointer, min_args, max_args)
     insert_native_function(&mut defines, "print", print, 0, u8::MAX);

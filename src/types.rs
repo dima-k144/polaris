@@ -302,3 +302,55 @@ pub enum Error {
     Custom(String),
     PolarsError(polars::prelude::PolarsError)
 }
+
+impl PartialEq for Expr {
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value
+    }
+}
+
+impl PartialEq for ExprValue {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (ExprValue::Symbol(a), ExprValue::Symbol(b)) => a == b,
+            (ExprValue::Int(a), ExprValue::Int(b)) => a == b,
+            (ExprValue::Float(a), ExprValue::Float(b)) => {
+                // Standard IEEE 754 float equality:
+                a == b
+                // Or if you want NaN == NaN: (a == b) || (a.is_nan() && b.is_nan())
+            }
+            (ExprValue::String(a), ExprValue::String(b)) => a == b,
+            (ExprValue::List(a), ExprValue::List(b)) => a == b, // Requires Expr: PartialEq
+            (ExprValue::Bool(a), ExprValue::Bool(b)) => a == b,
+            (ExprValue::Nil, ExprValue::Nil) => true,
+
+            // Function pointers: compare memory addresses
+            (
+                ExprValue::NativeFunction { body: b1, min_args: min1, max_args: max1 },
+                ExprValue::NativeFunction { body: b2, min_args: min2, max_args: max2 },
+            ) => {
+                (*b1 as *const ()) == (*b2 as *const ()) 
+                    && min1 == min2 
+                    && max1 == max2
+            }
+
+            (
+                ExprValue::UserFunction { body: b1, params: p1, name: n1 },
+                ExprValue::UserFunction { body: b2, params: p2, name: n2 },
+            ) => b1 == b2 && p1 == p2 && n1 == n2,
+
+            // Polars expression comparison (implements PartialEq)
+            (ExprValue::PolarsExpr(a), ExprValue::PolarsExpr(b)) => a == b,
+
+            // LazyFrame does NOT implement PartialEq in Polars.
+            // Option 1: Compare their logical plans via debug representation
+            (ExprValue::LazyFrame(a), ExprValue::LazyFrame(b)) => {
+                format!("{:?}", a.logical_plan) == format!("{:?}", b.logical_plan)
+            }
+            // Option 2 (Alternative): Treat different LazyFrames as always unequal
+            // (ExprValue::LazyFrame(_), ExprValue::LazyFrame(_)) => false,
+
+            _ => false,
+        }
+    }
+}
