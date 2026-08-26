@@ -1741,10 +1741,10 @@ mod tests {
     
         let res = eval_string(code, &env, &mut state)
             .expect("eval scalar boolean failed")
-            .expect_symbol()
-            .expect("expected symbol result");
+            .expect_bool()
+            .expect("expected bool result");
     
-        assert_eq!(res, "true");
+        assert_eq!(res, true);
     }
     
     #[test]

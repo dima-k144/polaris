@@ -9,7 +9,7 @@ use crate::plotlarslib;
 use crate::interpreter::{eval_string, State};
 use polars::prelude::RollingOptionsFixedWindow;
 
-pub fn nil() -> Expr { return Expr{ value: ExprValue::String("nil".to_string()), line: None } }
+pub fn nil() -> Expr { return Expr{ value: ExprValue::Nil, line: None } }
 
 pub fn new_int(value: i64) -> Expr {
     Expr { value: ExprValue::Int(value), line: None }
@@ -25,6 +25,10 @@ pub fn new_string(value: String) -> Expr {
 
 pub fn new_list(value: Vec<Expr>) -> Expr {
     Expr { value: ExprValue::List(value), line: None }
+}
+
+pub fn new_bool(value: bool) -> Expr {
+    Expr { value: ExprValue::Bool(value), line: None }
 }
 
 pub fn new_polars_expr(value: polars::prelude::Expr) -> Expr {
@@ -1180,7 +1184,7 @@ fn scalar(args: Vec<Expr>) -> Result<Expr, Error> {
     let row = df.get(0).unwrap();
     match row[0].clone() {
         AnyValue::Null => Ok(nil()),
-        AnyValue::Boolean(b) => if b { Ok(new_symbol("true".to_string())) } else { Ok(new_symbol("false".to_string())) },
+        AnyValue::Boolean(b) => Ok(new_bool(b)),
         AnyValue::String(s) => Ok(new_string(s.to_string())),
         AnyValue::UInt8(i) => Ok(new_int(i.into())),
         AnyValue::UInt16(i) => Ok(new_int(i.into())),

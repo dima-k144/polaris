@@ -17,6 +17,8 @@ pub enum ExprValue {
     Float(f64),
     String(String),
     List(Vec<Expr>),
+    Bool(bool),
+    Nil,
     NativeFunction{ body: fn(Vec<Expr>) -> Result<Expr, Error>, min_args: u8, max_args: u8},
     UserFunction{ body: Vec<Expr>, params: Vec<String>, name: Option<String> },
     LazyFrame(LazyFrame),
@@ -96,6 +98,17 @@ impl Expr {
         }
     }
 
+    pub fn expect_bool(self) -> Result<bool, Error> {
+        let Expr { value, line } = self;
+        match value {
+            ExprValue::Bool(b) => Ok(b),
+            other => Err(Error::WrongType {
+                expected: String::from("bool"),
+                got: Expr { value: other, line },
+            }),
+        }
+    }
+
     pub fn expect_lazy_frame(self) -> Result<LazyFrame, Error> {
         let Expr { value, line } = self;
         match value {
@@ -128,6 +141,8 @@ impl Expr {
             ExprValue::Float(_) => "float",
             ExprValue::String(_) => "string",
             ExprValue::List(_) => "list",
+            ExprValue::Bool(_) => "bool",
+            ExprValue::Nil => "nil",
             ExprValue::NativeFunction { body, min_args, max_args } => "native function",
             ExprValue::UserFunction { body, params, name } => "user function",
             ExprValue::LazyFrame(_) => "lazy frame",
@@ -186,6 +201,15 @@ impl fmt::Display for ExprValue {
                 }
                 write!(f, ")")
             },
+            ExprValue::Bool(value) => {
+                match value {
+                    true => write!(f, "true"),
+                    false => write!(f, "false"),
+                }
+            },
+            ExprValue::Nil => {
+                write!(f, "nil")
+            },
             ExprValue::NativeFunction{ body, min_args, max_args } => write!(f, "<NativeFunction>"),
             ExprValue::UserFunction { body, params, name } => {
                 match name {
@@ -216,6 +240,8 @@ impl fmt::Debug for ExprValue {
             ExprValue::Float(n) => f.debug_tuple("Number").field(n).finish(),
             ExprValue::String(s) => f.debug_tuple("String").field(s).finish(),
             ExprValue::List(items) => f.debug_tuple("List").field(items).finish(),
+            ExprValue::Bool(b) => f.debug_tuple("Bool").field(b).finish(),
+            ExprValue::Nil => f.write_str("Nil"),
             ExprValue::NativeFunction{ body, min_args, max_args } => { f.write_str("NativeFunction") },
             ExprValue::UserFunction { body, params, name } => { f.write_str("UserFunction") },
             ExprValue::LazyFrame(_) => { f.write_str("LazyFrame") },
