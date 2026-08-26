@@ -280,6 +280,10 @@ pub fn preprocess_wisp3(input: &str) -> Result<String, Error> {
     lines.push("".to_string());
     let mut i = 0;
 
+    for i in 0..lines.len() {
+        lines[i] = strip_comments(&lines[i]).to_string()
+    }
+
     while i != lines.len() {
         // empty line
         if lines[i].trim().is_empty() { i += 1; continue; }

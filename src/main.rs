@@ -17,6 +17,7 @@ mod lexer;
 mod parser;
 mod types;
 mod interpreter;
+mod polarslib;
 mod stdlib;
 mod core_tests;
 mod polars_tests;
@@ -24,6 +25,7 @@ mod extra_tests;
 mod preprocessor_test;
 mod plotlarslib;
 mod wisp;
+mod corelib;
 
 fn is_complete_input(input: &String) -> bool {
     let open_parens_count = input.chars().filter(|&c| c == '(').count();

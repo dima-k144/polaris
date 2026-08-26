@@ -2,6 +2,7 @@ use plotlars::{Plot, ScatterPlot, BarPlot, PieChart, Histogram, BoxPlot, TimeSer
 use crate::types::{Expr, ExprValue, Error};
 use crate::stdlib;
 use polars::prelude::*;
+use crate::corelib::*;
 
 fn kw(args: &[Expr], name: &str) -> Option<Expr> {
     for (i, arg) in args.iter().enumerate() {
@@ -64,7 +65,7 @@ pub fn scatter_plot(args: Vec<Expr>) -> Result<Expr, Error> {
 
     plot.plot();
 
-    Ok(stdlib::nil())
+    Ok(nil())
 }
 
 pub fn bar_plot(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -106,7 +107,7 @@ pub fn bar_plot(args: Vec<Expr>) -> Result<Expr, Error> {
 
     plot.plot();
 
-    Ok(stdlib::nil())
+    Ok(nil())
 }
 
 pub fn pie_plot(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -139,7 +140,7 @@ pub fn pie_plot(args: Vec<Expr>) -> Result<Expr, Error> {
 
     plot.plot();
 
-    Ok(stdlib::nil())
+    Ok(nil())
 }
 
 pub fn histogram(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -174,7 +175,7 @@ pub fn histogram(args: Vec<Expr>) -> Result<Expr, Error> {
 
     plot.plot();
 
-    Ok(stdlib::nil())
+    Ok(nil())
 }
 
 pub fn box_plot(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -228,7 +229,7 @@ pub fn box_plot(args: Vec<Expr>) -> Result<Expr, Error> {
 
     plot.plot();
 
-    Ok(stdlib::nil())
+    Ok(nil())
 }
 
 pub fn time_series_plot(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -301,7 +302,7 @@ pub fn time_series_plot(args: Vec<Expr>) -> Result<Expr, Error> {
 
     plot.plot();
 
-    Ok(stdlib::nil())
+    Ok(nil())
 }
 
 pub fn line_plot(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -366,5 +367,5 @@ pub fn line_plot(args: Vec<Expr>) -> Result<Expr, Error> {
 
     plot.plot();
 
-    Ok(stdlib::nil())
+    Ok(nil())
 }

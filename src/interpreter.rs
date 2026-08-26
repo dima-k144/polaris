@@ -2,7 +2,7 @@ use std::{collections::HashMap, ops::Deref};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::stdlib;
+use crate::{corelib, stdlib};
 use crate::types::{Env, Expr, ExprValue, Error};
 
 pub struct State {
@@ -101,7 +101,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
 
                     // Evaluate all body expressions sequentially and return the result of the last one
                     let body = &list[2..];
-                    let mut result = stdlib::nil();
+                    let mut result = corelib::nil();
                     for expr in body {
                         result = eval(expr.clone(), &child_env, state)?;
                     }
@@ -164,7 +164,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                         define(param, arg, &child_env);
                     }
 
-                    let mut result = stdlib::nil();
+                    let mut result = corelib::nil();
                     for expr in body {
                         result = eval(expr, &child_env, state)?;
                     }
@@ -188,7 +188,7 @@ pub fn eval_string(source: String, env: &Rc<RefCell<Env>>, state: &mut State) ->
     let mut tokens = crate::lexer::scan(&s_expr_source)?;
     let exprs = crate::parser::parse(&mut tokens)?;
     
-    let mut last_res = stdlib::nil();
+    let mut last_res = corelib::nil();
     for expr in exprs {
         // Return immediately if an expression fails
         last_res = crate::interpreter::eval(expr, env, state)?;
