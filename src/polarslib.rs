@@ -9,6 +9,7 @@ use crate::plotlarslib;
 use crate::interpreter::{eval_string, State};
 use polars::prelude::RollingOptionsFixedWindow;
 use crate::corelib::*;
+use polars::prelude::QuantileMethod;
 
 pub fn new_polars_expr(value: polars::prelude::Expr) -> Expr {
     Expr { value: ExprValue::PolarsExpr(value), line: None }
@@ -1335,4 +1336,87 @@ pub fn collect_(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     lf.collect_with_engine(polars::prelude::Engine::Streaming).unwrap();
     Ok(nil())
+}
+
+// (var $"col") or (var $"col" 1)
+pub fn variance(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    let ddof = if args.len() > 1 {
+        args[1].clone().expect_int()? as u8
+    } else {
+        1
+    };
+    Ok(new_polars_expr(expr.var(ddof)))
+}
+
+// (quantile $"col" 0.5) or (quantile $"col" 0.5 :linear)
+pub fn quantile(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    let q = args[1].clone().expect_number()?.to_float();
+    
+    let method = if args.len() > 2 {
+        match args[2].clone().expect_symbol()?.as_str() {
+            ":linear" => QuantileMethod::Linear,
+            ":lower" => QuantileMethod::Lower,
+            ":higher" => QuantileMethod::Higher,
+            ":midpoint" => QuantileMethod::Midpoint,
+            _ => QuantileMethod::Nearest,
+        }
+    } else {
+        QuantileMethod::Nearest
+    };
+
+    Ok(new_polars_expr(expr.quantile(polars::prelude::lit(q), method)))
+}
+
+// (cov $"col_a" $"col_b") or (cov $"col_a" $"col_b" 1)
+pub fn cov_(args: Vec<Expr>) -> Result<Expr, Error> {
+    let a = args[0].clone().expect_polars_expr()?;
+    let b = args[1].clone().expect_polars_expr()?;
+    let ddof = if args.len() > 2 {
+        args[2].clone().expect_int()? as u8
+    } else {
+        1
+    };
+
+    Ok(new_polars_expr(polars::lazy::dsl::cov(a, b, ddof)))
+}
+
+// (corr $"col_a" $"col_b")
+pub fn corr(args: Vec<Expr>) -> Result<Expr, Error> {
+    let a = args[0].clone().expect_polars_expr()?;
+    let b = args[1].clone().expect_polars_expr()?;
+
+    Ok(new_polars_expr(polars::lazy::dsl::pearson_corr(a, b)))
+}
+
+// (describe df)
+pub fn describe(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args[0].clone().expect_lazy_frame()?;
+    let schema = lf.clone().collect_schema().map_err(Error::PolarsError)?;
+
+    // We generate summary statistic rows for all numeric fields
+    let mut stats_exprs = Vec::new();
+
+    for field in schema.iter_fields() {
+        let name = field.name();
+        let c = col(name.clone());
+
+        if field.dtype().is_numeric() {
+            stats_exprs.push(c.clone().count().cast(DataType::Float64).alias(&format!("{}_count", name)));
+            stats_exprs.push(c.clone().null_count().cast(DataType::Float64).alias(&format!("{}_null_count", name)));
+            stats_exprs.push(c.clone().mean().alias(&format!("{}_mean", name)));
+            stats_exprs.push(c.clone().std(1).alias(&format!("{}_std", name)));
+            stats_exprs.push(c.clone().min().cast(DataType::Float64).alias(&format!("{}_min", name)));
+            stats_exprs.push(c.clone().quantile(lit(0.25), QuantileMethod::Linear).cast(DataType::Float64).alias(&format!("{}_25%", name)));
+            stats_exprs.push(c.clone().median().cast(DataType::Float64).alias(&format!("{}_50%", name)));
+            stats_exprs.push(c.clone().quantile(lit(0.75), QuantileMethod::Linear).cast(DataType::Float64).alias(&format!("{}_75%", name)));
+            stats_exprs.push(c.clone().max().cast(DataType::Float64).alias(&format!("{}_max", name)));
+        } else {
+            stats_exprs.push(c.clone().count().cast(DataType::Float64).alias(&format!("{}_count", name)));
+            stats_exprs.push(c.clone().null_count().cast(DataType::Float64).alias(&format!("{}_null_count", name)));
+        }
+    }
+
+    Ok(new_lazy_frame(lf.select(stats_exprs)))
 }

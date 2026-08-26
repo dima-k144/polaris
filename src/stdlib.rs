@@ -64,6 +64,7 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "slice", slice, 3, 3);
     insert_native_function(&mut defines, "schema", schema, 1, 1);
     insert_native_function(&mut defines, "shape", shape, 1, 1);
+    insert_native_function(&mut defines, "describe", crate::polarslib::describe, 1, 1);
 
     // Expressions & Literals
     insert_native_function(&mut defines, "col", col_, 1, 1);
@@ -89,6 +90,10 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "max", crate::polarslib::max, 1, 1);
     insert_native_function(&mut defines, "n-unique", crate::polarslib::n_unique, 1, 1);
     insert_native_function(&mut defines, "std", crate::polarslib::std_dev, 1, 2);
+    insert_native_function(&mut defines, "var", crate::polarslib::variance, 1, 2);
+    insert_native_function(&mut defines, "quantile", crate::polarslib::quantile, 2, 3);
+    insert_native_function(&mut defines, "cov", crate::polarslib::cov_, 2, 3);
+    insert_native_function(&mut defines, "corr", crate::polarslib::corr, 2, 2);
 
     // Register Series slicing and indexing
     insert_native_function(&mut defines, "slice-expr", expr_slice, 3, 3);

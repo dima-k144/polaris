@@ -2218,4 +2218,136 @@ mod tests {
 
         assert_eq!(df, expected_df);
     }
+
+    #[test]
+    fn test_select_variance() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Sample variance with default ddof=1 (24.5) and population variance ddof=0 (19.6)
+        let code = r#"
+            (select (read-csv "data1.csv") 
+                    (alias (var $"age") "sample_var")
+                    (alias (var $"age" 0) "pop_var"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval select with 'var' failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "sample_var" => &[24.5f64],
+            "pop_var" => &[19.6f64],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_select_quantile() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // 50th percentile (median) and 75th percentile with :linear interpolation
+        let code = r#"
+            (select (read-csv "data1.csv") 
+                    (alias (quantile $"age" 0.5) "q50")
+                    (alias (quantile $"age" 0.75 :linear) "q75"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval select with 'quantile' failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "q50" => &[28.0f64],
+            "q75" => &[30.0f64],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_select_cov() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Covariance between id and age
+        let code = r#"
+            (select (read-csv "data1.csv") 
+                    (alias (cov $"id" $"age") "cov_id_age"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval select with 'cov' failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "cov_id_age" => &[4.5f64],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_select_corr() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Pearson correlation between id and age
+        let code = r#"
+            (select (read-csv "data1.csv") 
+                    (alias (corr $"id" $"age") "corr_id_age"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval select with 'corr' failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let corr_val = df.column("corr_id_age")
+            .expect("missing corr_id_age column")
+            .f64()
+            .expect("expected f64 series")
+            .get(0)
+            .expect("missing scalar result");
+
+        // Verify correlation value approx ~ 0.5749889
+        assert!((corr_val - 0.5749889084999459).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_describe_dataframe() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+    
+        let code = r#"
+            (describe (read-csv "data1.csv"))
+        "#.to_string();
+    
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval describe failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+    
+        let df = res.collect().expect("failed to collect DataFrame");
+    
+        // Verify wide output format columns
+        assert_eq!(df.height(), 1);
+        assert!(df.column("id_count").is_ok());
+        assert!(df.column("age_mean").is_ok());
+        assert!(df.column("age_std").is_ok());
+        assert!(df.column("name_null_count").is_ok());
+    }
 }
