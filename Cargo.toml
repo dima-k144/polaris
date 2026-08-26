@@ -10,6 +10,7 @@ polars = {
         "lazy", "csv", "semi_anti_join", "strings", "regex", "cum_agg", "rank",
         "temporal", "dtype-date", "dtype-datetime", "dtype-duration", "dtype-time",
         "parquet", "streaming", "pivot", "rolling_window", "extract_groups",
+        "round_series", "trigonometry", "log", "abs",
         "performant", "cse", "nightly"
    ] 
 }

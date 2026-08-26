@@ -396,4 +396,187 @@ mod tests {
 
         assert_eq!(res, "in-range");
     }
+
+    #[test]
+    fn test_core_math_abs() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        assert_eq!(
+            eval_string("(abs -5)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_int()
+                .unwrap(),
+            5
+        );
+        assert_eq!(
+            eval_string("(abs 42)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_int()
+                .unwrap(),
+            42
+        );
+        assert_eq!(
+            eval_string("(abs -3.14)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_float()
+                .unwrap(),
+            3.14
+        );
+    }
+
+    #[test]
+    fn test_core_math_sqrt_and_pow() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        assert_eq!(
+            eval_string("(sqrt 16)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_float()
+                .unwrap(),
+            4.0
+        );
+        assert_eq!(
+            eval_string("(pow 2 3)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_int()
+                .unwrap(),
+            8
+        );
+        assert_eq!(
+            eval_string("(pow 2.0 3.0)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_float()
+                .unwrap(),
+            8.0
+        );
+        assert_eq!(
+            eval_string("(pow 4 0.5)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_float()
+                .unwrap(),
+            2.0
+        );
+    }
+
+    #[test]
+    fn test_core_math_exp_and_logs() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        assert_eq!(
+            eval_string("(exp 0)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_float()
+                .unwrap(),
+            1.0
+        );
+
+        let ln_e = eval_string("(log E)".to_string(), &env, &mut state)
+            .unwrap()
+            .expect_float()
+            .unwrap();
+        assert!((ln_e - 1.0).abs() < 1e-10);
+
+        let log2_8 = eval_string("(log 8 2)".to_string(), &env, &mut state)
+            .unwrap()
+            .expect_float()
+            .unwrap();
+        assert!((log2_8 - 3.0).abs() < 1e-10);
+
+        let log10_100 = eval_string("(log10 100)".to_string(), &env, &mut state)
+            .unwrap()
+            .expect_float()
+            .unwrap();
+        assert!((log10_100 - 2.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_core_math_round_floor_ceil() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        assert_eq!(
+            eval_string("(round 3.4)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_int()
+                .unwrap(),
+            3
+        );
+        assert_eq!(
+            eval_string("(round 3.6)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_int()
+                .unwrap(),
+            4
+        );
+        assert_eq!(
+            eval_string("(round 3.14159 2)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_float()
+                .unwrap(),
+            3.14
+        );
+
+        assert_eq!(
+            eval_string("(floor 3.9)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_int()
+                .unwrap(),
+            3
+        );
+        assert_eq!(
+            eval_string("(floor -3.1)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_int()
+                .unwrap(),
+            -4
+        );
+
+        assert_eq!(
+            eval_string("(ceil 3.1)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_int()
+                .unwrap(),
+            4
+        );
+        assert_eq!(
+            eval_string("(ceil -3.9)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_int()
+                .unwrap(),
+            -3
+        );
+    }
+
+    #[test]
+    fn test_core_math_trig() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let sin_zero = eval_string("(sin 0)".to_string(), &env, &mut state)
+            .unwrap()
+            .expect_float()
+            .unwrap();
+        assert!(sin_zero.abs() < 1e-10);
+
+        let cos_zero = eval_string("(cos 0)".to_string(), &env, &mut state)
+            .unwrap()
+            .expect_float()
+            .unwrap();
+        assert!((cos_zero - 1.0).abs() < 1e-10);
+
+        let tan_zero = eval_string("(tan 0)".to_string(), &env, &mut state)
+            .unwrap()
+            .expect_float()
+            .unwrap();
+        assert!(tan_zero.abs() < 1e-10);
+
+        let sin_half_pi = eval_string("(sin (/ PI 2))".to_string(), &env, &mut state)
+            .unwrap()
+            .expect_float()
+            .unwrap();
+        assert!((sin_half_pi - 1.0).abs() < 1e-10);
+    }
 }

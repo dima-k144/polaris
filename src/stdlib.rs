@@ -20,6 +20,10 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     defines.insert("true".to_string(), true_());
     defines.insert("false".to_string(), false_());
 
+    // Math Constants
+    defines.insert("PI".to_string(), new_float(std::f64::consts::PI));
+    defines.insert("E".to_string(), new_float(std::f64::consts::E));
+
     // Native Functions: (defines, name, function_pointer, min_args, max_args)
     insert_native_function(&mut defines, "print", print, 0, u8::MAX);
     insert_native_function(&mut defines, "list", list, 0, u8::MAX);
@@ -29,6 +33,20 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "-", minus, 1, u8::MAX);
     insert_native_function(&mut defines, "*", mult, 1, u8::MAX);
     insert_native_function(&mut defines, "/", divide, 1, u8::MAX);
+
+    // Math Functions
+    insert_native_function(&mut defines, "abs", crate::corelib::abs, 1, 1);
+    insert_native_function(&mut defines, "sqrt", sqrt, 1, 1);
+    insert_native_function(&mut defines, "exp", exp, 1, 1);
+    insert_native_function(&mut defines, "log", log, 1, 2);
+    insert_native_function(&mut defines, "log10", log10, 1, 1);
+    insert_native_function(&mut defines, "pow", pow, 2, 2);
+    insert_native_function(&mut defines, "round", round, 1, 2);
+    insert_native_function(&mut defines, "floor", floor, 1, 1);
+    insert_native_function(&mut defines, "ceil", ceil, 1, 1);
+    insert_native_function(&mut defines, "sin", sin, 1, 1);
+    insert_native_function(&mut defines, "cos", cos, 1, 1);
+    insert_native_function(&mut defines, "tan", tan, 1, 1);
 
     // IO
     insert_native_function(&mut defines, "read-csv", read_csv, 1, 1);
