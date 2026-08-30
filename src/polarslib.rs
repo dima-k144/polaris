@@ -19,6 +19,11 @@ pub fn new_lazy_frame(value: LazyFrame) -> Expr {
     Expr { value: ExprValue::LazyFrame(value), line: None }
 }
 
+// --- Addition / Column Addition ---
+// Examples in Lisp:
+//   (+ 1 2 3)
+//   (+ $age 5)
+//   (+ $base_salary $bonus)
 pub fn plus(args: Vec<Expr>) -> Result<Expr, Error> {
     let has_polars_expr_arg = args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)));
     let has_float_arg = args.iter().any(|arg| matches!(arg.value, ExprValue::Float(_)));
@@ -44,6 +49,11 @@ pub fn plus(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
+// --- Subtraction / Column Subtraction ---
+// Examples in Lisp:
+//   (- 20 5 3)
+//   (- $age 2)
+//   (- $gross_income $tax)
 pub fn minus(args: Vec<Expr>) -> Result<Expr, Error> {
     let has_polars_expr_arg = args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)));
     let has_float_arg = args.iter().any(|arg| matches!(arg.value, ExprValue::Float(_)));
@@ -69,6 +79,11 @@ pub fn minus(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
+// --- Multiplication / Column Multiplication ---
+// Examples in Lisp:
+//   (* 2 3 4)
+//   (* $price $quantity)
+//   (* $age 2)
 pub fn mult(args: Vec<Expr>) -> Result<Expr, Error> {
     let has_polars_expr_arg = args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)));
     let has_float_arg = args.iter().any(|arg| matches!(arg.value, ExprValue::Float(_)));
@@ -94,6 +109,11 @@ pub fn mult(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
+// --- Division / Column Division ---
+// Examples in Lisp:
+//   (/ 100 2 5)
+//   (/ $total_cost $quantity)
+//   (/ $age 2)
 pub fn divide(args: Vec<Expr>) -> Result<Expr, Error> {
     let has_polars_expr_arg = args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)));
 
@@ -117,6 +137,10 @@ pub fn divide(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
+// --- Read CSV File ---
+// Examples in Lisp:
+//   (read-csv "data.csv")
+//   (filter (read-csv "users.csv") (= $country "US"))
 pub fn read_csv(args: Vec<Expr>) -> Result<Expr, Error> {
     let path = args[0].clone().expect_string()?;
     match LazyCsvReader::new(path.as_str().into())
@@ -127,6 +151,10 @@ pub fn read_csv(args: Vec<Expr>) -> Result<Expr, Error> {
         }
 }
 
+// --- Write CSV File ---
+// Examples in Lisp:
+//   (write-csv df "output.csv")
+//   (write-csv (filter df (> $age 30)) "filtered.csv")
 pub fn write_csv(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let path = args[1].clone().expect_string()?;
@@ -211,16 +239,28 @@ pub fn write_parquet(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(nil())
 }
 
+// --- Get First 10 Rows ---
+// Examples in Lisp:
+//   (head df)
+//   (head (sort df $salary :desc))
 pub fn head(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     Ok(new_lazy_frame(lf.limit(10)))
 }
 
+// --- Get Last 10 Rows ---
+// Examples in Lisp:
+//   (tail df)
+//   (tail (read-csv "logs.csv"))
 pub fn tail(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     Ok(new_lazy_frame(lf.slice(-10, 10)))
 }
 
+// --- Slice LazyFrame Rows ---
+// Examples in Lisp:
+//   (slice df 0 5)   ; offset 0, length 5
+//   (slice df 10 20) ; skip 10, take 20
 pub fn slice(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let offset = args[1].clone().expect_int()?;
@@ -228,6 +268,10 @@ pub fn slice(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_lazy_frame(lf.slice(offset, len as u32)))
 }
 
+// --- Inspect Schema ---
+// Examples in Lisp:
+//   (schema df)
+//   (schema (read-csv "data.csv"))
 pub fn schema(args: Vec<Expr>) -> Result<Expr, Error> {
     let mut lf = args[0].clone().expect_lazy_frame()?; 
     let schema = lf.collect_schema().unwrap();
@@ -241,16 +285,28 @@ pub fn schema(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_list(result))
 }
 
+// --- Inspect Shape ---
+// Examples in Lisp:
+//   (shape df) -> (rows cols)
 pub fn shape(args: Vec<Expr>) -> Result<Expr, Error> {
     let mut lf = args[0].clone().expect_lazy_frame()?;  
     let shape = lf.collect().unwrap().shape();
     Ok(new_list(vec![new_int(shape.0 as i64), new_int(shape.1 as i64)]))
 }
 
+// --- Column Reference ---
+// Examples in Lisp:
+//   $age
+//   (col "age")
 pub fn col_(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(col(args[0].clone().expect_string()?)))
 }
 
+// --- Literal Value ---
+// Examples in Lisp:
+//   (lit 42)
+//   (lit "Alice")
+//   (lit 3.14)
 pub fn lit_(args: Vec<Expr>) -> Result<Expr, Error> {
     match args[0].value.clone() {
         ExprValue::Int(num) => Ok(new_polars_expr(lit(num))),
@@ -274,6 +330,11 @@ pub fn eq_polars(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(expr.eq(lit)))
 }
 
+// --- Equality Comparison (=) ---
+// Examples in Lisp:
+//   (= 1 1)
+//   (= $city "London")
+//   (filter df (= $id 10))
 pub fn eq(args: Vec<Expr>) -> Result<Expr, Error> {
     if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
         eq_polars(args)
@@ -296,6 +357,11 @@ pub fn neq_core(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
+// --- Inequality Comparison (!=) ---
+// Examples in Lisp:
+//   (!= 1 2)
+//   (!= $status "inactive")
+//   (filter df (!= $age 30))
 pub fn neq(args: Vec<Expr>) -> Result<Expr, Error> {
     if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
         neq_polars(args)
@@ -333,6 +399,11 @@ pub fn gt_core(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_bool(ord == std::cmp::Ordering::Greater))
 }
 
+// --- Greater Than (>) ---
+// Examples in Lisp:
+//   (> 5 3)
+//   (> $age 25)
+//   (filter df (> $salary 80000))
 pub fn gt(args: Vec<Expr>) -> Result<Expr, Error> {
     if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
         gt_polars(args)
@@ -353,6 +424,11 @@ pub fn lt_core(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_bool(ord == std::cmp::Ordering::Less))
 }
 
+// --- Less Than (<) ---
+// Examples in Lisp:
+//   (< 2 8)
+//   (< $age 30)
+//   (filter df (< $price 50.0))
 pub fn lt(args: Vec<Expr>) -> Result<Expr, Error> {
     if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
         lt_polars(args)
@@ -373,6 +449,11 @@ pub fn gt_eq_core(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_bool(ord == std::cmp::Ordering::Greater || ord == std::cmp::Ordering::Equal))
 }
 
+// --- Greater Than or Equal (>=) ---
+// Examples in Lisp:
+//   (>= 10 10)
+//   (>= $age 18)
+//   (filter df (>= $score 75))
 pub fn gt_eq(args: Vec<Expr>) -> Result<Expr, Error> {
     if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
         gt_eq_polars(args)
@@ -393,6 +474,11 @@ pub fn lt_eq_core(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_bool(ord == std::cmp::Ordering::Less || ord == std::cmp::Ordering::Equal))
 }
 
+// --- Less Than or Equal (<=) ---
+// Examples in Lisp:
+//   (<= 5 5)
+//   (<= $age 65)
+//   (filter df (<= $rank 3))
 pub fn lt_eq(args: Vec<Expr>) -> Result<Expr, Error> {
     if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
         lt_eq_polars(args)
@@ -401,17 +487,30 @@ pub fn lt_eq(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
-// NOT
 pub fn not_polars(args: Vec<Expr>) -> Result<Expr, Error> {
-    let expr = args[0].clone().expect_polars_expr()?;
-    Ok(new_polars_expr(expr.not()))
+    let mut combined = args[0].clone().expect_polars_expr()?;
+    for arg in args.iter().skip(1) {
+        let next_expr = arg.clone().expect_polars_expr()?;
+        combined = combined.and(next_expr);
+    }
+    Ok(new_polars_expr(combined.not()))
 }
 
 pub fn not_core(args: Vec<Expr>) -> Result<Expr, Error> {
-    let b = args[0].clone().expect_bool()?;
-    Ok(new_bool(!b))
+    let mut combined = true;
+    for arg in args {
+        combined = combined && arg.expect_bool()?;
+    }
+    Ok(new_bool(!combined))
 }
 
+// --- Logical NOT ---
+// Examples in Lisp:
+//   (not true)
+//   (not true false)                 ; returns true because (true AND false) is false
+//   (not (> $age 25))
+//   (not (> $age 25) (= $city "Paris")) ; negates the AND of all conditions
+//   (filter df (not (= $city "London") (> $age 30)))
 pub fn not(args: Vec<Expr>) -> Result<Expr, Error> {
     if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
         not_polars(args)
@@ -420,19 +519,32 @@ pub fn not(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
-// AND
 pub fn and_polars(args: Vec<Expr>) -> Result<Expr, Error> {
-    let expr1 = args[0].clone().expect_polars_expr()?;
-    let expr2 = args[1].clone().expect_polars_expr()?;
-    Ok(new_polars_expr(expr1.and(expr2)))
+    let mut combined = args[0].clone().expect_polars_expr()?;
+    for arg in args.iter().skip(1) {
+        let next_expr = arg.clone().expect_polars_expr()?;
+        combined = combined.and(next_expr);
+    }
+    Ok(new_polars_expr(combined))
 }
 
 pub fn and_core(args: Vec<Expr>) -> Result<Expr, Error> {
-    let b1 = args[0].clone().expect_bool()?;
-    let b2 = args[1].clone().expect_bool()?;
-    Ok(new_bool(b1 && b2))
+    let mut result = true;
+    for arg in args {
+        result = result && arg.expect_bool()?;
+        if !result {
+            return Ok(new_bool(false));
+        }
+    }
+    Ok(new_bool(result))
 }
 
+// --- Logical AND ---
+// Examples in Lisp:
+//   (and true false)
+//   (and true true true)
+//   (and (> $age 20) (< $age 40) (= $department "Engineering"))
+//   (filter df (and (= $department "HR") (> $salary 50000) (< $age 30)))
 pub fn and(args: Vec<Expr>) -> Result<Expr, Error> {
     if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
         and_polars(args)
@@ -441,19 +553,32 @@ pub fn and(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
-// OR
 pub fn or_polars(args: Vec<Expr>) -> Result<Expr, Error> {
-    let expr1 = args[0].clone().expect_polars_expr()?;
-    let expr2 = args[1].clone().expect_polars_expr()?;
-    Ok(new_polars_expr(expr1.or(expr2)))
+    let mut combined = args[0].clone().expect_polars_expr()?;
+    for arg in args.iter().skip(1) {
+        let next_expr = arg.clone().expect_polars_expr()?;
+        combined = combined.or(next_expr);
+    }
+    Ok(new_polars_expr(combined))
 }
 
 pub fn or_core(args: Vec<Expr>) -> Result<Expr, Error> {
-    let b1 = args[0].clone().expect_bool()?;
-    let b2 = args[1].clone().expect_bool()?;
-    Ok(new_bool(b1 || b2))
+    let mut result = false;
+    for arg in args {
+        result = result || arg.expect_bool()?;
+        if result {
+            return Ok(new_bool(true));
+        }
+    }
+    Ok(new_bool(result))
 }
 
+// --- Logical OR ---
+// Examples in Lisp:
+//   (or true false)
+//   (or false false true)
+//   (or (= $city "Paris") (= $city "Berlin") (= $city "London"))
+//   (filter df (or (< $age 25) (>= $age 60) (= $department "Executive")))
 pub fn or(args: Vec<Expr>) -> Result<Expr, Error> {
     if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
         or_polars(args)

@@ -2350,4 +2350,112 @@ mod tests {
         assert!(df.column("age_std").is_ok());
         assert!(df.column("name_null_count").is_ok());
     }
+
+    #[test]
+    fn test_filter_and_multi() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Test `and` with 3 conditions: age > 22, age < 35, and city != "Rome"
+        let code = r#"
+            (filter (read-csv "data1.csv") (and (> $age 22) (< $age 35) (!= $city "Rome")))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval filter with multi-arg 'and' failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2],
+            "name" => &["Alice", "Bob"],
+            "age" => &[25i64, 30],
+            "city" => &["London", "Paris"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_filter_or_multi() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Test `or` with 3 conditions: city is Berlin, city is Madrid, or name is Bob
+        let code = r#"
+            (filter (read-csv "data1.csv") (or (= $city "Berlin") (= $city "Madrid") (= $name "Bob")))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval filter with multi-arg 'or' failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[2i64, 3, 5],
+            "name" => &["Bob", "Charlie", "Evan"],
+            "age" => &[30i64, 22, 35],
+            "city" => &["Paris", "Berlin", "Madrid"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_filter_not_multi() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Test `not` with 2 conditions: negates (age > 24 AND city != "London")
+        // Rows matching the inner AND: Bob (30, Paris), Diana (28, Rome), Evan (35, Madrid)
+        // Negated result returns Alice (London) and Charlie (age 22)
+        let code = r#"
+            (filter (read-csv "data1.csv") (not (> $age 24) (!= $city "London")))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval filter with multi-arg 'not' failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 3],
+            "name" => &["Alice", "Charlie"],
+            "age" => &[25i64, 22],
+            "city" => &["London", "Berlin"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_scalar_logical_multi() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Test core evaluator boolean scalar behavior
+        let and_res = eval_string("(and true true false true)".to_string(), &env, &mut state)
+            .expect("eval scalar and failed")
+            .expect_bool()
+            .expect("expected bool");
+        assert_eq!(and_res, false);
+
+        let or_res = eval_string("(or false false true false)".to_string(), &env, &mut state)
+            .expect("eval scalar or failed")
+            .expect_bool()
+            .expect("expected bool");
+        assert_eq!(or_res, true);
+
+        let not_res = eval_string("(not true true false)".to_string(), &env, &mut state)
+            .expect("eval scalar not failed")
+            .expect_bool()
+            .expect("expected bool");
+        assert_eq!(not_res, true);
+    }
 }
