@@ -579,4 +579,22 @@ mod tests {
             .unwrap();
         assert!((sin_half_pi - 1.0).abs() < 1e-10);
     }
+
+    #[test]
+    fn test_infix_list1() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+        let code = "{1 + 2}".to_string();
+        let result = eval_string(code, &env, &mut state).unwrap().expect_int().unwrap();
+        assert!(result == 3)
+    }
+
+    #[test]
+    fn test_infix_list2() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+        let code = "{1 + 2 * 3}".to_string();
+        let result = eval_string(code, &env, &mut state).unwrap().expect_int().unwrap();
+        assert!(result == 9)
+    }
 }

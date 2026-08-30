@@ -393,7 +393,7 @@ pub fn preprocess_wisp3(input: &str) -> Result<String, Error> {
         if lines[i].trim().is_empty() { i += 1; continue; }
 
         // traditional s exp
-        if lines[i].trim().starts_with('(') {
+        if lines[i].trim().starts_with('(') || lines[i].trim().starts_with("{") {
             while !lines[i].trim().is_empty() {
                 i += 1;
             }
