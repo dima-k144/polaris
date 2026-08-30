@@ -96,12 +96,13 @@ pub fn mult(args: Vec<Expr>) -> Result<Expr, Error> {
 
 pub fn divide(args: Vec<Expr>) -> Result<Expr, Error> {
     let has_polars_expr_arg = args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)));
-    // let has_float_arg = args.iter().any(|arg| matches!(arg, Expr::Float(_)));
-    // Always compute real division in f64
 
     if has_polars_expr_arg {
-        // Cast the initial expression to Float64 so division produces f64
-        let mut expr = args[0].clone().expect_polars_expr()?;
+        let mut expr = args[0]
+            .clone()
+            .expect_polars_expr()?
+            .cast(DataType::Float64);
+
         for arg in args.iter().skip(1) {
             let next_expr = arg.clone().expect_polars_expr()?;
             expr = expr / next_expr;
