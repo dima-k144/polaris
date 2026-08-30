@@ -2566,4 +2566,109 @@ mod tests {
 
         assert_eq!(df, expected_df);
     }
+
+    #[test]
+    fn test_with_multiple_columns_basic() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (with-column (read-csv "data1.csv")
+                         $age_in_months (* $age 12)
+                         $is_over_25 (> $age 25))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval with-column multiple assignments failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
+            "age" => &[25i64, 30, 22, 28, 35],
+            "city" => &["London", "Paris", "Berlin", "Rome", "Madrid"],
+            "age_in_months" => &[300i64, 360, 264, 336, 420],
+            "is_over_25" => &[false, true, false, true, true],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_with_multiple_columns_sequential_dependency() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Test that later column assignments can reference previously created columns in the same call
+        let code = r#"
+            (with-column (read-csv "data1.csv")
+                         $age_plus_10 (+ $age 10)
+                         $double_new_age (* $age_plus_10 2)
+                         $is_senior (>= $double_new_age 80))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval sequential with-column failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
+            "age" => &[25i64, 30, 22, 28, 35],
+            "city" => &["London", "Paris", "Berlin", "Rome", "Madrid"],
+            "age_plus_10" => &[35i64, 40, 32, 38, 45],
+            "double_new_age" => &[70i64, 80, 64, 76, 90],
+            "is_senior" => &[false, true, false, false, true],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_with_multiple_columns_in_pipeline() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (-> (read-csv "data1.csv")
+                (with-column $status (when (>= $age 30) "Senior" "Junior")
+                             $is_paris (= $city "Paris"))
+                (filter $is_paris)
+                (select $name $status))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval pipeline with multiple column assignments failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "name" => &["Bob"],
+            "status" => &["Senior"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_with_multiple_columns_odd_args_error() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Passing an incomplete pair (df $col1 expr1 $col2) should return WrongNumberOfArguments
+        let code = r#"
+            (with-column (read-csv "data1.csv") $col1 (+ $age 1) $col2)
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state);
+        assert!(matches!(res, Err(Error::WrongNumberOfArguments { .. })));
+    }
 }

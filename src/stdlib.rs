@@ -119,7 +119,7 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     // LazyFrame Operations
     insert_native_function(&mut defines, "select", select, 1, u8::MAX);
     insert_native_function(&mut defines, "filter", filter, 2, u8::MAX);
-    insert_native_function(&mut defines, "with-column", with_column, 3, 3);
+    insert_native_function(&mut defines, "with-column", with_column, 3, u8::MAX);
     insert_native_function(&mut defines, "sort", sort, 2, 3);
     insert_native_function(&mut defines, "group-by", group_by, 2, u8::MAX);
     insert_native_function(&mut defines, "alias", alias, 2, 2);

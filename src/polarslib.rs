@@ -691,23 +691,41 @@ pub fn filter(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 pub fn with_column(args: Vec<Expr>) -> Result<Expr, Error> {
-    let lf = args[0].clone().expect_lazy_frame()?;
-    let alias_expr = args[1].clone().expect_polars_expr()?;
-    let value = args[2].clone().expect_polars_expr()?;
-    let alias = match alias_expr {
-        polars::prelude::Expr::Column(name) => name.to_string(),
-        _ => {
-            panic!("Shouldnt happen");
-        }
-    };
+    if args.len() < 3 || (args.len() - 1) % 2 != 0 {
+        return Err(Error::WrongNumberOfArguments {
+            expected_min: 3,
+            expected_max: u8::MAX,
+            got: args.len() as u8,
+        });
+    }
 
-    // Eagerly validate `value`
-    lf.clone()
-        .select(vec![value.clone()])
-        .collect_schema()
-        .map_err(Error::PolarsError)?;
+    let mut lf = args[0].clone().expect_lazy_frame()?;
 
-    Ok(new_lazy_frame(lf.with_column(value.alias(&alias))))
+    // Iterate through pairs of (col_name_expr, value_expr)
+    for pair in args[1..].chunks(2) {
+        let alias_expr = pair[0].clone().expect_polars_expr()?;
+        let value = pair[1].clone().expect_polars_expr()?;
+
+        let alias = match alias_expr {
+            polars::prelude::Expr::Column(name) => name.to_string(),
+            other => {
+                return Err(Error::WrongType {
+                    expected: "column alias (e.g. $col_name)".into(),
+                    got: pair[0].clone(),
+                });
+            }
+        };
+
+        // Eagerly validate each step
+        lf.clone()
+            .select(vec![value.clone()])
+            .collect_schema()
+            .map_err(Error::PolarsError)?;
+
+        lf = lf.with_column(value.alias(&alias));
+    }
+
+    Ok(new_lazy_frame(lf))
 }
 
 // --- 1. Multi-column Sorting with Mixed Orders ---
