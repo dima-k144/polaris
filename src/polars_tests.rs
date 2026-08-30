@@ -2671,4 +2671,123 @@ mod tests {
         let res = eval_string(code, &env, &mut state);
         assert!(matches!(res, Err(Error::WrongNumberOfArguments { .. })));
     }
+
+    #[test]
+    fn test_when_multiple_branches_with_default() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (with-column (read-csv "data1.csv") $tier 
+                         (when (> $age 30) "Senior" 
+                               (> $age 25) "Mid" 
+                               :default "Junior"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval when with multiple branches and default failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
+            "age" => &[25i64, 30, 22, 28, 35],
+            "city" => &["London", "Paris", "Berlin", "Rome", "Madrid"],
+            "tier" => &["Junior", "Mid", "Junior", "Mid", "Senior"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_when_multiple_branches_without_default() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (with-column (read-csv "data1.csv") $status 
+                         (when (>= $age 35) "Veteran" 
+                               (< $age 25) "Youth"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval multi-branch when without default failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
+            "age" => &[25i64, 30, 22, 28, 35],
+            "city" => &["London", "Paris", "Berlin", "Rome", "Madrid"],
+            "status" => &[Option::<&str>::None, None, Some("Youth"), None, Some("Veteran")],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_when_multiple_branches_city_mapping() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (with-column (read-csv "data1.csv") $country 
+                         (when (= $city "London") "UK" 
+                               (= $city "Paris") "FR" 
+                               (= $city "Berlin") "DE" 
+                               :default "OTHER"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval 3-branch when with :default failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
+            "age" => &[25i64, 30, 22, 28, 35],
+            "city" => &["London", "Paris", "Berlin", "Rome", "Madrid"],
+            "country" => &["UK", "FR", "DE", "OTHER", "OTHER"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_when_multiple_branches_in_pipeline() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (-> (read-csv "data1.csv")
+                (with-column $tier (when (> $age 30) "Senior"
+                                         (> $age 25) "Mid"
+                                         :default "Junior"))
+                (filter (= $tier "Mid"))
+                (select $name $tier))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval multi-branch when pipeline failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "name" => &["Bob", "Diana"],
+            "tier" => &["Mid", "Mid"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
 }

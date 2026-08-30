@@ -958,16 +958,66 @@ pub fn drop_nulls(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
+// Examples in Lisp:
+//   (when (> $age 18) "adult" "minor")
+//   (when (> $score 90) "A" (> $score 80) "B" (> $score 70) "C" :default "F")
+//   (when (= $status 1) "Active" (= $status 2) "Pending") ; defaults to NULL
 pub fn when(args: Vec<Expr>) -> Result<Expr, Error> {
-    let condition = args[0].clone().expect_polars_expr()?;
-    let on_true = args[1].clone().expect_polars_expr()?;
-    match args.len() {
-        2 => Ok(new_polars_expr(polars::prelude::when(condition).then(on_true).otherwise(polars::prelude::lit(polars::prelude::NULL)))),
-        _ => {
-            let on_false = args[2].clone().expect_polars_expr()?;
-            Ok(new_polars_expr(polars::prelude::when(condition).then(on_true).otherwise(on_false)))
+    if args.is_empty() {
+        return Err(Error::WrongNumberOfArguments {
+            expected_min: 2,
+            expected_max: u8::MAX,
+            got: 0,
+        });
+    }
+
+    // 1. Check for trailing `:default <val>` or `:else <val>`
+    let mut default_expr = polars::prelude::lit(polars::prelude::NULL);
+    let mut pairs_slice = &args[..];
+
+    if args.len() >= 2 {
+        if let Ok(sym) = args[args.len() - 2].clone().expect_symbol() {
+            if sym == ":default" || sym == ":else" {
+                default_expr = args[args.len() - 1].clone().expect_polars_expr()?;
+                pairs_slice = &args[..args.len() - 2];
+            }
         }
     }
+
+    if pairs_slice.is_empty() {
+        return Err(Error::WrongNumberOfArguments {
+            expected_min: 2,
+            expected_max: u8::MAX,
+            got: args.len() as u8,
+        });
+    }
+
+    // 2. Fallback check: 3-argument ternary (when condition on_true on_false)
+    if pairs_slice.len() % 2 != 0 {
+        if pairs_slice.len() == 3 {
+            default_expr = pairs_slice[2].clone().expect_polars_expr()?;
+            pairs_slice = &pairs_slice[..2];
+        } else {
+            return Err(Error::Custom(
+                "Mismatched condition-value pairs in 'when'. Expected an even number of arguments or a trailing :default value.".into(),
+            ));
+        }
+    }
+
+    // 3. Extract pairs
+    let mut pairs = Vec::new();
+    for pair in pairs_slice.chunks(2) {
+        let cond = pair[0].clone().expect_polars_expr()?;
+        let val = pair[1].clone().expect_polars_expr()?;
+        pairs.push((cond, val));
+    }
+
+    // 4. Fold backwards: when(c3, v3, default) -> when(c2, v2, ...) -> when(c1, v1, ...)
+    let final_expr = pairs.into_iter().rfold(default_expr, |acc, (cond, val)| {
+        polars::prelude::ternary_expr(cond, val, acc)
+    });
+
+    Ok(new_polars_expr(final_expr))
 }
 
 // (str-contains $name "^A.*")

@@ -131,7 +131,7 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "not-null?", is_not_null_, 1, 1);
     insert_native_function(&mut defines, "fill-null", fill_null_, 2, 2);
     insert_native_function(&mut defines, "drop-nulls", drop_nulls, 1, u8::MAX);
-    insert_native_function(&mut defines, "when", crate::polarslib::when, 2, 3);
+    insert_native_function(&mut defines, "when", crate::polarslib::when, 2, u8::MAX);
 
     // String
     insert_native_function(&mut defines, "str-contains", str_contains, 2, 2);
