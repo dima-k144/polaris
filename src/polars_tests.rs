@@ -2458,4 +2458,112 @@ mod tests {
             .expect("expected bool");
         assert_eq!(not_res, true);
     }
+
+    #[test]
+    fn test_filter_multiple_predicates_two() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Test passing 2 separate predicate arguments directly to filter: (> $age 22) and (< $age 35)
+        let code = r#"
+            (filter (read-csv "data1.csv") (> $age 22) (< $age 35))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval filter with multiple predicates failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 4],
+            "name" => &["Alice", "Bob", "Diana"],
+            "age" => &[25i64, 30, 28],
+            "city" => &["London", "Paris", "Rome"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_filter_multiple_predicates_three() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Test passing 3 predicates across multiple columns: (> $age 22), (< $age 35), and (!= $city "Rome")
+        let code = r#"
+            (filter (read-csv "data1.csv") (> $age 22) (< $age 35) (!= $city "Rome"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval filter with 3 predicates failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2],
+            "name" => &["Alice", "Bob"],
+            "age" => &[25i64, 30],
+            "city" => &["London", "Paris"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_filter_multiple_predicates_pipeline_threading() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Test multiple predicates inside the threading macro (->)
+        let code = r#"
+            (-> (read-csv "data1.csv")
+                (filter (>= $age 25) (!= $name "Evan"))
+                (select $name $city))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval filter multi-predicate pipeline failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "name" => &["Alice", "Bob", "Diana"],
+            "city" => &["London", "Paris", "Rome"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_filter_multiple_predicates_empty_result() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Predicates that contradict/match no rows
+        let code = r#"
+            (filter (read-csv "data1.csv") (>= $age 30) (= $city "London"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval filter empty result failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &Vec::<i64>::new(),
+            "name" => &Vec::<&str>::new(),
+            "age" => &Vec::<i64>::new(),
+            "city" => &Vec::<&str>::new(),
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
 }

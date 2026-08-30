@@ -656,16 +656,32 @@ pub fn select(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 pub fn filter(args: Vec<Expr>) -> Result<Expr, Error> {
-    let lf = args[0].clone().expect_lazy_frame()?;
-    let expr = args[1].clone().expect_polars_expr()?;
+    if args.len() < 2 {
+        return Err(Error::WrongNumberOfArguments {
+            expected_min: 2,
+            expected_max: u8::MAX,
+            got: args.len() as u8,
+        });
+    }
 
-    // Eagerly validate that all columns in `expr` exist in `lf`
+    let lf = args[0].clone().expect_lazy_frame()?;
+
+    // Extract the first predicate
+    let mut combined_expr = args[1].clone().expect_polars_expr()?;
+
+    // Chain the remaining predicates with `.and()`
+    for arg in args.iter().skip(2) {
+        let next_expr = arg.clone().expect_polars_expr()?;
+        combined_expr = combined_expr.and(next_expr);
+    }
+
+    // Eagerly validate that all referenced columns exist in `lf`
     lf.clone()
-        .select(vec![expr.clone()])
+        .select(vec![combined_expr.clone()])
         .collect_schema()
         .map_err(Error::PolarsError)?;
 
-    Ok(new_lazy_frame(lf.filter(expr)))
+    Ok(new_lazy_frame(lf.filter(combined_expr)))
 }
 
 pub fn with_column(args: Vec<Expr>) -> Result<Expr, Error> {
