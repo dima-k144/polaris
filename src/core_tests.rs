@@ -597,4 +597,20 @@ mod tests {
         let result = eval_string(code, &env, &mut state).unwrap().expect_int().unwrap();
         assert!(result == 9)
     }
+
+    #[test]
+    fn test_core_shell() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Test running echo with multiple string arguments
+        let code = r#"(shell "echo" "hello" "world")"#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval shell failed")
+            .expect_string()
+            .expect("expected string result");
+
+        assert_eq!(res.trim(), "hello world");
+    }
 }

@@ -1,4 +1,5 @@
 use crate::types::*;
+use std::process::Command;
 
 pub fn nil() -> Expr { return Expr{ value: ExprValue::Nil, line: None } }
 
@@ -136,4 +137,24 @@ pub fn cos(args: Vec<Expr>) -> Result<Expr, Error> {
 
 pub fn tan(args: Vec<Expr>) -> Result<Expr, Error> {
     apply_unary_math(args, |f| f.tan())
+}
+
+pub fn shell(args: Vec<Expr>) -> Result<Expr, Error> {
+    let command = args[0].clone().expect_string()?;
+    let command_args: Vec<String> = args[1..]
+        .iter()
+        .map(|arg| arg.clone().expect_string())
+        .collect::<Result<Vec<String>, Error>>()?;
+
+    let output = Command::new(command)
+        .args(command_args)
+        .output().unwrap();
+    
+    if output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        Ok(new_string(stdout.to_string()))
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Ok(new_string(stderr.to_string()))
+    }
 }

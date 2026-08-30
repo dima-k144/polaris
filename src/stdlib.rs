@@ -44,6 +44,7 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     // Native Functions: (defines, name, function_pointer, min_args, max_args)
     insert_native_function(&mut defines, "print", print, 0, u8::MAX);
     insert_native_function(&mut defines, "list", list, 0, u8::MAX);
+    insert_native_function(&mut defines, "shell", shell, 1, u8::MAX);
 
     // Arithmetic
     insert_native_function(&mut defines, "+", plus, 1, u8::MAX);
