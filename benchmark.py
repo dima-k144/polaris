@@ -2,42 +2,46 @@ import os
 import subprocess
 import time
 import duckdb
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import polars as pl
 
 # ---------------------------------------------------------
-# 1. Dataset Configuration
+# Configuration
 # ---------------------------------------------------------
-DATA_PATH = "benchmark_data.parquet"
-NUM_ROWS = 100_000_000
+ROW_SIZES = [1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000]
 WARMUP_RUNS = 1
 BENCHMARK_RUNS = 3
-
-
-def generate_dataset_if_needed():
-    if not os.path.exists(DATA_PATH):
-        print(f"Generating {NUM_ROWS:,} rows of synthetic test data...")
-        np.random.seed(42)
-        df = pl.DataFrame(
-            {
-                "category": np.random.choice(
-                    ["A", "B", "C", "D", "E"], size=NUM_ROWS
-                ),
-                "col_a": np.random.uniform(0, 500, size=NUM_ROWS),
-                "col_b": np.random.uniform(10, 1000, size=NUM_ROWS),
-                "col_c": np.random.uniform(1, 50, size=NUM_ROWS),
-            }
-        )
-        df.write_parquet(DATA_PATH)
-        print(f"Saved {DATA_PATH} ({os.path.getsize(DATA_PATH) / 1e6:.2f} MB)")
+DATA_FILE = "temp_benchmark_data.parquet"
+QUERY_FILE = "bench_query.lsp"
+CHART_OUTPUT = "benchmark_scaling_results.png"
 
 
 # ---------------------------------------------------------
-# 2. Query Definition Across Engines
+# Synthetic Data Generation
 # ---------------------------------------------------------
-MLISP_SCRIPT = f"""
-(-> (read-parquet "{DATA_PATH}")
+def generate_dataset(num_rows: int):
+    np.random.seed(42)
+    df = pl.DataFrame(
+        {
+            "category": np.random.choice(
+                ["A", "B", "C", "D", "E"], size=num_rows
+            ),
+            "col_a": np.random.uniform(0, 500, size=num_rows),
+            "col_b": np.random.uniform(10, 1000, size=num_rows),
+            "col_c": np.random.uniform(1, 50, size=num_rows),
+        }
+    )
+    df.write_parquet(DATA_FILE)
+
+
+# ---------------------------------------------------------
+# Engine Runners
+# ---------------------------------------------------------
+def get_mlisp_script(data_path: str) -> str:
+    return f"""
+(-> (read-parquet "{data_path}")
     (filter (> (col "col_a") (lit 100.0)))
     (with-column (col "ratio") (/ (col "col_b") (col "col_c")))
     (group-by (col "category")
@@ -51,7 +55,7 @@ MLISP_SCRIPT = f"""
 
 def run_mlisp():
     proc = subprocess.run(
-        ["./target/release/mlisp", "bench_query.lsp"],
+        ["./target/release/mlisp", QUERY_FILE],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -63,7 +67,7 @@ def run_mlisp():
 
 def run_python_polars():
     q = (
-        pl.scan_parquet(DATA_PATH)
+        pl.scan_parquet(DATA_FILE)
         .filter(pl.col("col_a") > 100.0)
         .with_columns((pl.col("col_b") / pl.col("col_c")).alias("ratio"))
         .group_by("category")
@@ -84,7 +88,7 @@ def run_duckdb():
         AVG(col_a) AS avg_a,
         SUM(col_b / col_c) AS total_ratio,
         COUNT(*) AS n_count
-    FROM read_parquet('{DATA_PATH}')
+    FROM read_parquet('{DATA_FILE}')
     WHERE col_a > 100.0
     GROUP BY category
     ORDER BY avg_a DESC
@@ -93,9 +97,8 @@ def run_duckdb():
 
 
 def run_pandas():
-    # Pandas requires loading columns into memory first (pyarrow backend recommended)
     df = pd.read_parquet(
-        DATA_PATH,
+        DATA_FILE,
         columns=["category", "col_a", "col_b", "col_c"],
         engine="pyarrow",
     )
@@ -115,11 +118,9 @@ def run_pandas():
 
 
 # ---------------------------------------------------------
-# 3. Benchmark Harness
+# Benchmark Execution & Plotting
 # ---------------------------------------------------------
-
-
-def benchmark_engine(name, runner_fn):
+def benchmark_engine(runner_fn):
     for _ in range(WARMUP_RUNS):
         runner_fn()
 
@@ -129,53 +130,96 @@ def benchmark_engine(name, runner_fn):
         runner_fn()
         durations.append((time.perf_counter() - start) * 1000)
 
-    return {
-        "engine": name,
-        "mean_ms": np.mean(durations),
-        "min_ms": np.min(durations),
-        "std_ms": np.std(durations),
+    return np.mean(durations)
+
+
+def plot_results(results_df: pd.DataFrame):
+    plt.figure(figsize=(10, 6), dpi=300)
+
+    styles = {
+        "MLisp": {"color": "#1f77b4", "marker": "o", "linewidth": 2.5},
+        "Polars": {"color": "#ff7f0e", "marker": "s", "linewidth": 2},
+        "DuckDB": {"color": "#2ca02c", "marker": "^", "linewidth": 2},
+        "Pandas (PyArrow)": {
+            "color": "#d62728",
+            "marker": "x",
+            "linewidth": 2,
+        },
     }
+
+    for engine in results_df.columns:
+        style = styles.get(engine, {"marker": "o", "linewidth": 2})
+        plt.plot(
+            results_df.index,
+            results_df[engine],
+            label=engine,
+            marker=style["marker"],
+            linewidth=style["linewidth"],
+            color=style.get("color"),
+        )
+
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.xlabel("Dataset Size (Number of Rows)", fontsize=11, fontweight="bold")
+    plt.ylabel("Execution Time (ms) - Log Scale", fontsize=11, fontweight="bold")
+    plt.title(
+        "Query Scaling Benchmark: MLisp vs Other Engines",
+        fontsize=13,
+        fontweight="bold",
+    )
+    plt.grid(True, which="both", linestyle="--", alpha=0.5)
+    plt.legend(frameon=True)
+    plt.tight_layout()
+
+    plt.savefig(CHART_OUTPUT)
+    print(f"\nScaling chart successfully saved to: {CHART_OUTPUT}")
+    plt.show()
 
 
 def main():
-    generate_dataset_if_needed()
-
-    with open("bench_query.lsp", "w") as f:
-        f.write(MLISP_SCRIPT)
-
     engines = [
-        ("Your Language (MLisp + Rust)", run_mlisp),
-        ("Python Polars", run_python_polars),
-        ("DuckDB (In-Memory SQL)", run_duckdb),
-        ("Python Pandas (PyArrow)", run_pandas),
+        ("MLisp", run_mlisp),
+        ("Polars", run_python_polars),
+        ("DuckDB", run_duckdb),
+        ("Pandas (PyArrow)", run_pandas),
     ]
 
-    results = []
-    print("\nRunning benchmarks...")
-    for name, fn in engines:
-        print(f"  Benchmarking {name}...")
-        try:
-            res = benchmark_engine(name, fn)
-            results.append(res)
-        except Exception as e:
-            print(f"  Failed to benchmark {name}: {e}")
+    all_data = {engine_name: [] for engine_name, _ in engines}
 
-    baseline = results[0]["mean_ms"] if results else 1.0
+    try:
+        # Write MLisp script once pointing to temp path
+        with open(QUERY_FILE, "w") as f:
+            f.write(get_mlisp_script(DATA_FILE))
 
-    print("\n" + "=" * 72)
-    print(
-        f"{'Engine':<32} | {'Mean (ms)':<10} | {'Min (ms)':<10} | {'Rel. Speed':<10}"
-    )
-    print("-" * 72)
-    for r in results:
-        speedup = baseline / r["mean_ms"]
-        print(
-            f"{r['engine']:<32} | {r['mean_ms']:>8.2f}ms | {r['min_ms']:>8.2f}ms | {speedup:>8.2f}x"
-        )
-    print("=" * 72 + "\n")
+        for rows in ROW_SIZES:
+            print(f"\n--- Testing Dataset Size: {rows:,} rows ---")
+            generate_dataset(rows)
 
-    if os.path.exists("bench_query.lsp"):
-        os.remove("bench_query.lsp")
+            for name, runner_fn in engines:
+                print(f"  Benchmarking {name}...")
+                try:
+                    mean_ms = benchmark_engine(runner_fn)
+                    all_data[name].append(mean_ms)
+                    print(f"    -> {mean_ms:.2f} ms")
+                except Exception as e:
+                    print(f"    -> Failed: {e}")
+                    all_data[name].append(np.nan)
+
+        results_df = pd.DataFrame(all_data, index=ROW_SIZES)
+        results_df.index.name = "Rows"
+
+        print("\n" + "=" * 60)
+        print("Final Scaling Summary Table (Mean Execution Time in ms)")
+        print("=" * 60)
+        print(results_df.to_string())
+
+        plot_results(results_df)
+
+    finally:
+        # Cleanup temporary files
+        for temp_file in [DATA_FILE, QUERY_FILE]:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
 
 
 if __name__ == "__main__":
