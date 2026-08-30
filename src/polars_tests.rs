@@ -24,7 +24,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (= $"age" 30))
+            (filter (read-csv "data1.csv") (= $age 30))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -50,7 +50,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (!= $"age" 30))
+            (filter (read-csv "data1.csv") (!= $age 30))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -76,7 +76,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (> $"age" 25))
+            (filter (read-csv "data1.csv") (> $age 25))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -102,7 +102,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (< $"age" 28))
+            (filter (read-csv "data1.csv") (< $age 28))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -128,7 +128,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (>= $"age" 28))
+            (filter (read-csv "data1.csv") (>= $age 28))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -154,7 +154,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
     
         let code = r#"
-            (filter (read-csv "data1.csv") (<= $"age" 28))
+            (filter (read-csv "data1.csv") (<= $age 28))
         "#.to_string();
     
         let res = eval_string(code, &env, &mut state)
@@ -180,7 +180,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (and (> $"age" 22) (< $"age" 35)))
+            (filter (read-csv "data1.csv") (and (> $age 22) (< $age 35)))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -206,7 +206,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
     
         let code = r#"
-            (filter (read-csv "data1.csv") (or (< $"age" 25) (>= $"age" 35)))
+            (filter (read-csv "data1.csv") (or (< $age 25) (>= $age 35)))
         "#.to_string();
     
         let res = eval_string(code, &env, &mut state)
@@ -232,7 +232,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (not (> $"age" 25)))
+            (filter (read-csv "data1.csv") (not (> $age 25)))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -258,7 +258,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (select (read-csv "data1.csv") (sum $"age"))
+            (select (read-csv "data1.csv") (sum $age))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -281,7 +281,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (select (read-csv "data1.csv") (mean $"age"))
+            (select (read-csv "data1.csv") (mean $age))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -304,7 +304,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (select (read-csv "data1.csv") (median $"age"))
+            (select (read-csv "data1.csv") (median $age))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -327,7 +327,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (with-column (read-csv "data1.csv") $"is_over_25" (> $"age" 25))
+            (with-column (read-csv "data1.csv") $is_over_25 (> $age 25))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -354,7 +354,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
     
         let code = r#"
-            (sort (read-csv "data1.csv") $"age")
+            (sort (read-csv "data1.csv") $age)
         "#.to_string();
     
         let res = eval_string(code, &env, &mut state)
@@ -385,7 +385,7 @@ mod tests {
     
         // Group by city and compute mean age, then sort by city to ensure deterministic order
         let code = r#"
-            (sort (group-by (read-csv "data1.csv") $"city" (mean $"age")) $"city")
+            (sort (group-by (read-csv "data1.csv") $city (mean $age)) $city)
         "#.to_string();
     
         let res = eval_string(code, &env, &mut state)
@@ -410,8 +410,8 @@ mod tests {
 
         let code = r#"
             (agg (read-csv "data1.csv") 
-                 (alias (sum $"age") "total_age") 
-                 (alias (mean $"age") "mean_age"))
+                 (alias (sum $age) "total_age") 
+                 (alias (mean $age) "mean_age"))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -435,7 +435,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (sort (join (read-csv "data1.csv") (read-csv "data2.csv") $"id" $"id" :inner) $"id")
+            (sort (join (read-csv "data1.csv") (read-csv "data2.csv") $id $id :inner) $id)
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -531,7 +531,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (with-column (select (read-csv "data1.csv") $"id" $"age") $"age_plus_5" (+ $"age" 5))
+            (with-column (select (read-csv "data1.csv") $id $age) $age_plus_5 (+ $age 5))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -556,7 +556,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (with-column (select (read-csv "data1.csv") $"id" $"age") $"age_minus_2" (- $"age" 2))
+            (with-column (select (read-csv "data1.csv") $id $age) $age_minus_2 (- $age 2))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -581,7 +581,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (with-column (select (read-csv "data1.csv") $"id" $"age") $"age_double" (* $"age" 2))
+            (with-column (select (read-csv "data1.csv") $id $age) $age_double (* $age 2))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -606,7 +606,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (with-column (select (read-csv "data1.csv") $"id" $"age") $"age_half" (/ $"age" 2))
+            (with-column (select (read-csv "data1.csv") $id $age) $age_half (/ $age 2))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -631,7 +631,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (filter (read-csv "data3.csv") (null? $"age"))
+            (filter (read-csv "data3.csv") (null? $age))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -657,7 +657,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (filter (read-csv "data3.csv") (not-null? $"city"))
+            (filter (read-csv "data3.csv") (not-null? $city))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -683,7 +683,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (with-column (read-csv "data3.csv") $"age" (fill-null $"age" 0))
+            (with-column (read-csv "data3.csv") $age (fill-null $age 0))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -735,7 +735,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (drop-nulls (read-csv "data3.csv") $"name" $"age")
+            (drop-nulls (read-csv "data3.csv") $name $age)
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -761,7 +761,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (with-column (read-csv "data1.csv") $"category" (when (>= $"age" 30) "senior" "junior"))
+            (with-column (read-csv "data1.csv") $category (when (>= $age 30) "senior" "junior"))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -788,7 +788,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (with-column (read-csv "data1.csv") $"status" (when (>= $"age" 30) "senior"))
+            (with-column (read-csv "data1.csv") $status (when (>= $age 30) "senior"))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -816,10 +816,10 @@ mod tests {
 
         let code = r#"
             (agg (read-csv "data1.csv")
-                 (alias (min $"age") "min_age")
-                 (alias (max $"age") "max_age")
-                 (alias (count $"age") "count_age")
-                 (alias (n-unique $"city") "unique_cities"))
+                 (alias (min $age) "min_age")
+                 (alias (max $age) "max_age")
+                 (alias (count $age) "count_age")
+                 (alias (n-unique $city) "unique_cities"))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -847,7 +847,7 @@ mod tests {
 
         // Filter and write to CSV
         let write_code = format!(
-            r#"(write-csv (filter (read-csv "data1.csv") (= $"age" 30)) "{}")"#,
+            r#"(write-csv (filter (read-csv "data1.csv") (= $age 30)) "{}")"#,
             temp_output
         );
 
@@ -883,7 +883,7 @@ mod tests {
 
         // Use a single backslash inside r#"..."#
         let code = r#"
-            (filter (read-csv "data4.csv") (str-contains $"email" "@example\.com$"))
+            (filter (read-csv "data4.csv") (str-contains $email "@example\.com$"))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -910,7 +910,7 @@ mod tests {
 
         // Mask the numbers in the SKU column with "XXX"
         let code = r#"
-            (with-column (read-csv "data4.csv") $"masked_sku" (str-replace $"sku" "[0-9]+" "XXX"))
+            (with-column (read-csv "data4.csv") $masked_sku (str-replace $sku "[0-9]+" "XXX"))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -956,7 +956,7 @@ mod tests {
 
         // Extract the numeric portion (capture group 1) from SKU
         let code = r#"
-            (with-column (read-csv "data4.csv") $"sku_code" (str-extract $"sku" ".*-([0-9]+)-.*" 1))
+            (with-column (read-csv "data4.csv") $sku_code (str-extract $sku ".*-([0-9]+)-.*" 1))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -1002,7 +1002,7 @@ mod tests {
 
         // Compute average age per city over the dataset without grouping
         let code = r#"
-            (with-column (read-csv "data1.csv") $"city_mean_age" (over (mean $"age") $"city"))
+            (with-column (read-csv "data1.csv") $city_mean_age (over (mean $age) $city))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -1030,8 +1030,8 @@ mod tests {
 
         let code = r#"
             (-> (read-csv "data1.csv")
-                (with-column $"prev_age" (shift $"age" 1))
-                (with-column $"running_age" (cum-sum $"age")))
+                (with-column $prev_age (shift $age 1))
+                (with-column $running_age (cum-sum $age)))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -1061,11 +1061,11 @@ mod tests {
         // Parse date and extract year, month, and day components
         let code = r#"
             (-> (read-csv "data5.csv")
-                (with-column $"date" (to-date $"date_str" "%Y-%m-%d"))
-                (with-column $"year" (dt-year $"date"))
-                (with-column $"month" (dt-month $"date"))
-                (with-column $"day" (dt-day $"date"))
-                (select $"id" $"year" $"month" $"day"))
+                (with-column $date (to-date $date_str "%Y-%m-%d"))
+                (with-column $year (dt-year $date))
+                (with-column $month (dt-month $date))
+                (with-column $day (dt-day $date))
+                (select $id $year $month $day))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -1093,9 +1093,9 @@ mod tests {
         // Parse datetime and extract hour component
         let code = r#"
             (-> (read-csv "data5.csv")
-                (with-column $"dt" (to-datetime $"datetime_str" "%Y-%m-%d %H:%M:%S"))
-                (with-column $"hour" (dt-hour $"dt"))
-                (select $"id" $"hour"))
+                (with-column $dt (to-datetime $datetime_str "%Y-%m-%d %H:%M:%S"))
+                (with-column $hour (dt-hour $dt))
+                (select $id $hour))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -1121,9 +1121,9 @@ mod tests {
         // Parse date and reformat to custom display string
         let code = r#"
             (-> (read-csv "data5.csv")
-                (with-column $"date" (to-date $"date_str" "%Y-%m-%d"))
-                (with-column $"formatted_date" (dt-format $"date" "%d/%m/%Y"))
-                (select $"id" $"formatted_date"))
+                (with-column $date (to-date $date_str "%Y-%m-%d"))
+                (with-column $formatted_date (dt-format $date "%d/%m/%Y"))
+                (select $id $formatted_date))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -1149,9 +1149,9 @@ mod tests {
         // Filter rows where year is greater than or equal to 2025
         let code = r#"
             (-> (read-csv "data5.csv")
-                (with-column $"date" (to-date $"date_str" "%Y-%m-%d"))
-                (filter (>= (dt-year $"date") 2025))
-                (select $"id" $"date_str"))
+                (with-column $date (to-date $date_str "%Y-%m-%d"))
+                (filter (>= (dt-year $date) 2025))
+                (select $id $date_str))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -1177,7 +1177,7 @@ mod tests {
     
         // 1. Filter CSV data and write to Parquet
         let write_code = format!(
-            r#"(write-parquet (filter (read-csv "data1.csv") (= $"city" "Paris")) "{}")"#,
+            r#"(write-parquet (filter (read-csv "data1.csv") (= $city "Paris")) "{}")"#,
             temp_parquet
         );
     
@@ -1227,8 +1227,8 @@ mod tests {
         // Run query over data1.parquet via MLisp
         let code = r#"
             (-> (read-parquet "data1.parquet")
-                (filter (= $"department" "Engineering"))
-                (select (alias (mean $"salary") "avg_eng_salary")))
+                (filter (= $department "Engineering"))
+                (select (alias (mean $salary) "avg_eng_salary")))
         "#.to_string();
     
         let res = eval_string(code, &env, &mut state)
@@ -1256,7 +1256,7 @@ mod tests {
 
         // Stream filtered lazy plan directly to CSV
         let sink_code = format!(
-            r#"(sink (filter (read-csv "data1.csv") (= $"city" "Paris")) "{}")"#,
+            r#"(sink (filter (read-csv "data1.csv") (= $city "Paris")) "{}")"#,
             temp_output
         );
 
@@ -1292,7 +1292,7 @@ mod tests {
 
         // Stream filtered lazy plan directly to Parquet
         let sink_code = format!(
-            r#"(sink (filter (read-csv "data1.csv") (> $"age" 28)) "{}")"#,
+            r#"(sink (filter (read-csv "data1.csv") (> $age 28)) "{}")"#,
             temp_output
         );
 
@@ -1326,7 +1326,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (sort (pivot (read-csv "data1.csv") $"city" $"name" $"age") $"name")
+            (sort (pivot (read-csv "data1.csv") $city $name $age) $name)
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -1354,7 +1354,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (sort (pivot (read-csv "data1.csv") $"city" $"name" $"age" :sum) $"name")
+            (sort (pivot (read-csv "data1.csv") $city $name $age :sum) $name)
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -1382,9 +1382,9 @@ mod tests {
         let env = std_env();
         let mut state = State { line: 0, file: None };
 
-        // Column names can be strings, but the subsequent sort must use a column expression $"name"
+        // Column names can be strings, but the subsequent sort must use a column expression $name
         let code = r#"
-            (sort (pivot (read-csv "data1.csv") "city" "name" "age" :first) $"name")
+            (sort (pivot (read-csv "data1.csv") "city" "name" "age" :first) $name)
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -1413,8 +1413,8 @@ mod tests {
 
         let code = r#"
             (-> (read-csv "data1.csv")
-                (pivot $"city" $"id" $"age" :max)
-                (sort $"id"))
+                (pivot $city $id $age :max)
+                (sort $id))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -1442,7 +1442,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (melt (read-csv "data1.csv") (list $"id") (list $"name" $"city"))
+            (melt (read-csv "data1.csv") (list $id) (list $name $city))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -1473,7 +1473,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (melt (read-csv "data1.csv") (list $"id" $"name") (list $"age") "metric" "val")
+            (melt (read-csv "data1.csv") (list $id $name) (list $age) "metric" "val")
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -1531,9 +1531,9 @@ mod tests {
 
         let code = r#"
             (-> (read-csv "data1.csv")
-                (unpivot (list $"id") (list $"name" $"city") "attr" "val")
-                (filter (= $"attr" "city"))
-                (sort $"id"))
+                (unpivot (list $id) (list $name $city) "attr" "val")
+                (filter (= $attr "city"))
+                (sort $id))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -1560,8 +1560,8 @@ mod tests {
         // Concatenate two filtered LazyFrames vertically via direct arguments
         let code = r#"
             (concat 
-                (filter (read-csv "data1.csv") (< $"age" 25))
-                (filter (read-csv "data1.csv") (> $"age" 30)))
+                (filter (read-csv "data1.csv") (< $age 25))
+                (filter (read-csv "data1.csv") (> $age 30)))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -1589,8 +1589,8 @@ mod tests {
         // Concatenate a list of LazyFrames vertically
         let code = r#"
             (concat (list 
-                (filter (read-csv "data1.csv") (= $"id" 1))
-                (filter (read-csv "data1.csv") (= $"id" 2))))
+                (filter (read-csv "data1.csv") (= $id 1))
+                (filter (read-csv "data1.csv") (= $id 2))))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -1618,8 +1618,8 @@ mod tests {
         // Concatenate columns horizontally using the :horizontal strategy
         let code = r#"
             (concat 
-                (select (read-csv "data1.csv") $"id" $"name")
-                (select (read-csv "data1.csv") $"age" $"city")
+                (select (read-csv "data1.csv") $id $name)
+                (select (read-csv "data1.csv") $age $city)
                 :horizontal)
         "#.to_string();
 
@@ -1648,8 +1648,8 @@ mod tests {
         // Diagonal concatenation of frames with non-matching schemas
         let code = r#"
             (concat 
-                (select (read-csv "data1.csv") $"id" $"name")
-                (select (read-csv "data1.csv") $"id" $"age")
+                (select (read-csv "data1.csv") $id $name)
+                (select (read-csv "data1.csv") $id $age)
                 :diagonal)
         "#.to_string();
 
@@ -1682,7 +1682,7 @@ mod tests {
     
         // Aggregate to a 1x1 LazyFrame containing the sum of ages (140)
         let code = r#"
-            (scalar (agg (read-csv "data1.csv") (sum $"age")))
+            (scalar (agg (read-csv "data1.csv") (sum $age)))
         "#.to_string();
     
         let res = eval_string(code, &env, &mut state)
@@ -1700,7 +1700,7 @@ mod tests {
     
         // Aggregate to a 1x1 LazyFrame containing the mean age (28.0)
         let code = r#"
-            (scalar (agg (read-csv "data1.csv") (mean $"age")))
+            (scalar (agg (read-csv "data1.csv") (mean $age)))
         "#.to_string();
     
         let res = eval_string(code, &env, &mut state)
@@ -1718,7 +1718,7 @@ mod tests {
     
         // Filter to a single row and select 1 column to get a 1x1 String
         let code = r#"
-            (scalar (select (filter (read-csv "data1.csv") (= $"id" 1)) $"name"))
+            (scalar (select (filter (read-csv "data1.csv") (= $id 1)) $name))
         "#.to_string();
     
         let res = eval_string(code, &env, &mut state)
@@ -1736,7 +1736,7 @@ mod tests {
     
         // Materialize a 1x1 boolean expression
         let code = r#"
-            (scalar (select (filter (read-csv "data1.csv") (= $"id" 1)) (= $"name" "Alice")))
+            (scalar (select (filter (read-csv "data1.csv") (= $id 1)) (= $name "Alice")))
         "#.to_string();
     
         let res = eval_string(code, &env, &mut state)
@@ -1767,7 +1767,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (with-column (select (read-csv "data1.csv") $"id" $"age") $"roll_mean" (rolling-mean $"age" 2))
+            (with-column (select (read-csv "data1.csv") $id $age) $roll_mean (rolling-mean $age 2))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -1792,7 +1792,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (with-column (select (read-csv "data1.csv") $"id" $"age") $"roll_sum" (rolling-sum $"age" 2))
+            (with-column (select (read-csv "data1.csv") $id $age) $roll_sum (rolling-sum $age 2))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -1817,9 +1817,9 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (-> (select (read-csv "data1.csv") $"id" $"age")
-                (with-column $"roll_min" (rolling-min $"age" 2))
-                (with-column $"roll_max" (rolling-max $"age" 2)))
+            (-> (select (read-csv "data1.csv") $id $age)
+                (with-column $roll_min (rolling-min $age 2))
+                (with-column $roll_max (rolling-max $age 2)))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -1845,7 +1845,7 @@ mod tests {
         let mut state = State { line: 0, file: None };
 
         let code = r#"
-            (with-column (select (read-csv "data1.csv") $"id" $"age") $"roll_median" (rolling-median $"age" 3))
+            (with-column (select (read-csv "data1.csv") $id $age) $roll_median (rolling-median $age 3))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -1871,7 +1871,7 @@ mod tests {
 
         // Split sku into list of parts separated by "-"
         let code = r#"
-            (with-column (read-csv "data4.csv") $"sku_parts" (str-split $"sku" "-"))
+            (with-column (read-csv "data4.csv") $sku_parts (str-split $sku "-"))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -1922,7 +1922,7 @@ mod tests {
 
         // Extract first 4 characters of the SKU column
         let code = r#"
-            (with-column (read-csv "data4.csv") $"prefix" (str-slice $"sku" 0 4))
+            (with-column (read-csv "data4.csv") $prefix (str-slice $sku 0 4))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -1968,7 +1968,7 @@ mod tests {
 
         // Strip character set ("PRODLATAMUS-") from both ends of sku
         let code = r#"
-            (with-column (read-csv "data4.csv") $"stripped" (str-strip $"sku" "PRODLATAMUS-"))
+            (with-column (read-csv "data4.csv") $stripped (str-strip $sku "PRODLATAMUS-"))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -2014,8 +2014,8 @@ mod tests {
 
         let code = r#"
             (-> (read-csv "data4.csv")
-                (with-column $"no_lead" (str-strip-start $"sku" "PRODEV-"))
-                (with-column $"no_trail" (str-strip-end $"sku" "-USEUAPACLATAM")))
+                (with-column $no_lead (str-strip-start $sku "PRODEV-"))
+                (with-column $no_trail (str-strip-end $sku "-USEUAPACLATAM")))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -2068,8 +2068,8 @@ mod tests {
 
         // Extract named capture groups from SKU: env, code, and region
         let code = r#"
-            (with-column (read-csv "data4.csv") $"sku_info" 
-                         (str-extract-groups $"sku" "^(?<env>[A-Z]+)-(?<code>[0-9]+)-(?<region>[A-Z]+)$"))
+            (with-column (read-csv "data4.csv") $sku_info 
+                         (str-extract-groups $sku "^(?<env>[A-Z]+)-(?<code>[0-9]+)-(?<region>[A-Z]+)$"))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -2121,7 +2121,7 @@ mod tests {
 
         // Pass list expressions for columns and ordering symbols
         let code = r#"
-            (sort (read-csv "data1.csv") (list $"city" $"age") '(:asc :desc))
+            (sort (read-csv "data1.csv") (list $city $age) '(:asc :desc))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -2148,7 +2148,7 @@ mod tests {
 
         // Pass list expression for columns and :desc symbol
         let code = r#"
-            (sort (read-csv "data1.csv") (list $"age" $"id") :desc)
+            (sort (read-csv "data1.csv") (list $age $id) :desc)
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -2175,7 +2175,7 @@ mod tests {
 
         // Explicit slice on column expression: start at offset 1, take 3 items
         let code = r#"
-            (select (read-csv "data1.csv") (slice-expr $"name" 1 3))
+            (select (read-csv "data1.csv") (slice-expr $name 1 3))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -2200,8 +2200,8 @@ mod tests {
         // Index specific elements (first: 0, last: -1) using get
         let code = r#"
             (select (read-csv "data1.csv")
-                    (alias (get $"name" 0) "first_name")
-                    (alias (get $"name" -1) "last_name"))
+                    (alias (get $name 0) "first_name")
+                    (alias (get $name -1) "last_name"))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -2227,8 +2227,8 @@ mod tests {
         // Sample variance with default ddof=1 (24.5) and population variance ddof=0 (19.6)
         let code = r#"
             (select (read-csv "data1.csv") 
-                    (alias (var $"age") "sample_var")
-                    (alias (var $"age" 0) "pop_var"))
+                    (alias (var $age) "sample_var")
+                    (alias (var $age 0) "pop_var"))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -2254,8 +2254,8 @@ mod tests {
         // 50th percentile (median) and 75th percentile with :linear interpolation
         let code = r#"
             (select (read-csv "data1.csv") 
-                    (alias (quantile $"age" 0.5) "q50")
-                    (alias (quantile $"age" 0.75 :linear) "q75"))
+                    (alias (quantile $age 0.5) "q50")
+                    (alias (quantile $age 0.75 :linear) "q75"))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -2281,7 +2281,7 @@ mod tests {
         // Covariance between id and age
         let code = r#"
             (select (read-csv "data1.csv") 
-                    (alias (cov $"id" $"age") "cov_id_age"))
+                    (alias (cov $id $age) "cov_id_age"))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -2306,7 +2306,7 @@ mod tests {
         // Pearson correlation between id and age
         let code = r#"
             (select (read-csv "data1.csv") 
-                    (alias (corr $"id" $"age") "corr_id_age"))
+                    (alias (corr $id $age) "corr_id_age"))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)

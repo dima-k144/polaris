@@ -481,7 +481,7 @@ pub fn count(args: Vec<Expr>) -> Result<Expr, Error> {
         // (count) without arguments returns the total number of rows
         Ok(new_polars_expr(polars::prelude::len()))
     } else {
-        // (count $"col") returns non-null count for that column
+        // (count $col) returns non-null count for that column
         let expr = args[0].clone().expect_polars_expr()?;
         Ok(new_polars_expr(expr.count()))
     }
@@ -564,10 +564,10 @@ pub fn with_column(args: Vec<Expr>) -> Result<Expr, Error> {
 
 // --- 1. Multi-column Sorting with Mixed Orders ---
 // Examples in Lisp:
-//   (sort df $"a")
-//   (sort df $"a" :desc)
-//   (sort df ($"a" $"b") (:desc :asc))
-//   (sort df ($"a" $"b") :desc) ; sets descending for all
+//   (sort df $a)
+//   (sort df $a :desc)
+//   (sort df ($a $b) (:desc :asc))
+//   (sort df ($a $b) :desc) ; sets descending for all
 pub fn sort(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
 
@@ -616,7 +616,7 @@ pub fn sort(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_lazy_frame(lf.sort_by_exprs(by_exprs, options)))
 }
 
-// (slice-expr $"col" offset length)
+// (slice-expr $col offset length)
 pub fn expr_slice(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let offset = args[1].clone().expect_int()?;
@@ -625,8 +625,8 @@ pub fn expr_slice(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(expr.slice(lit(offset), lit(length as u32))))
 }
 
-// (get $"col" 0) -> first element
-// (get $"col" -1) -> last element
+// (get $col 0) -> first element
+// (get $col -1) -> last element
 pub fn expr_get(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let index = args[1].clone().expect_int()?;
@@ -797,7 +797,7 @@ pub fn when(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
-// (str-contains $"name" "^A.*")
+// (str-contains $name "^A.*")
 pub fn str_contains(args: Vec<Expr>) -> Result<Expr, Error> {
     if args.len() < 2 {
         return Err(Error::WrongType {
@@ -812,7 +812,7 @@ pub fn str_contains(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(col_expr.str().contains(pat_expr, true)))
 }
 
-// (str-replace $"city" "^Lon" "New-Lon")
+// (str-replace $city "^Lon" "New-Lon")
 pub fn str_replace(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let pat_expr = args[1].clone().expect_polars_expr()?;
@@ -822,7 +822,7 @@ pub fn str_replace(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(col_expr.str().replace(pat_expr, rep_expr, false)))
 }
 
-// (str-extract $"code" "([A-Z]+)-(\\d+)" 1)
+// (str-extract $code "([A-Z]+)-(\\d+)" 1)
 pub fn str_extract(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let pat_expr = args[1].clone().expect_polars_expr()?;
@@ -858,14 +858,14 @@ pub fn over(args: Vec<Expr>) -> Result<Expr, Error> {
     } 
 }
 
-// (shift $"col" 1) or (shift $"col" -1)
+// (shift $col 1) or (shift $col -1)
 pub fn shift(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let offset = args[1].clone().expect_int()? as i64;
     Ok(new_polars_expr(expr.shift(lit(offset))))
 }
 
-// (cum-sum $"col")
+// (cum-sum $col)
 pub fn cum_sum(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let reverse = if args.len() > 1 {
@@ -877,7 +877,7 @@ pub fn cum_sum(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(expr.cum_sum(reverse)))
 }
 
-// (cum-min $"col")
+// (cum-min $col)
 pub fn cum_min(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let reverse = if args.len() > 1 {
@@ -888,7 +888,7 @@ pub fn cum_min(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(expr.cum_min(reverse)))
 }
 
-// (cum-max $"col")
+// (cum-max $col)
 pub fn cum_max(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let reverse = if args.len() > 1 {
@@ -899,7 +899,7 @@ pub fn cum_max(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(expr.cum_max(reverse)))
 }
 
-// (cum-count $"col")
+// (cum-count $col)
 pub fn cum_count(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let reverse = if args.len() > 1 {
@@ -910,7 +910,7 @@ pub fn cum_count(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(expr.cum_count(reverse)))
 }
 
-// (rank $"col") or (rank $"col" :dense)
+// (rank $col) or (rank $col :dense)
 pub fn rank(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let method = if args.len() > 1 {
@@ -934,7 +934,7 @@ pub fn rank(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(expr.rank(options, None)))
 }
 
-// (to-date $"col" "%Y-%m-%d") or (to-date $"col") -> ISO-8601 default
+// (to-date $col "%Y-%m-%d") or (to-date $col) -> ISO-8601 default
 pub fn to_date(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let format = if args.len() > 1 {
@@ -953,7 +953,7 @@ pub fn to_date(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(col_expr.str().to_date(options)))
 } 
 
-// (to-datetime $"col" "%Y-%m-%d %H:%M:%S")
+// (to-datetime $col "%Y-%m-%d %H:%M:%S")
 pub fn to_datetime(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let format = if args.len() > 1 {
@@ -978,31 +978,31 @@ pub fn to_datetime(args: Vec<Expr>) -> Result<Expr, Error> {
     )))
 }
 
-// (dt-year $"date_col")
+// (dt-year $date_col)
 pub fn dt_year(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(col_expr.dt().year()))
 }
 
-// (dt-month $"date_col")
+// (dt-month $date_col)
 pub fn dt_month(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(col_expr.dt().month()))
 }
 
-// (dt-day $"date_col")
+// (dt-day $date_col)
 pub fn dt_day(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(col_expr.dt().day()))
 }
 
-// (dt-hour $"datetime_col")
+// (dt-hour $datetime_col)
 pub fn dt_hour(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(col_expr.dt().hour()))
 }
 
-// (dt-format $"date_col" "%B %d, %Y")
+// (dt-format $date_col "%B %d, %Y")
 pub fn dt_format(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let format = args[1].clone().expect_string()?;
@@ -1197,50 +1197,50 @@ pub fn parse_rolling_options(args: &[Expr]) -> Result<(polars::prelude::Expr, Ro
     Ok((expr, options))
 }
 
-// (rolling-mean $"col" 5) or (rolling-mean $"col" 5 1 :center)
+// (rolling-mean $col 5) or (rolling-mean $col 5 1 :center)
 pub fn rolling_mean(args: Vec<Expr>) -> Result<Expr, Error> {
     let (expr, opts) = parse_rolling_options(&args)?;
     Ok(new_polars_expr(expr.rolling_mean(opts)))
 }
 
-// (rolling-sum $"col" 5)
+// (rolling-sum $col 5)
 pub fn rolling_sum(args: Vec<Expr>) -> Result<Expr, Error> {
     let (expr, opts) = parse_rolling_options(&args)?;
     Ok(new_polars_expr(expr.rolling_sum(opts)))
 }
 
-// (rolling-min $"col" 5)
+// (rolling-min $col 5)
 pub fn rolling_min(args: Vec<Expr>) -> Result<Expr, Error> {
     let (expr, opts) = parse_rolling_options(&args)?;
     Ok(new_polars_expr(expr.rolling_min(opts)))
 }
 
-// (rolling-max $"col" 5)
+// (rolling-max $col 5)
 pub fn rolling_max(args: Vec<Expr>) -> Result<Expr, Error> {
     let (expr, opts) = parse_rolling_options(&args)?;
     Ok(new_polars_expr(expr.rolling_max(opts)))
 }
 
-// (rolling-std $"col" 5)
+// (rolling-std $col 5)
 pub fn rolling_std(args: Vec<Expr>) -> Result<Expr, Error> {
     let (expr, opts) = parse_rolling_options(&args)?;
     Ok(new_polars_expr(expr.rolling_std(opts)))
 }
 
-// (rolling-median $"col" 5)
+// (rolling-median $col 5)
 pub fn rolling_median(args: Vec<Expr>) -> Result<Expr, Error> {
     let (expr, opts) = parse_rolling_options(&args)?;
     Ok(new_polars_expr(expr.rolling_median(opts)))
 }
 
-// (str-split $"col" ",")
+// (str-split $col ",")
 pub fn str_split(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let pat_expr = args[1].clone().expect_polars_expr()?;
     Ok(new_polars_expr(col_expr.str().split(pat_expr)))
 }
 
-// (str-strip $"col" [chars])
+// (str-strip $col [chars])
 pub fn str_strip(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let expr = if args.len() > 1 {
@@ -1251,7 +1251,7 @@ pub fn str_strip(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(col_expr.str().strip_chars(expr)))
 }
 
-// (str-strip-start $"col" [chars])
+// (str-strip-start $col [chars])
 pub fn str_strip_start(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let expr = if args.len() > 1 {
@@ -1262,7 +1262,7 @@ pub fn str_strip_start(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(col_expr.str().strip_chars_start(expr)))
 }
 
-// (str-strip-end $"col" [chars])
+// (str-strip-end $col [chars])
 pub fn str_strip_end(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let expr = if args.len() > 1 {
@@ -1273,7 +1273,7 @@ pub fn str_strip_end(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(col_expr.str().strip_chars_end(expr)))
 }
 
-// (str-slice $"col" offset length)
+// (str-slice $col offset length)
 pub fn str_slice(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let offset = args[1].clone().expect_int()?;
@@ -1281,7 +1281,7 @@ pub fn str_slice(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(col_expr.str().slice(lit(offset), lit(length))))
 }
 
-// (str-extract-groups $"col" "([A-Z]+)-(\\d+)")
+// (str-extract-groups $col "([A-Z]+)-(\\d+)")
 pub fn str_extract_groups(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let pat = args[1].clone().expect_string()?;
@@ -1338,7 +1338,7 @@ pub fn collect_(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(nil())
 }
 
-// (var $"col") or (var $"col" 1)
+// (var $col) or (var $col 1)
 pub fn variance(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let ddof = if args.len() > 1 {
@@ -1349,7 +1349,7 @@ pub fn variance(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(expr.var(ddof)))
 }
 
-// (quantile $"col" 0.5) or (quantile $"col" 0.5 :linear)
+// (quantile $col 0.5) or (quantile $col 0.5 :linear)
 pub fn quantile(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let q = args[1].clone().expect_number()?.to_float();
@@ -1369,7 +1369,7 @@ pub fn quantile(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(expr.quantile(polars::prelude::lit(q), method)))
 }
 
-// (cov $"col_a" $"col_b") or (cov $"col_a" $"col_b" 1)
+// (cov $col_a $col_b) or (cov $col_a $col_b 1)
 pub fn cov_(args: Vec<Expr>) -> Result<Expr, Error> {
     let a = args[0].clone().expect_polars_expr()?;
     let b = args[1].clone().expect_polars_expr()?;
@@ -1382,7 +1382,7 @@ pub fn cov_(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(polars::lazy::dsl::cov(a, b, ddof)))
 }
 
-// (corr $"col_a" $"col_b")
+// (corr $col_a $col_b)
 pub fn corr(args: Vec<Expr>) -> Result<Expr, Error> {
     let a = args[0].clone().expect_polars_expr()?;
     let b = args[1].clone().expect_polars_expr()?;

@@ -75,7 +75,11 @@ pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Result<Expr, Error> {
         Ok(Expr { value: ExprValue::String(inner.to_string()), line: Some(line) })
     } else if token.0 == "$" {
         let first = Expr { value: ExprValue::Symbol(String::from("col")), line: Some(line) };
-        let second = parse1(tokens)?;
+        let mut second = parse1(tokens)?;
+        match second.value {
+            ExprValue::Symbol(symbol) => { second.value = ExprValue::String(symbol) }
+            _ => {}
+        }
         Ok(Expr { value: ExprValue::List(vec![first, second]), line: Some(line) })
     } else if token.0 == "'" {
         let first = Expr { value: ExprValue::Symbol(String::from("quote")), line: Some(line) };

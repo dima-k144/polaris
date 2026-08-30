@@ -10,8 +10,8 @@ mod tests {
         let code = r#"
 -> (read-csv "data1.csv")
     filter 
-        > $"age" 24
-    select $"name" $"city"
+        > $age 24
+    select $name $city
 "#;
         let env = std_env();
         let mut state = State { line: 0, file: None };
@@ -38,8 +38,8 @@ define df
 
 -> df
     filter 
-        > $"age" 24
-    select $"name" $"city"
+        > $age 24
+    select $name $city
 "#;
         let env = std_env();
         let mut state = State { line: 0, file: None };
@@ -63,9 +63,9 @@ define df
     fn test_wisp_colon_chaining_and_with_column() {
         let code = r#"
 -> (read-csv "data1.csv")
-    with-column $"age_months" 
-        * $"age" 12
-    sort $"age_months" :desc
+    with-column $age_months 
+        * $age 12
+    sort $age_months :desc
 "#;
         let env = std_env();
         let mut state = State { line: 0, file: None };
@@ -90,8 +90,8 @@ define df
         let code = r#"
 define d1 (read-csv "data1.csv")
 define d2 (read-csv "data2.csv")
--> (join d1 d2 $"id" $"id")
-    select $"name" $"department" $"salary"
+-> (join d1 d2 $id $id)
+    select $name $department $salary
 "#;
         let env = std_env();
         let mut state = State { line: 0, file: None };
@@ -118,8 +118,8 @@ define d2 (read-csv "data2.csv")
         let code = r#"
 -> 
     read-csv "data2.csv"
-    group-by $"department"
-        alias (mean $"salary") "avg_salary"
+    group-by $department
+        alias (mean $salary) "avg_salary"
         alias (count) "count"
 "#;
         let env = std_env();
@@ -147,8 +147,8 @@ define d2 (read-csv "data2.csv")
     fn test_wisp_polars_over_window() {
         let code = r#"
 -> (read-csv "data2.csv")
-    with-column $"dept_avg" 
-        over (mean $"salary") $"department"
+    with-column $dept_avg 
+        over (mean $salary) $department
 "#;
         let env = std_env();
         let mut state = State { line: 0, file: None };
@@ -169,11 +169,11 @@ define d2 (read-csv "data2.csv")
     fn test_wisp_polars_fill_null_and_when() {
         let code = r#"
 defun is_senior ()
-    when (>= $"age" 25) "Senior" "Junior"
+    when (>= $age 25) "Senior" "Junior"
 
 -> (read-csv "data3.csv")
-    with-column $"city" (fill-null $"city" "Unknown")
-    with-column $"is_senior" (is_senior)
+    with-column $city (fill-null $city "Unknown")
+    with-column $is_senior (is_senior)
     "#;
         let env = std_env();
         let mut state = State { line: 0, file: None };
@@ -200,9 +200,9 @@ defun is_senior ()
     fn test_wisp_filter_and_sort_descending() {
         let code = r#"
 -> (read-csv "data1.csv")
-    filter : > $"age" 23
-    sort $"age" :desc
-    select $"name" $"age"
+    filter : > $age 23
+    sort $age :desc
+    select $name $age
 "#;
         let env = std_env();
         let mut state = State { line: 0, file: None };
@@ -226,9 +226,9 @@ defun is_senior ()
     fn test_wisp_with_computed_column() {
         let code = r#"
 -> (read-csv "data1.csv")
-    filter : = $"city" "London"
-    with-column $"age_next_year" : + $"age" 1
-    select $"name" $"age_next_year"
+    filter : = $city "London"
+    with-column $age_next_year : + $age 1
+    select $name $age_next_year
 "#;
         let env = std_env();
         let mut state = State { line: 0, file: None };
@@ -252,10 +252,10 @@ defun is_senior ()
     fn test_wisp_string_manipulation() {
         let code = r#"
 -> (read-csv "data1.csv")
-    filter : str-contains $"name" "^[A-C]"
-    with-column $"city_mod" : str-replace $"city" "on$" "on-City"
-    select $"name" $"city_mod"
-    sort $"name"
+    filter : str-contains $name "^[A-C]"
+    with-column $city_mod : str-replace $city "on$" "on-City"
+    select $name $city_mod
+    sort $name
     "#;
         let env = std_env();
         let mut state = State { line: 0, file: None };
@@ -280,7 +280,7 @@ defun is_senior ()
         let code = r#"
 scalar
     -> (read-csv "data1.csv")
-        agg : sum $"age"
+        agg : sum $age
 "#;
         let env = std_env();
         let mut state = State { line: 0, file: None };
@@ -298,10 +298,10 @@ scalar
     fn test_wisp_conditional_when() {
         let code = r#"
 -> (read-csv "data1.csv")
-    with-column $"category"
-        when (> $"age" 27) "Senior" "Junior"
-    sort $"id"
-    select $"name" $"category"
+    with-column $category
+        when (> $age 27) "Senior" "Junior"
+    sort $id
+    select $name $category
 "#;
         let env = std_env();
         let mut state = State { line: 0, file: None };
@@ -323,9 +323,9 @@ scalar
     fn test_wisp_complex_filter_logical_or() {
         let code = r#"
 -> (read-csv "data1.csv")
-    filter : or (> $"age" 28) (= $"city" "London")
-    sort $"id"
-    select $"name" $"city"
+    filter : or (> $age 28) (= $city "London")
+    sort $id
+    select $name $city
     "#;
         let env = std_env();
         let mut state = State { line: 0, file: None };
@@ -351,10 +351,10 @@ scalar
 -> (read-csv "data1.csv")
     filter 
         or 
-            > $"age" 28
-            = $"city" "London"
-    sort $"id"
-    select $"name" $"city"
+            > $age 28
+            = $city "London"
+    sort $id
+    select $name $city
     "#;
         let env = std_env();
         let mut state = State { line: 0, file: None };
@@ -378,9 +378,9 @@ scalar
     fn test_wisp_slice_pagination() {
         let code = r#"
 -> (read-csv "data1.csv")
-    sort $"age"
+    sort $age
     slice 1 3
-    select $"name" $"age"
+    select $name $age
     "#;
         let env = std_env();
         let mut state = State { line: 0, file: None };
@@ -404,10 +404,10 @@ scalar
     fn test_wisp_regex_extract() {
         let code = r#"
 -> (read-csv "data1.csv")
-    with-column $"code" 
-        str-extract $"city" "^([A-Za-z]{3})" 1
-    sort $"id"
-    select $"name" $"code"
+    with-column $code 
+        str-extract $city "^([A-Za-z]{3})" 1
+    sort $id
+    select $name $code
     "#;
         let env = std_env();
         let mut state = State { line: 0, file: None };
@@ -431,9 +431,9 @@ scalar
     fn test_wisp_cumulative_sum() {
         let code = r#"
 -> (read-csv "data1.csv")
-    sort $"id"
-    with-column $"running_age" : cum-sum $"age"
-    select $"name" $"running_age"
+    sort $id
+    with-column $running_age : cum-sum $age
+    select $name $running_age
     "#;
         let env = std_env();
         let mut state = State { line: 0, file: None };
@@ -457,10 +457,10 @@ scalar
     fn test_wisp_cumulative_sum2() {
         let code = r#"
 -> (read-csv "data1.csv")
-    sort $"id"
-    with-column $"running_age" 
-        cum-sum $"age"
-    select $"name" $"running_age"
+    sort $id
+    with-column $running_age 
+        cum-sum $age
+    select $name $running_age
 "#;
         let env = std_env();
         let mut state = State { line: 0, file: None };
@@ -484,9 +484,9 @@ scalar
     fn test_wisp_cast_and_arithmetic() {
         let code = r#"
 -> (read-csv "data1.csv")
-    filter : = $"id" 1
-    with-column $"half_age" : / (cast $"age" :float) 2.0
-    select $"name" $"half_age"
+    filter : = $id 1
+    with-column $half_age : / (cast $age :float) 2.0
+    select $name $half_age
     "#;
         let env = std_env();
         let mut state = State { line: 0, file: None };
@@ -510,10 +510,10 @@ scalar
     fn test_wisp_cast_and_arithmetic2() {
         let code = r#"
 -> (read-csv "data1.csv")
-    filter : = $"id" 1
-    with-column $"half_age" 
-        / (cast $"age" :float) 2.0
-    select $"name" $"half_age"
+    filter : = $id 1
+    with-column $half_age 
+        / (cast $age :float) 2.0
+    select $name $half_age
     "#;
         let env = std_env();
         let mut state = State { line: 0, file: None };
@@ -537,12 +537,12 @@ scalar
     fn test_wisp_cast_and_arithmetic3() {
         let code = r#"
 -> (read-csv "data1.csv")
-    filter : = $"id" 1
-    with-column $"half_age" 
+    filter : = $id 1
+    with-column $half_age 
         /
-            cast $"age" :float
+            cast $age :float
             . 2.0
-    select $"name" $"half_age"
+    select $name $half_age
     "#;
         let env = std_env();
         let mut state = State { line: 0, file: None };
