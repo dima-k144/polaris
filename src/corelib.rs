@@ -231,3 +231,109 @@ pub fn is_empty(args: Vec<Expr>) -> Result<Expr, Error> {
     let list = args[0].clone().expect_list()?;
     Ok(new_bool(list.is_empty()))
 }
+
+// (to-str val) -> converts number, symbol, bool, nil, or list to String
+pub fn to_str(args: Vec<Expr>) -> Result<Expr, Error> {
+    let arg = &args[0];
+    let s = match &arg.value {
+        ExprValue::String(s) => s.clone(),
+        ExprValue::Symbol(s) => s.clone(),
+        ExprValue::Int(i) => i.to_string(),
+        ExprValue::Float(f) => f.to_string(),
+        ExprValue::Bool(b) => b.to_string(),
+        ExprValue::Nil => "nil".to_string(),
+        ExprValue::List(_) => format!("{}", arg),
+        _ => return Err(Error::WrongType {
+            expected: "convertible value to string".into(),
+            got: arg.clone(),
+        }),
+    };
+    Ok(new_string(s))
+}
+
+// (to-int val) -> converts float, int, or parseable string/bool to Int
+pub fn to_int(args: Vec<Expr>) -> Result<Expr, Error> {
+    let arg = &args[0];
+    match &arg.value {
+        ExprValue::Int(i) => Ok(new_int(*i)),
+        ExprValue::Float(f) => Ok(new_int(*f as i64)),
+        ExprValue::Bool(b) => Ok(new_int(if *b { 1 } else { 0 })),
+        ExprValue::String(s) => {
+            s.parse::<i64>()
+                .map(new_int)
+                .map_err(|_| Error::FailedToParseNumber { number: s.clone() })
+        }
+        _ => Err(Error::WrongType {
+            expected: "convertible value to int".into(),
+            got: arg.clone(),
+        }),
+    }
+}
+
+// (to-float val) -> converts int, float, or parseable string to Float
+pub fn to_float(args: Vec<Expr>) -> Result<Expr, Error> {
+    let arg = &args[0];
+    match &arg.value {
+        ExprValue::Float(f) => Ok(new_float(*f)),
+        ExprValue::Int(i) => Ok(new_float(*i as f64)),
+        ExprValue::Bool(b) => Ok(new_float(if *b { 1.0 } else { 0.0 })),
+        ExprValue::String(s) => {
+            s.parse::<f64>()
+                .map(new_float)
+                .map_err(|_| Error::FailedToParseNumber { number: s.clone() })
+        }
+        _ => Err(Error::WrongType {
+            expected: "convertible value to float".into(),
+            got: arg.clone(),
+        }),
+    }
+}
+
+// (to-symbol val) -> converts string or symbol to Symbol
+pub fn to_symbol(args: Vec<Expr>) -> Result<Expr, Error> {
+    let arg = &args[0];
+    match &arg.value {
+        ExprValue::Symbol(s) | ExprValue::String(s) => Ok(new_symbol(s.clone())),
+        _ => Err(Error::WrongType {
+            expected: "string or symbol".into(),
+            got: arg.clone(),
+        }),
+    }
+}
+
+// (to-bool val) -> converts value to Bool (nil & false -> false; 0 -> false; others -> true)
+pub fn to_bool(args: Vec<Expr>) -> Result<Expr, Error> {
+    let arg = &args[0];
+    match &arg.value {
+        ExprValue::Bool(b) => Ok(new_bool(*b)),
+        ExprValue::Nil => Ok(new_bool(false)),
+        ExprValue::Int(i) => Ok(new_bool(*i != 0)),
+        ExprValue::Float(f) => Ok(new_bool(*f != 0.0)),
+        ExprValue::String(s) => Ok(new_bool(!s.is_empty())),
+        ExprValue::List(l) => Ok(new_bool(!l.is_empty())),
+        _ => Ok(new_bool(true)),
+    }
+}
+
+// (to-list val) -> converts a string (into chars) or wraps a single element in a list
+pub fn to_list(args: Vec<Expr>) -> Result<Expr, Error> {
+    let arg = &args[0];
+    match &arg.value {
+        ExprValue::List(_) => Ok(arg.clone()),
+        ExprValue::String(s) => {
+            let chars = s
+                .chars()
+                .map(|c| new_string(c.to_string()))
+                .collect::<Vec<Expr>>();
+            Ok(new_list(chars))
+        }
+        ExprValue::Nil => Ok(new_list(vec![])),
+        _ => Ok(new_list(vec![arg.clone()])),
+    }
+}
+
+// (type-of val) -> returns the type name as a string (e.g., "int", "float", "string", "symbol", "list", "bool", "nil")
+pub fn type_of(args: Vec<Expr>) -> Result<Expr, Error> {
+    let type_name = args[0].clone().type_to_str();
+    Ok(new_string(type_name.to_string()))
+}

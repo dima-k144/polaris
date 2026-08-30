@@ -44,6 +44,7 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     // Native Functions: (defines, name, function_pointer, min_args, max_args)
     insert_native_function(&mut defines, "print", print, 0, u8::MAX);
     insert_native_function(&mut defines, "shell", shell, 1, u8::MAX);
+    insert_native_function(&mut defines, "type-of", crate::corelib::type_of, 1, 1);
 
     // Native List Functions
     insert_native_function(&mut defines, "list", list, 0, u8::MAX);
@@ -57,6 +58,15 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "append", crate::corelib::append, 1, u8::MAX);
     insert_native_function(&mut defines, "reverse", crate::corelib::reverse, 1, 1);
     insert_native_function(&mut defines, "empty?", crate::corelib::is_empty, 1, 1);
+
+    // Native Conversion Functions
+    insert_native_function(&mut defines, "to-str", crate::corelib::to_str, 1, 1);
+    insert_native_function(&mut defines, "to-string", crate::corelib::to_str, 1, 1);
+    insert_native_function(&mut defines, "to-int", crate::corelib::to_int, 1, 1);
+    insert_native_function(&mut defines, "to-float", crate::corelib::to_float, 1, 1);
+    insert_native_function(&mut defines, "to-symbol", crate::corelib::to_symbol, 1, 1);
+    insert_native_function(&mut defines, "to-bool", crate::corelib::to_bool, 1, 1);
+    insert_native_function(&mut defines, "to-list", crate::corelib::to_list, 1, 1);
 
     // Arithmetic
     insert_native_function(&mut defines, "+", plus, 1, u8::MAX);

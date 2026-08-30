@@ -682,4 +682,137 @@ mod tests {
             true
         );
     }
+
+    #[test]
+    fn test_core_type_conversions() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // to-str
+        assert_eq!(
+            eval_string("(to-str 42)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_string()
+                .unwrap(),
+            "42"
+        );
+        assert_eq!(
+            eval_string("(to-str true)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_string()
+                .unwrap(),
+            "true"
+        );
+
+        // to-int & to-float
+        assert_eq!(
+            eval_string(r#"(to-int "123")"#.to_string(), &env, &mut state)
+                .unwrap()
+                .expect_int()
+                .unwrap(),
+            123
+        );
+        assert_eq!(
+            eval_string("(to-int 4.9)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_int()
+                .unwrap(),
+            4
+        );
+        assert_eq!(
+            eval_string(r#"(to-float "3.14")"#.to_string(), &env, &mut state)
+                .unwrap()
+                .expect_float()
+                .unwrap(),
+            3.14
+        );
+
+        // to-bool
+        assert_eq!(
+            eval_string("(to-bool 0)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            false
+        );
+        assert_eq!(
+            eval_string("(to-bool nil)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            false
+        );
+        assert_eq!(
+            eval_string(r#"(to-bool "hello")"#.to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            true
+        );
+
+        // to-list
+        let list_res = eval_string(r#"(to-list "ab")"#.to_string(), &env, &mut state)
+            .unwrap()
+            .expect_list()
+            .unwrap();
+        assert_eq!(list_res.len(), 2);
+        assert_eq!(list_res[0].clone().expect_string().unwrap(), "a");
+        assert_eq!(list_res[1].clone().expect_string().unwrap(), "b");
+    }
+
+    #[test]
+    fn test_core_type_of() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        assert_eq!(
+            eval_string("(type-of 42)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_string()
+                .unwrap(),
+            "int"
+        );
+        assert_eq!(
+            eval_string("(type-of 3.14)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_string()
+                .unwrap(),
+            "float"
+        );
+        assert_eq!(
+            eval_string(r#"(type-of "hello")"#.to_string(), &env, &mut state)
+                .unwrap()
+                .expect_string()
+                .unwrap(),
+            "string"
+        );
+        assert_eq!(
+            eval_string("(type-of 'foo)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_string()
+                .unwrap(),
+            "symbol"
+        );
+        assert_eq!(
+            eval_string("(type-of '(1 2 3))".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_string()
+                .unwrap(),
+            "list"
+        );
+        assert_eq!(
+            eval_string("(type-of true)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_string()
+                .unwrap(),
+            "bool"
+        );
+        assert_eq!(
+            eval_string("(type-of nil)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_string()
+                .unwrap(),
+            "nil"
+        );
+    }
 }
