@@ -613,4 +613,73 @@ mod tests {
 
         assert_eq!(res.trim(), "hello world");
     }
+
+    #[test]
+    fn test_core_list_operations() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // car / first
+        assert_eq!(
+            eval_string("(first '(1 2 3))".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_int()
+                .unwrap(),
+            1
+        );
+
+        // cons
+        assert_eq!(
+            eval_string("(first (cons 99 '(1 2)))".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_int()
+                .unwrap(),
+            99
+        );
+
+        // cdr / rest
+        assert_eq!(
+            eval_string("(first (rest '(1 2 3)))".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_int()
+                .unwrap(),
+            2
+        );
+
+        // len
+        assert_eq!(
+            eval_string("(len '(10 20 30 40))".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_int()
+                .unwrap(),
+            4
+        );
+
+        // nth
+        assert_eq!(
+            eval_string("(nth '(10 20 30) 2)".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_int()
+                .unwrap(),
+            30
+        );
+
+        // reverse
+        assert_eq!(
+            eval_string("(first (reverse '(1 2 3)))".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_int()
+                .unwrap(),
+            3
+        );
+
+        // empty?
+        assert_eq!(
+            eval_string("(empty? '())".to_string(), &env, &mut state)
+                .unwrap()
+                .expect_bool()
+                .unwrap(),
+            true
+        );
+    }
 }

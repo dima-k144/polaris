@@ -43,8 +43,20 @@ pub fn std_env() -> Rc<RefCell<Env>> {
 
     // Native Functions: (defines, name, function_pointer, min_args, max_args)
     insert_native_function(&mut defines, "print", print, 0, u8::MAX);
-    insert_native_function(&mut defines, "list", list, 0, u8::MAX);
     insert_native_function(&mut defines, "shell", shell, 1, u8::MAX);
+
+    // Native List Functions
+    insert_native_function(&mut defines, "list", list, 0, u8::MAX);
+    insert_native_function(&mut defines, "car", crate::corelib::car, 1, 1);
+    insert_native_function(&mut defines, "first", crate::corelib::car, 1, 1);
+    insert_native_function(&mut defines, "cdr", crate::corelib::cdr, 1, 1);
+    insert_native_function(&mut defines, "rest", crate::corelib::cdr, 1, 1);
+    insert_native_function(&mut defines, "cons", crate::corelib::cons, 2, 2);
+    insert_native_function(&mut defines, "len", crate::corelib::length, 1, 1);
+    insert_native_function(&mut defines, "nth", crate::corelib::nth, 2, 2);
+    insert_native_function(&mut defines, "append", crate::corelib::append, 1, u8::MAX);
+    insert_native_function(&mut defines, "reverse", crate::corelib::reverse, 1, 1);
+    insert_native_function(&mut defines, "empty?", crate::corelib::is_empty, 1, 1);
 
     // Arithmetic
     insert_native_function(&mut defines, "+", plus, 1, u8::MAX);

@@ -158,3 +158,76 @@ pub fn shell(args: Vec<Expr>) -> Result<Expr, Error> {
         Ok(new_string(stderr.to_string()))
     }
 }
+
+// (car list) or (first list) -> returns first element
+pub fn car(args: Vec<Expr>) -> Result<Expr, Error> {
+    let list = args[0].clone().expect_list()?;
+    if list.is_empty() {
+        Ok(nil())
+    } else {
+        Ok(list[0].clone())
+    }
+}
+
+// (cdr list) or (rest list) -> returns elements after the first
+pub fn cdr(args: Vec<Expr>) -> Result<Expr, Error> {
+    let list = args[0].clone().expect_list()?;
+    if list.is_empty() {
+        Ok(new_list(vec![]))
+    } else {
+        Ok(new_list(list[1..].to_vec()))
+    }
+}
+
+// (cons elem list) -> prepends elem to list
+pub fn cons(args: Vec<Expr>) -> Result<Expr, Error> {
+    let elem = args[0].clone();
+    let mut list = args[1].clone().expect_list()?;
+    list.insert(0, elem);
+    Ok(new_list(list))
+}
+
+// (length list) -> returns number of elements
+pub fn length(args: Vec<Expr>) -> Result<Expr, Error> {
+    let list = args[0].clone().expect_list()?;
+    Ok(new_int(list.len() as i64))
+}
+
+// (nth list idx) -> returns item at 0-based index
+pub fn nth(args: Vec<Expr>) -> Result<Expr, Error> {
+    let list = args[0].clone().expect_list()?;
+    let idx = args[1].clone().expect_int()?;
+
+    if idx < 0 || idx as usize >= list.len() {
+        return Err(Error::Custom(format!(
+            "Index {} out of bounds for list of length {}",
+            idx,
+            list.len()
+        )));
+    }
+
+    Ok(list[idx as usize].clone())
+}
+
+// (append list1 list2 ...) -> concatenates lists
+pub fn append(args: Vec<Expr>) -> Result<Expr, Error> {
+    let mut combined = Vec::new();
+    for arg in args {
+        let items = arg.expect_list()?;
+        combined.extend(items);
+    }
+    Ok(new_list(combined))
+}
+
+// (reverse list) -> reverses list
+pub fn reverse(args: Vec<Expr>) -> Result<Expr, Error> {
+    let mut list = args[0].clone().expect_list()?;
+    list.reverse();
+    Ok(new_list(list))
+}
+
+// (empty? list) -> returns boolean
+pub fn is_empty(args: Vec<Expr>) -> Result<Expr, Error> {
+    let list = args[0].clone().expect_list()?;
+    Ok(new_bool(list.is_empty()))
+}
