@@ -48,7 +48,10 @@ pub fn format_error_message(error: &Error) -> String {
         Error::ScalarUnsupportedError { name } => format!("Error: unsupported scalar conversion from type '{name}'"),
         Error::MissingRequiredKWArg { name } => format!("Error: missing required keyword argument '{name}'"),
         Error::Custom(message) => format!("Error: {message}"),
-        Error::PolarsError(perror) => format!("Error: {}", perror)
+        Error::PolarsError(perror) => format!("Error: {}", perror),
+        Error::MixedWithinLine(line) => format!("Error: both tabs and spaces on the same line, on line {}", line),
+        Error::MixedAcrossFile(line) => format!("Error: inconsistent style compared to previous lines, on line {}", line),
+        Error::AmbiguousSpaces(line) => format!("Error: spaces found, but not a multiple of 2 or 4, on line {}", line),
     }
 }
 

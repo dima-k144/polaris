@@ -410,8 +410,8 @@ mod tests {
 
         let code = r#"
             (agg (read-csv "data1.csv") 
-                 (alias (sum $age) "total_age") 
-                 (alias (mean $age) "mean_age"))
+                (alias (sum $age) "total_age") 
+                (alias (mean $age) "mean_age"))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -816,10 +816,10 @@ mod tests {
 
         let code = r#"
             (agg (read-csv "data1.csv")
-                 (alias (min $age) "min_age")
-                 (alias (max $age) "max_age")
-                 (alias (count $age) "count_age")
-                 (alias (n-unique $city) "unique_cities"))
+                (alias (min $age) "min_age")
+                (alias (max $age) "max_age")
+                (alias (count $age) "count_age")
+                (alias (n-unique $city) "unique_cities"))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -2069,7 +2069,7 @@ mod tests {
         // Extract named capture groups from SKU: env, code, and region
         let code = r#"
             (with-column (read-csv "data4.csv") $sku_info 
-                         (str-extract-groups $sku "^(?<env>[A-Z]+)-(?<code>[0-9]+)-(?<region>[A-Z]+)$"))
+                        (str-extract-groups $sku "^(?<env>[A-Z]+)-(?<code>[0-9]+)-(?<region>[A-Z]+)$"))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -2574,8 +2574,8 @@ mod tests {
 
         let code = r#"
             (with-column (read-csv "data1.csv")
-                         $age_in_months (* $age 12)
-                         $is_over_25 (> $age 25))
+                        $age_in_months (* $age 12)
+                        $is_over_25 (> $age 25))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -2605,9 +2605,9 @@ mod tests {
         // Test that later column assignments can reference previously created columns in the same call
         let code = r#"
             (with-column (read-csv "data1.csv")
-                         $age_plus_10 (+ $age 10)
-                         $double_new_age (* $age_plus_10 2)
-                         $is_senior (>= $double_new_age 80))
+                        $age_plus_10 (+ $age 10)
+                        $double_new_age (* $age_plus_10 2)
+                        $is_senior (>= $double_new_age 80))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -2638,7 +2638,7 @@ mod tests {
         let code = r#"
             (-> (read-csv "data1.csv")
                 (with-column $status (when (>= $age 30) "Senior" "Junior")
-                             $is_paris (= $city "Paris"))
+                            $is_paris (= $city "Paris"))
                 (filter $is_paris)
                 (select $name $status))
         "#.to_string();
@@ -2679,9 +2679,9 @@ mod tests {
 
         let code = r#"
             (with-column (read-csv "data1.csv") $tier 
-                         (when (> $age 30) "Senior" 
-                               (> $age 25) "Mid" 
-                               :default "Junior"))
+                        (when (> $age 30) "Senior" 
+                                (> $age 25) "Mid" 
+                                :default "Junior"))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -2709,8 +2709,8 @@ mod tests {
 
         let code = r#"
             (with-column (read-csv "data1.csv") $status 
-                         (when (>= $age 35) "Veteran" 
-                               (< $age 25) "Youth"))
+                        (when (>= $age 35) "Veteran" 
+                            (< $age 25) "Youth"))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -2738,10 +2738,10 @@ mod tests {
 
         let code = r#"
             (with-column (read-csv "data1.csv") $country 
-                         (when (= $city "London") "UK" 
-                               (= $city "Paris") "FR" 
-                               (= $city "Berlin") "DE" 
-                               :default "OTHER"))
+                        (when (= $city "London") "UK" 
+                                (= $city "Paris") "FR" 
+                                (= $city "Berlin") "DE" 
+                                :default "OTHER"))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -2770,8 +2770,8 @@ mod tests {
         let code = r#"
             (-> (read-csv "data1.csv")
                 (with-column $tier (when (> $age 30) "Senior"
-                                         (> $age 25) "Mid"
-                                         :default "Junior"))
+                                        (> $age 25) "Mid"
+                                        :default "Junior"))
                 (filter (= $tier "Mid"))
                 (select $name $tier))
         "#.to_string();

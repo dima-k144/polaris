@@ -314,6 +314,9 @@ pub enum Error {
     MissingRequiredKWArg{
         name: String
     },
+    MixedWithinLine(usize),      // Both tabs and spaces on the same line (Line #)
+    MixedAcrossFile(usize),      // Inconsistent style compared to previous lines (Line #)
+    AmbiguousSpaces(usize),      // Spaces found, but not a multiple of 2 or 4 (Line #)
     Custom(String),
     PolarsError(polars::prelude::PolarsError)
 }
