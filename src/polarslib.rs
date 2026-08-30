@@ -12,11 +12,17 @@ use crate::corelib::*;
 use polars::prelude::QuantileMethod;
 
 pub fn new_polars_expr(value: polars::prelude::Expr) -> Expr {
-    Expr { value: ExprValue::PolarsExpr(value), line: None }
+    Expr {
+        value: ExprValue::PolarsExpr(Box::new(value)),
+        line: None,
+    }
 }
 
 pub fn new_lazy_frame(value: LazyFrame) -> Expr {
-    Expr { value: ExprValue::LazyFrame(value), line: None }
+    Expr {
+        value: ExprValue::LazyFrame(Box::new(value)),
+        line: None,
+    }
 }
 
 // --- Addition / Column Addition ---
@@ -901,10 +907,17 @@ pub fn drop_nulls(args: Vec<Expr>) -> Result<Expr, Error> {
                     col_names.push(s.clone());
                     Ok(())
                 }
-                ExprValue::PolarsExpr(polars::prelude::Expr::Column(name)) => {
-                    col_names.push(name.to_string());
-                    Ok(())
-                }
+                // Dereference or match through the Box:
+                ExprValue::PolarsExpr(boxed_expr) => match boxed_expr.as_ref() {
+                    polars::prelude::Expr::Column(name) => {
+                        col_names.push(name.to_string());
+                        Ok(())
+                    }
+                    _ => Err(Error::WrongType {
+                        expected: String::from("column name or $col"),
+                        got: expr.clone(),
+                    }),
+                },
                 other => Err(Error::WrongType {
                     expected: String::from("column name or $col"),
                     got: expr.clone(),
@@ -1153,10 +1166,16 @@ pub fn dt_format(args: Vec<Expr>) -> Result<Expr, Error> {
 
 // Helper to extract a column name string from String, Symbol, or $col Expr
 pub fn extract_col_name(expr: &Expr) -> Result<String, Error> {
-    match expr.value.clone() {
+    match &expr.value {
         ExprValue::String(s) | ExprValue::Symbol(s) => Ok(s.clone()),
-        ExprValue::PolarsExpr(polars::prelude::Expr::Column(name)) => Ok(name.to_string()),
-        other => Err(Error::WrongType {
+        ExprValue::PolarsExpr(boxed_expr) => match boxed_expr.as_ref() {
+            polars::prelude::Expr::Column(name) => Ok(name.to_string()),
+            _ => Err(Error::WrongType {
+                expected: String::from("column name or $col"),
+                got: expr.clone(),
+            }),
+        },
+        _ => Err(Error::WrongType {
             expected: String::from("column name or $col"),
             got: expr.clone(),
         }),
@@ -1258,7 +1277,7 @@ pub fn concat_(args: Vec<Expr>) -> Result<Expr, Error> {
 
     for item in items {
         match item.value.clone() {
-            ExprValue::LazyFrame(lf) => frames.push(lf.clone()),
+            ExprValue::LazyFrame(lf) => frames.push((*lf).clone()),
             ExprValue::Symbol(s) if s.starts_with(':') => how_str = Some(s.clone()),
             _ => {
                 if let Ok(lf) = item.clone().expect_lazy_frame() {

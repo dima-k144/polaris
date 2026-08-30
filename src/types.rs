@@ -2,12 +2,27 @@ use std::collections::HashMap;
 use std::fmt;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::ptr;
 use polars::prelude::*;
 
 #[derive(Clone)]
 pub struct Expr {
     pub value: ExprValue,
     pub line: Option<usize>
+}
+
+#[derive(Clone, PartialEq)]
+pub struct UserFunctionData {
+    pub body: Vec<Expr>,
+    pub params: Vec<String>,
+    pub name: Option<String>,
+}
+
+#[derive(Clone)]
+pub struct NativeFunctionData {
+    pub body: fn(Vec<Expr>) -> Result<Expr, Error>,
+    pub min_args: u8,
+    pub max_args: u8,
 }
 
 #[derive(Clone)]
@@ -19,10 +34,10 @@ pub enum ExprValue {
     List(Vec<Expr>),
     Bool(bool),
     Nil,
-    NativeFunction{ body: fn(Vec<Expr>) -> Result<Expr, Error>, min_args: u8, max_args: u8},
-    UserFunction{ body: Vec<Expr>, params: Vec<String>, name: Option<String> },
-    LazyFrame(LazyFrame),
-    PolarsExpr(polars::prelude::Expr),
+    NativeFunction(Box<NativeFunctionData>),
+    UserFunction(Box<UserFunctionData>),
+    LazyFrame(Box<LazyFrame>),
+    PolarsExpr(Box<polars::prelude::Expr>),
 }
 
 pub enum Number {
@@ -112,7 +127,7 @@ impl Expr {
     pub fn expect_lazy_frame(self) -> Result<LazyFrame, Error> {
         let Expr { value, line } = self;
         match value {
-            ExprValue::LazyFrame(lf) => Ok(lf),
+            ExprValue::LazyFrame(lf) => Ok(*lf),
             other => Err(Error::WrongType {
                 expected: String::from("lazy frame"),
                 got: Expr { value: other, line },
@@ -123,7 +138,7 @@ impl Expr {
     pub fn expect_polars_expr(self) -> Result<polars::prelude::Expr, Error> {
         let Expr { value, line } = self;
         match value {
-            ExprValue::PolarsExpr(pe) => Ok(pe),
+            ExprValue::PolarsExpr(pe) => Ok(*pe),
             ExprValue::Int(i) => Ok(polars::prelude::lit(i)),
             ExprValue::Float(f) => Ok(polars::prelude::lit(f)),
             ExprValue::String(str) => Ok(polars::prelude::lit(str)),
@@ -143,8 +158,8 @@ impl Expr {
             ExprValue::List(_) => "list",
             ExprValue::Bool(_) => "bool",
             ExprValue::Nil => "nil",
-            ExprValue::NativeFunction { body, min_args, max_args } => "native function",
-            ExprValue::UserFunction { body, params, name } => "user function",
+            ExprValue::NativeFunction(data) => "native function",
+            ExprValue::UserFunction(data) => "user function",
             ExprValue::LazyFrame(_) => "lazy frame",
             ExprValue::PolarsExpr(_) => "polars expr",
         }
@@ -210,9 +225,9 @@ impl fmt::Display for ExprValue {
             ExprValue::Nil => {
                 write!(f, "nil")
             },
-            ExprValue::NativeFunction{ body, min_args, max_args } => write!(f, "<NativeFunction>"),
-            ExprValue::UserFunction { body, params, name } => {
-                match name {
+            ExprValue::NativeFunction(data) => write!(f, "<NativeFunction>"),
+            ExprValue::UserFunction(data) => {
+                match data.name.clone() {
                     Some(name) => write!(f, "<{name}>"),
                     None => write!(f, "<lambda>"),
                 }
@@ -242,8 +257,8 @@ impl fmt::Debug for ExprValue {
             ExprValue::List(items) => f.debug_tuple("List").field(items).finish(),
             ExprValue::Bool(b) => f.debug_tuple("Bool").field(b).finish(),
             ExprValue::Nil => f.write_str("Nil"),
-            ExprValue::NativeFunction{ body, min_args, max_args } => { f.write_str("NativeFunction") },
-            ExprValue::UserFunction { body, params, name } => { f.write_str("UserFunction") },
+            ExprValue::NativeFunction(data) => { f.write_str("NativeFunction") },
+            ExprValue::UserFunction(data) => { f.write_str("UserFunction") },
             ExprValue::LazyFrame(_) => { f.write_str("LazyFrame") },
             ExprValue::PolarsExpr(_) => { f.write_str("PolarsExpr") },
         }
@@ -309,48 +324,54 @@ impl PartialEq for Expr {
     }
 }
 
+impl PartialEq for NativeFunctionData {
+    fn eq(&self, other: &Self) -> bool {
+        // Compare function pointers as raw pointers and verify metadata
+        ptr::fn_addr_eq(self.body, other.body)
+            && self.min_args == other.min_args
+            && self.max_args == other.max_args
+    }
+}
+
 impl PartialEq for ExprValue {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (ExprValue::Symbol(a), ExprValue::Symbol(b)) => a == b,
             (ExprValue::Int(a), ExprValue::Int(b)) => a == b,
             (ExprValue::Float(a), ExprValue::Float(b)) => {
-                // Standard IEEE 754 float equality:
-                a == b
-                // Or if you want NaN == NaN: (a == b) || (a.is_nan() && b.is_nan())
+                a == b || (a.is_nan() && b.is_nan())
             }
             (ExprValue::String(a), ExprValue::String(b)) => a == b,
-            (ExprValue::List(a), ExprValue::List(b)) => a == b, // Requires Expr: PartialEq
+            (ExprValue::List(a), ExprValue::List(b)) => a == b,
             (ExprValue::Bool(a), ExprValue::Bool(b)) => a == b,
             (ExprValue::Nil, ExprValue::Nil) => true,
 
-            // Function pointers: compare memory addresses
-            (
-                ExprValue::NativeFunction { body: b1, min_args: min1, max_args: max1 },
-                ExprValue::NativeFunction { body: b2, min_args: min2, max_args: max2 },
-            ) => {
-                (*b1 as *const ()) == (*b2 as *const ()) 
-                    && min1 == min2 
-                    && max1 == max2
-            }
+            // Boxed NativeFunction
+            (ExprValue::NativeFunction(a), ExprValue::NativeFunction(b)) => a == b,
 
-            (
-                ExprValue::UserFunction { body: b1, params: p1, name: n1 },
-                ExprValue::UserFunction { body: b2, params: p2, name: n2 },
-            ) => b1 == b2 && p1 == p2 && n1 == n2,
+            // Boxed UserFunction (delegates to UserFunctionData's derived PartialEq)
+            (ExprValue::UserFunction(a), ExprValue::UserFunction(b)) => a == b,
 
-            // Polars expression comparison (implements PartialEq)
+            // Boxed PolarsExpr (dereferences and compares)
             (ExprValue::PolarsExpr(a), ExprValue::PolarsExpr(b)) => a == b,
 
-            // LazyFrame does NOT implement PartialEq in Polars.
-            // Option 1: Compare their logical plans via debug representation
+            // Boxed LazyFrame (compares plan representation)
             (ExprValue::LazyFrame(a), ExprValue::LazyFrame(b)) => {
                 format!("{:?}", a.logical_plan) == format!("{:?}", b.logical_plan)
             }
-            // Option 2 (Alternative): Treat different LazyFrames as always unequal
-            // (ExprValue::LazyFrame(_), ExprValue::LazyFrame(_)) => false,
 
             _ => false,
         }
     }
+}
+
+#[test]
+fn print_sizes() {
+    println!("\n==============================");
+    println!("Expr:        {} bytes", std::mem::size_of::<crate::types::Expr>());
+    println!("ExprValue:   {} bytes", std::mem::size_of::<crate::types::ExprValue>());
+    println!("Option<usize>: {} bytes", std::mem::size_of::<Option<usize>>());
+    println!("LazyFrame: {} bytes", std::mem::size_of::<LazyFrame>());
+    println!("Polars Expr: {} bytes", std::mem::size_of::<polars::prelude::Expr>());
+    println!("==============================\n");
 }

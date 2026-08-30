@@ -2,14 +2,31 @@ use std::{collections::HashMap};
 use polars::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::types::{Env, Error, Expr, ExprValue};
+use crate::types::{Env, Error, Expr, ExprValue, NativeFunctionData};
 use crate::plotlarslib;
 use crate::corelib::*;
 use crate::polarslib::*;
 
-pub fn insert_native_function(defines: &mut HashMap<String, Expr>, name: &str, body: fn(Vec<Expr>) -> Result<Expr, Error>,
-    min_args: u8, max_args: u8) {
-        defines.insert(name.to_string(), Expr {value: ExprValue::NativeFunction { body, min_args, max_args }, line: None });
+pub fn insert_native_function(
+    defines: &mut HashMap<String, Expr>,
+    name: &str,
+    body: fn(Vec<Expr>) -> Result<Expr, Error>,
+    min_args: u8,
+    max_args: u8,
+) {
+    let func_data = NativeFunctionData {
+        body,
+        min_args,
+        max_args,
+    };
+
+    defines.insert(
+        name.to_string(),
+        Expr {
+            value: ExprValue::NativeFunction(Box::new(func_data)),
+            line: None,
+        },
+    );
 }
 
 pub fn std_env() -> Rc<RefCell<Env>> {

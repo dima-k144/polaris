@@ -2,8 +2,8 @@ use std::{collections::HashMap, ops::Deref};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::{corelib, stdlib};
-use crate::types::{Env, Expr, ExprValue, Error};
+use crate::{corelib, polarslib};
+use crate::types::{Env, Expr, ExprValue, Error, UserFunctionData, NativeFunctionData};
 
 pub struct State {
     pub line: usize,
@@ -54,22 +54,40 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                 "lambda" => {
                     let mut params = Vec::<String>::new();
                     for param in list[1].clone().expect_list()? {
-                        params.push(param.expect_symbol()?)
+                        params.push(param.expect_symbol()?);
                     }
                     let body = list.get(2..).unwrap().to_vec();
-                    let func = ExprValue::UserFunction { body: body, params: params, name: None };
-                    return Ok(Expr { value: func, line: None })
+                
+                    let func_data = UserFunctionData {
+                        body,
+                        params,
+                        name: None,
+                    };
+                
+                    let func = ExprValue::UserFunction(Box::new(func_data));
+                    return Ok(Expr { value: func, line: None });
                 },
                 "defun" => {
                     let name = list[1].clone().expect_symbol()?;
                     let mut params = Vec::<String>::new();
                     for param in list[2].clone().expect_list()? {
-                        params.push(param.expect_symbol()?)
+                        params.push(param.expect_symbol()?);
                     }
                     let body = list.get(3..).unwrap().to_vec();
-                    let func = Expr { value: ExprValue::UserFunction { body: body, params: params, name: Some(name.clone()) }, line: None };
-                    define(&name.clone(), func.clone(), env);
-                    return Ok(func)
+
+                    let func_data = UserFunctionData {
+                        body,
+                        params,
+                        name: Some(name.clone()),
+                    };
+
+                    let func = Expr {
+                        value: ExprValue::UserFunction(Box::new(func_data)),
+                        line: None,
+                    };
+
+                    define(&name, func.clone(), env);
+                    return Ok(func);
                 },
                 "let" => {
                     if list.len() < 3 {
@@ -144,28 +162,28 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
             }
 
             match func.value {
-                ExprValue::NativeFunction{ body, min_args, max_args } => {
-                    if args.len() < min_args as usize {
-                        return Err(Error::WrongNumberOfArguments { expected_min: min_args, expected_max: max_args, got: args.len() as u8 });
+                ExprValue::NativeFunction(data) => {
+                    if args.len() < data.min_args as usize {
+                        return Err(Error::WrongNumberOfArguments { expected_min: data.min_args, expected_max: data.max_args, got: args.len() as u8 });
                     }
                     
-                    return body(args);
+                    return (data.body)(args);
                 },
-                ExprValue::UserFunction { body, params, name } => {
-                    if args.len() < params.len() {
+                ExprValue::UserFunction(data) => {
+                    if args.len() < data.params.len() {
                         return Err(Error::WrongNumberOfArguments { 
-                            expected_min: params.len() as u8, expected_max: params.len() as u8, got: args.len() as u8 
+                            expected_min: data.params.len() as u8, expected_max: data.params.len() as u8, got: args.len() as u8 
                         });
                     }
 
                     let child_env = Rc::new(RefCell::new(Env::with_parent(Rc::clone(env))));
 
-                    for (param, arg) in params.iter().zip(args) {
+                    for (param, arg) in data.params.iter().zip(args) {
                         define(param, arg, &child_env);
                     }
 
                     let mut result = corelib::nil();
-                    for expr in body {
+                    for expr in data.body {
                         result = eval(expr, &child_env, state)?;
                     }
                     return Ok(result);
