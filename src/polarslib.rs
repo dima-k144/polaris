@@ -6,10 +6,11 @@ use std::rc::Rc;
 use std::sync::Arc;
 use crate::types::{Env, Error, Expr, ExprValue::{self, PolarsExpr}};
 use crate::plotlarslib;
-use crate::interpreter::{eval_string, State};
+use crate::interpreter::{eval_string, State, expect_args_count, define};
 use polars::prelude::RollingOptionsFixedWindow;
 use crate::corelib::*;
 use polars::prelude::QuantileMethod;
+use crate::interpreter::{eval};
 
 pub fn new_polars_expr(value: polars::prelude::Expr) -> Expr {
     Expr {
@@ -1609,4 +1610,149 @@ pub fn describe(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 
     Ok(new_lazy_frame(lf.select(stats_exprs)))
+}
+
+pub fn any_value_to_expr(val: AnyValue) -> Expr {
+    match val {
+        AnyValue::Null => nil(),
+        AnyValue::Boolean(b) => new_bool(b),
+        AnyValue::Int8(v) => new_int(v as i64),
+        AnyValue::Int16(v) => new_int(v as i64),
+        AnyValue::Int32(v) => new_int(v as i64),
+        AnyValue::Int64(v) => new_int(v),
+        AnyValue::UInt8(v) => new_int(v as i64),
+        AnyValue::UInt16(v) => new_int(v as i64),
+        AnyValue::UInt32(v) => new_int(v as i64),
+        AnyValue::UInt64(v) => new_int(v as i64),
+        AnyValue::Float32(v) => new_float(v as f64),
+        AnyValue::Float64(v) => new_float(v),
+        AnyValue::String(s) => new_string(s.to_string()),
+        AnyValue::StringOwned(s) => new_string(s.to_string()),
+        _ => nil(),
+    }
+}
+
+pub fn expr_to_any_value<'a>(expr: Expr) -> Result<AnyValue<'a>, Error> {
+    match expr.value {
+        ExprValue::Nil => Ok(AnyValue::Null),
+        ExprValue::Bool(b) => Ok(AnyValue::Boolean(b)),
+        ExprValue::Int(i) => Ok(AnyValue::Int64(i)),
+        ExprValue::Float(f) => Ok(AnyValue::Float64(f)),
+        ExprValue::String(s) => Ok(AnyValue::StringOwned(PlSmallStr::from(s.as_str()))),
+        other => Err(Error::Custom(format!("Cannot convert expr '{:?}' to Series AnyValue", other))),
+    }
+}
+
+pub fn invoke_function(
+    func: &Expr,
+    args: Vec<Expr>,
+    env: &Rc<RefCell<Env>>,
+    state: &mut State,
+) -> Result<Expr, Error> {
+    match &func.value {
+        ExprValue::NativeFunction(data) => {
+            expect_args_count(args.len(), data.min_args as usize, data.max_args as usize)?;
+            (data.body)(args)
+        }
+        ExprValue::UserFunction(data) => {
+            expect_args_count(args.len(), data.params.len(), usize::MAX)?;
+            let child_env = Rc::new(RefCell::new(Env::with_parent(Rc::clone(env))));
+
+            for (param, arg) in data.params.iter().zip(args) {
+                define(param, arg, &child_env);
+            }
+
+            let mut result = nil();
+            for expr in &data.body {
+                result = eval(expr.clone(), &child_env, state)?;
+            }
+            Ok(result)
+        }
+        _ => Err(Error::WrongType {
+            expected: "callable (user function or native function)".into(),
+            got: func.clone(),
+        }),
+    }
+}
+
+pub fn eval_apply_udf(
+    raw_args: &[Expr],
+    env: &Rc<RefCell<Env>>,
+    state: &mut State,
+) -> Result<Expr, Error> {
+    expect_args_count(raw_args.len(), 2, 3)?;
+
+    // Evaluate column expression and the function/lambda expression
+    let col_expr = eval(raw_args[0].clone(), env, state)?.expect_polars_expr()?;
+    let func_expr = eval(raw_args[1].clone(), env, state)?;
+
+    let target_dtype = if raw_args.len() > 2 {
+        let sym = eval(raw_args[2].clone(), env, state)?.expect_symbol()?;
+        match sym.as_str() {
+            ":int" | ":i64" => DataType::Int64,
+            ":float" | ":f64" => DataType::Float64,
+            ":str" | ":string" => DataType::String,
+            ":bool" => DataType::Boolean,
+            other => return Err(Error::Custom(format!("Unsupported UDF return type: {}", other))),
+        }
+    } else {
+        DataType::Float64
+    };
+
+    // Take a snapshot of all active bindings (closures, locals, globals)
+    let env_snapshot = Arc::new(env.borrow().snapshot());
+    let func_payload = Arc::new(func_expr);
+    let out_dtype = target_dtype.clone();
+    let return_dtype = target_dtype.clone();
+
+    let mapped = col_expr.map(
+        move |series: Column| {
+            let s = series.as_materialized_series();
+            let mut results = Vec::with_capacity(s.len());
+            let mut thread_state = State { line: 0, file: None };
+
+            // Reconstruct the lexical environment for this worker thread batch
+            let local_env = Rc::new(RefCell::new(Env {
+                defines: (*env_snapshot).clone(),
+                outer: None,
+            }));
+
+            for i in 0..s.len() {
+                let av = s.get(i).map_err(|e| PolarsError::ComputeError(e.to_string().into()))?;
+                let arg_expr = any_value_to_expr(av);
+
+                let eval_res = invoke_function(&func_payload, vec![arg_expr], &local_env, &mut thread_state)
+                    .map_err(|e| PolarsError::ComputeError(format!("{:?}", e).into()))?;
+
+                results.push(eval_res);
+            }
+
+            let out_series = match out_dtype {
+                DataType::Int64 => {
+                    let vals: Vec<Option<i64>> = results.into_iter().map(|e| e.expect_int().ok()).collect();
+                    Series::new(s.name().clone(), vals)
+                }
+                DataType::Float64 => {
+                    let vals: Vec<Option<f64>> = results.into_iter().map(|e| e.expect_float().ok()).collect();
+                    Series::new(s.name().clone(), vals)
+                }
+                DataType::String => {
+                    let vals: Vec<Option<String>> = results.into_iter().map(|e| e.expect_string().ok()).collect();
+                    Series::new(s.name().clone(), vals)
+                }
+                DataType::Boolean => {
+                    let vals: Vec<Option<bool>> = results.into_iter().map(|e| e.expect_bool().ok()).collect();
+                    Series::new(s.name().clone(), vals)
+                }
+                _ => return Err(PolarsError::ComputeError("Unsupported series materialization".into())),
+            };
+
+            Ok(out_series.into_column())
+        },
+        move |_: &Schema, field: &Field| {
+            Ok(Field::new(field.name().clone(), return_dtype.clone()))
+        },
+    );
+
+    Ok(new_polars_expr(mapped))
 }

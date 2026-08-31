@@ -59,6 +59,9 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "reverse", crate::corelib::reverse, 1, 1);
     insert_native_function(&mut defines, "empty?", crate::corelib::is_empty, 1, 1);
 
+    // Native String Functions
+    insert_native_function(&mut defines, "str-concat", crate::corelib::str_concat, 1, u8::MAX);
+
     // Native Conversion Functions
     insert_native_function(&mut defines, "to-str", crate::corelib::to_str, 1, 1);
     insert_native_function(&mut defines, "to-string", crate::corelib::to_str, 1, 1);

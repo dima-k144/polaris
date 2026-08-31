@@ -337,3 +337,17 @@ pub fn type_of(args: Vec<Expr>) -> Result<Expr, Error> {
     let type_name = args[0].clone().type_to_str();
     Ok(new_string(type_name.to_string()))
 }
+
+// (str-concat "a" "b" "c") -> "abc"
+pub fn str_concat(args: Vec<Expr>) -> Result<Expr, Error> {
+    let mut out = String::new();
+    for arg in args {
+        match arg.value {
+            ExprValue::String(s) | ExprValue::Symbol(s) => out.push_str(&s),
+            ExprValue::Int(i) => out.push_str(&i.to_string()),
+            ExprValue::Float(f) => out.push_str(&f.to_string()),
+            _ => out.push_str(&to_str(vec![arg])?.expect_string()?),
+        }
+    }
+    Ok(new_string(out))
+}

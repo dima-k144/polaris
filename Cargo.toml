@@ -20,6 +20,7 @@ tikv-jemallocator = { version = "*" }
 rustyline = "14.0"
 dirs = "5.0"
 either = "1"
+polars-plan = "0.55.2"
 
 [profile.release]
 opt-level = 3

@@ -329,6 +329,9 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
 
                     return eval_string(contents, env, &mut file_state);
                 },
+                "apply-udf" => {
+                    return crate::polarslib::eval_apply_udf(&list[1..], env, state);
+                },
                 _ => {}
             }
 

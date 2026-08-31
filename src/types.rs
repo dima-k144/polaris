@@ -284,6 +284,18 @@ impl Env {
             outer: Some(outer),
         }
     }
+
+    pub fn snapshot(&self) -> HashMap<String, Expr> {
+        let mut map = if let Some(outer) = &self.outer {
+            outer.borrow().snapshot()
+        } else {
+            HashMap::new()
+        };
+        for (k, v) in &self.defines {
+            map.insert(k.clone(), v.clone());
+        }
+        map
+    }
 }
 
 #[derive(Clone, Debug)]

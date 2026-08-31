@@ -2790,4 +2790,128 @@ mod tests {
 
         assert_eq!(df, expected_df);
     }
+
+    #[test]
+    fn test_udf_defun_int_arithmetic() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Define a named function and apply it to a numeric column
+        let code = r#"
+            (defun double_plus_one (x) (+ (* x 2) 1))
+            (with-column (read-csv "data1.csv") 
+                        $custom_age (apply-udf $age double_plus_one :int))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval udf with defun failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
+            "age" => &[25i64, 30, 22, 28, 35],
+            "city" => &["London", "Paris", "Berlin", "Rome", "Madrid"],
+            "custom_age" => &[51i64, 61, 45, 57, 71],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_udf_lambda_bool_filtering() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Use an anonymous lambda to create a boolean column, then filter on it
+        let code = r#"
+            (-> (read-csv "data1.csv")
+                (with-column $is_senior (apply-udf $age (lambda (a) (>= a 28)) :bool))
+                (filter $is_senior)
+                (select $name $age $is_senior))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval udf lambda bool filter failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "name" => &["Bob", "Diana", "Evan"],
+            "age" => &[30i64, 28, 35],
+            "is_senior" => &[true, true, true],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_udf_string_transformation() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (defun prefix_city (c) (str-concat "City: " c))
+            (-> (read-csv "data1.csv")
+                (with-column $city_labeled (apply-udf $city prefix_city :string))
+                (select $name $city_labeled))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval udf string transformation failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "name" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
+            "city_labeled" => &[
+                "City: London",
+                "City: Paris",
+                "City: Berlin",
+                "City: Rome",
+                "City: Madrid",
+            ],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_udf_in_wisp_syntax() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Test with Wisp indentation-based syntax
+        let code = r#"
+defun compute_score (age)
+    / (* age 3) 2.0
+
+-> (read-csv "data1.csv")
+    with-column $score (apply-udf $age compute_score :float)
+    sort $score :desc
+    select $name $score
+    head
+"#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval udf in wisp syntax failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "name" => &["Evan", "Bob", "Diana", "Alice", "Charlie"],
+            "score" => &[52.5f64, 45.0, 42.0, 37.5, 33.0],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
 }
