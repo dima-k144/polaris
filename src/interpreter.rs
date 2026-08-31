@@ -236,6 +236,14 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     set_symbol(&name, value, env)?;
                     return Ok(lookup(&String::from("nil"), env).unwrap());
                 },
+                "lookup" => {
+                    expect_args_count(list.len() - 1, 1, 1)?;
+                    let symbol = list[1].clone().expect_symbol()?;
+                    return match lookup(&symbol, env) {
+                        Some(value) => Ok(value),
+                        None => Err(Error::LookupNotFound { symbol }),
+                    }
+                }
                 _ => {}
             }
 

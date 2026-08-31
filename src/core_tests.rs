@@ -113,31 +113,31 @@ mod tests {
         assert_eq!(res, 6);
     }
 
-    //#[test]
-    //fn test_let_scoping_isolation() {
-    //    let env = std_env();
-    //    let mut state = State { line: 0, file: None };
-//
-    //    let code = r#"
-    //        (define x 100)
-    //        (let (x 10 y 20) (+ x y))
-    //    "#.to_string();
-//
-    //    let res = eval_string(code, &env, &mut state)
-    //        .expect("eval let scope failed")
-    //        .expect_int()
-    //        .expect("expected number");
-//
-    //    assert_eq!(res, 30);
-//
-    //    // Verify outer scope was not mutated
-    //    let outer_res = eval_string("x".to_string(), &env, &mut state)
-    //        .expect("eval outer lookup failed")
-    //        .expect_int()
-    //        .expect("expected number");
-//
-    //    assert_eq!(outer_res, 100);
-    //}
+    #[test]
+    fn test_let_scoping_isolation() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (define x 100)
+            (let (x 10 y 20) (+ x y))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval let scope failed")
+            .expect_int()
+            .expect("expected number");
+
+        assert_eq!(res, 30);
+
+        // Verify outer scope was not mutated
+        let outer_res = eval_string("lookup x".to_string(), &env, &mut state)
+            .expect("eval outer lookup failed")
+            .expect_int()
+            .expect("expected number");
+
+        assert_eq!(outer_res, 100);
+    }
 
     #[test]
     fn test_let_multi_expression_body() {
