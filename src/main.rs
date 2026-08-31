@@ -27,11 +27,48 @@ mod plotlarslib;
 mod wisp;
 mod corelib;
 
-fn is_complete_input(input: &String) -> bool {
-    let open_parens_count = input.chars().filter(|&c| c == '(').count();
-    let closed_parens_count = input.chars().filter(|&c| c == ')').count();
-    let double_quotes_count = input.chars().filter(|&c| c == '"').count();
-    open_parens_count == closed_parens_count && double_quotes_count % 2 == 0
+fn is_complete_input(input: &str) -> bool {
+    let mut in_string = false;
+    let mut in_comment = false;
+    let mut escape = false;
+
+    let mut paren_depth: usize = 0;
+    let mut bracket_depth: usize = 0;
+    let mut brace_depth: usize = 0;
+
+    for c in input.chars() {
+        if in_comment {
+            if c == '\n' {
+                in_comment = false;
+            }
+            continue;
+        }
+
+        if in_string {
+            if escape {
+                escape = false;
+            } else if c == '\\' {
+                escape = true;
+            } else if c == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+
+        match c {
+            '"' => in_string = true,
+            ';' => in_comment = true,
+            '(' => paren_depth += 1,
+            ')' => paren_depth = paren_depth.saturating_sub(1),
+            '[' => bracket_depth += 1,
+            ']' => bracket_depth = bracket_depth.saturating_sub(1),
+            '{' => brace_depth += 1,
+            '}' => brace_depth = brace_depth.saturating_sub(1),
+            _ => {}
+        }
+    }
+
+    !in_string && paren_depth == 0 && bracket_depth == 0 && brace_depth == 0
 }
 
 pub fn format_error_message(error: &Error) -> String {
