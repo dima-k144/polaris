@@ -973,4 +973,54 @@ mod tests {
 
         assert_eq!(res, 63);
     }
+
+    #[test]
+    fn test_load_script() {
+        use std::fs;
+
+        let temp_dir = std::env::temp_dir();
+        let script_path = temp_dir.join("test_load_helper.lsp");
+        let script_path_str = script_path.to_str().unwrap().replace("\\", "/");
+
+        // Create a script defining helper functions and variables
+        let script_content = r#"
+            (define loaded_var 42)
+            (defun helper_double (n) (* n 2))
+            (+ loaded_var 8)
+        "#;
+        fs::write(&script_path, script_content).expect("failed to write test script");
+
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Test loading the script and using its definitions
+        let run_code = format!(
+            r#"
+            (load "{}")
+            (helper_double loaded_var)
+            "#,
+            script_path_str
+        );
+
+        let res = eval_string(run_code, &env, &mut state)
+            .expect("eval load failed")
+            .expect_int()
+            .expect("expected int");
+
+        assert_eq!(res, 84);
+
+        // Clean up temporary file
+        let _ = fs::remove_file(script_path);
+    }
+
+    #[test]
+    fn test_load_nonexistent_file_error() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"(load "nonexistent_file_path_12345.lsp")"#.to_string();
+        let res = eval_string(code, &env, &mut state);
+
+        assert!(res.is_err());
+    }
 }

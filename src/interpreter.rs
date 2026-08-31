@@ -76,7 +76,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     let name = list[1].clone().expect_symbol()?;
                     let value = eval(list[2].clone(), env, state)?;
                     define(&name, value, env);
-                    return Ok(lookup(&String::from("nil"), env).unwrap());
+                    return Ok(corelib::nil());
                 },
                 "lambda" => {
                     expect_args_count(list.len() - 1, 2, usize::MAX)?;
@@ -234,7 +234,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     let name = list[1].clone().expect_symbol()?;
                     let value = eval(list[2].clone(), env, state)?;
                     set_symbol(&name, value, env)?;
-                    return Ok(lookup(&String::from("nil"), env).unwrap());
+                    return Ok(corelib::nil());
                 },
                 "lookup" => {
                     expect_args_count(list.len() - 1, 1, 1)?;
@@ -243,7 +243,92 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                         Some(value) => Ok(value),
                         None => Err(Error::LookupNotFound { symbol }),
                     }
-                }
+                },
+                "and" => {
+                    let args = &list[1..];
+                    if args.is_empty() {
+                        return Ok(corelib::true_());
+                    }
+
+                    // 1. Polars context: if any unevaluated arg or function call represents Polars, 
+                    // or if the first arg evaluates to a PolarsExpr, fall back to building the Polars expression.
+                    let first_val = eval(args[0].clone(), env, state)?;
+                    if matches!(first_val.value, ExprValue::PolarsExpr(_)) {
+                        let mut polars_args = vec![first_val];
+                        for arg in &args[1..] {
+                            polars_args.push(eval(arg.clone(), env, state)?);
+                        }
+                        return polarslib::and_polars(polars_args);
+                    }
+
+                    // 2. Standard Lisp Short-Circuiting
+                    if !first_val.expect_bool()? {
+                        return Ok(corelib::false_());
+                    }
+
+                    for arg in &args[1..] {
+                        let val = eval(arg.clone(), env, state)?;
+                        if matches!(val.value, ExprValue::PolarsExpr(_)) {
+                            // If Polars expression appears later in the args
+                            let mut polars_args = vec![corelib::new_bool(true), val];
+                            return polarslib::and_polars(polars_args);
+                        }
+                        if !val.expect_bool()? {
+                            return Ok(corelib::false_());
+                        }
+                    }
+
+                    return Ok(corelib::true_());
+                },
+                "or" => {
+                    let args = &list[1..];
+                    if args.is_empty() {
+                        return Ok(corelib::false_());
+                    }
+
+                    let first_val = eval(args[0].clone(), env, state)?;
+                    if matches!(first_val.value, ExprValue::PolarsExpr(_)) {
+                        let mut polars_args = vec![first_val];
+                        for arg in &args[1..] {
+                            polars_args.push(eval(arg.clone(), env, state)?);
+                        }
+                        return polarslib::or_polars(polars_args);
+                    }
+
+                    if first_val.expect_bool()? {
+                        return Ok(corelib::true_());
+                    }
+
+                    for arg in &args[1..] {
+                        let val = eval(arg.clone(), env, state)?;
+                        if matches!(val.value, ExprValue::PolarsExpr(_)) {
+                            let mut polars_args = vec![corelib::new_bool(false), val];
+                            return polarslib::or_polars(polars_args);
+                        }
+                        if val.expect_bool()? {
+                            return Ok(corelib::true_());
+                        }
+                    }
+
+                    return Ok(corelib::false_());
+                },
+                "load" => {
+                    expect_args_count(list.len() - 1, 1, 1)?;
+                    let path_expr = eval(list[1].clone(), env, state)?;
+                    let path = path_expr.expect_string()?;
+
+                    let contents = std::fs::read_to_string(&path).map_err(|err| {
+                        Error::Custom(format!("Failed to load file '{}': {}", path, err))
+                    })?;
+
+                    // Track the loaded file's path for error reporting
+                    let mut file_state = State {
+                        line: 0,
+                        file: Some(path),
+                    };
+
+                    return eval_string(contents, env, &mut file_state);
+                },
                 _ => {}
             }
 

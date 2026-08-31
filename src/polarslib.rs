@@ -545,20 +545,6 @@ pub fn and_core(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_bool(result))
 }
 
-// --- Logical AND ---
-// Examples in Lisp:
-//   (and true false)
-//   (and true true true)
-//   (and (> $age 20) (< $age 40) (= $department "Engineering"))
-//   (filter df (and (= $department "HR") (> $salary 50000) (< $age 30)))
-pub fn and(args: Vec<Expr>) -> Result<Expr, Error> {
-    if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
-        and_polars(args)
-    } else {
-        and_core(args)
-    }
-}
-
 pub fn or_polars(args: Vec<Expr>) -> Result<Expr, Error> {
     let mut combined = args[0].clone().expect_polars_expr()?;
     for arg in args.iter().skip(1) {
@@ -566,31 +552,6 @@ pub fn or_polars(args: Vec<Expr>) -> Result<Expr, Error> {
         combined = combined.or(next_expr);
     }
     Ok(new_polars_expr(combined))
-}
-
-pub fn or_core(args: Vec<Expr>) -> Result<Expr, Error> {
-    let mut result = false;
-    for arg in args {
-        result = result || arg.expect_bool()?;
-        if result {
-            return Ok(new_bool(true));
-        }
-    }
-    Ok(new_bool(result))
-}
-
-// --- Logical OR ---
-// Examples in Lisp:
-//   (or true false)
-//   (or false false true)
-//   (or (= $city "Paris") (= $city "Berlin") (= $city "London"))
-//   (filter df (or (< $age 25) (>= $age 60) (= $department "Executive")))
-pub fn or(args: Vec<Expr>) -> Result<Expr, Error> {
-    if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
-        or_polars(args)
-    } else {
-        or_core(args)
-    }
 }
 
 pub fn sum(args: Vec<Expr>) -> Result<Expr, Error> {

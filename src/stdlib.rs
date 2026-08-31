@@ -118,8 +118,6 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, ">=", gt_eq, 2, 2);
     insert_native_function(&mut defines, "<=", lt_eq, 2, 2);
     insert_native_function(&mut defines, "not", crate::polarslib::not, 1, u8::MAX);
-    insert_native_function(&mut defines, "and", and, 1, u8::MAX);
-    insert_native_function(&mut defines, "or", or, 1, u8::MAX);
 
     // Aggregations
     insert_native_function(&mut defines, "sum", crate::polarslib::sum, 1, 1);
