@@ -1700,20 +1700,56 @@ pub fn eval_apply_udf(
 
             let out_series = match out_dtype {
                 DataType::Int64 => {
-                    let vals: Vec<Option<i64>> = results.into_iter().map(|e| e.expect_int().ok()).collect();
-                    Series::new(s.name().clone(), vals)
+                    let vals: Result<Vec<Option<i64>>, PolarsError> = results
+                        .into_iter()
+                        .map(|e| match e.value {
+                            ExprValue::Nil => Ok(None),
+                            _ => e
+                                .expect_int()
+                                .map(Some)
+                                .map_err(|err| PolarsError::ComputeError(format!("{:?}", err).into())),
+                        })
+                        .collect();
+                    Series::new(s.name().clone(), vals?)
                 }
                 DataType::Float64 => {
-                    let vals: Vec<Option<f64>> = results.into_iter().map(|e| e.expect_float().ok()).collect();
-                    Series::new(s.name().clone(), vals)
+                    let vals: Result<Vec<Option<f64>>, PolarsError> = results
+                        .into_iter()
+                        .map(|e| match e.value {
+                            ExprValue::Nil => Ok(None),
+                            _ => e
+                                .expect_float()
+                                .map(Some)
+                                .map_err(|err| PolarsError::ComputeError(format!("{:?}", err).into())),
+                        })
+                        .collect();
+                    Series::new(s.name().clone(), vals?)
                 }
                 DataType::String => {
-                    let vals: Vec<Option<String>> = results.into_iter().map(|e| e.expect_string().ok()).collect();
-                    Series::new(s.name().clone(), vals)
+                    let vals: Result<Vec<Option<String>>, PolarsError> = results
+                        .into_iter()
+                        .map(|e| match e.value {
+                            ExprValue::Nil => Ok(None),
+                            _ => e
+                                .expect_string()
+                                .map(Some)
+                                .map_err(|err| PolarsError::ComputeError(format!("{:?}", err).into())),
+                        })
+                        .collect();
+                    Series::new(s.name().clone(), vals?)
                 }
                 DataType::Boolean => {
-                    let vals: Vec<Option<bool>> = results.into_iter().map(|e| e.expect_bool().ok()).collect();
-                    Series::new(s.name().clone(), vals)
+                    let vals: Result<Vec<Option<bool>>, PolarsError> = results
+                        .into_iter()
+                        .map(|e| match e.value {
+                            ExprValue::Nil => Ok(None),
+                            _ => e
+                                .expect_bool()
+                                .map(Some)
+                                .map_err(|err| PolarsError::ComputeError(format!("{:?}", err).into())),
+                        })
+                        .collect();
+                    Series::new(s.name().clone(), vals?)
                 }
                 _ => return Err(PolarsError::ComputeError("Unsupported series materialization".into())),
             };
