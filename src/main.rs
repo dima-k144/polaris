@@ -1,7 +1,7 @@
-use std::fs;
 use crate::types::Error;
-use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
+use rustyline::error::ReadlineError;
+use std::fs;
 
 use crate::interpreter::eval_string;
 
@@ -10,19 +10,19 @@ use tikv_jemallocator::Jemalloc;
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
 
+mod core_tests;
+mod corelib;
+mod extra_tests;
+mod interpreter;
 mod lexer;
 mod parser;
-mod types;
-mod interpreter;
-mod polarslib;
-mod stdlib;
-mod core_tests;
-mod polars_tests;
-mod extra_tests;
-mod preprocessor_test;
 mod plotlarslib;
+mod polars_tests;
+mod polarslib;
+mod preprocessor_test;
+mod stdlib;
+mod types;
 mod wisp;
-mod corelib;
 
 fn is_complete_input(input: &str) -> bool {
     let mut in_string = false;
@@ -72,22 +72,46 @@ pub fn format_error_message(error: &Error) -> String {
     match error {
         Error::UnclosedString => "Error: unclosed string".to_string(),
         Error::UnclosedListExpr => "Error: unclosed list expression".to_string(),
-        Error::FailedToParseNumber { number } => format!("Error: failed to parse number '{number}'"),
+        Error::FailedToParseNumber { number } => {
+            format!("Error: failed to parse number '{number}'")
+        }
         Error::UnexpectedClosedParen => "Error: unexpected ')'".to_string(),
-        Error::WrongType { expected, got } => format!("Error: expected {0}, got {1}", expected, got.clone().type_to_str()),
+        Error::WrongType { expected, got } => format!(
+            "Error: expected {0}, got {1}",
+            expected,
+            got.clone().type_to_str()
+        ),
         Error::LookupNotFound { symbol } => format!("Error: symbol '{symbol}' is not defined"),
-        Error::WrongNumberOfArguments { 
-            expected_min, expected_max, got 
+        Error::WrongNumberOfArguments {
+            expected_min,
+            expected_max,
+            got,
         } => format!("Error: expected {expected_min}-{expected_max} number of argumens, got {got}"),
-        Error::ScalarShapeError { shape } => format!("Error: failed to convert to lisp expr, shape is {} by {}", shape.0, shape.1),
-        Error::ScalarUnsupportedError { name } => format!("Error: unsupported scalar conversion from type '{name}'"),
-        Error::MissingRequiredKWArg { name } => format!("Error: missing required keyword argument '{name}'"),
+        Error::ScalarShapeError { shape } => format!(
+            "Error: failed to convert to lisp expr, shape is {} by {}",
+            shape.0, shape.1
+        ),
+        Error::ScalarUnsupportedError { name } => {
+            format!("Error: unsupported scalar conversion from type '{name}'")
+        }
+        Error::MissingRequiredKWArg { name } => {
+            format!("Error: missing required keyword argument '{name}'")
+        }
         Error::Custom(message) => format!("Error: {message}"),
         Error::PolarsError(perror) => format!("Error: {}", perror),
-        Error::MixedWithinLine(line) => format!("Error: both tabs and spaces on the same line, on line {}", line),
-        Error::MixedAcrossFile(line) => format!("Error: inconsistent style compared to previous lines, on line {}", line),
-        Error::AmbiguousSpaces(line) => format!("Error: spaces found, but not a multiple of 2 or 4, on line {}", line),
-        Error::EmptyListEval => "Error: attempted to evaluate empty list".to_string()
+        Error::MixedWithinLine(line) => format!(
+            "Error: both tabs and spaces on the same line, on line {}",
+            line
+        ),
+        Error::MixedAcrossFile(line) => format!(
+            "Error: inconsistent style compared to previous lines, on line {}",
+            line
+        ),
+        Error::AmbiguousSpaces(line) => format!(
+            "Error: spaces found, but not a multiple of 2 or 4, on line {}",
+            line
+        ),
+        Error::EmptyListEval => "Error: attempted to evaluate empty list".to_string(),
     }
 }
 
@@ -131,7 +155,7 @@ fn handle_error(error: &Error, state: &interpreter::State) {
 
 fn repl() {
     let env = crate::stdlib::std_env();
-    
+
     // Initialize the line editor
     let mut rl = match DefaultEditor::new() {
         Ok(editor) => editor,
@@ -153,7 +177,7 @@ fn repl() {
         match readline {
             Ok(line) => {
                 let mut input = line;
-                
+
                 // Handle multiline incomplete parenthesis input
                 while !is_complete_input(&input) {
                     match rl.readline("... ") {
@@ -173,7 +197,10 @@ fn repl() {
                 let _ = rl.add_history_entry(input.as_str());
 
                 // Evaluate MLisp expression
-                let mut state = interpreter::State { line: 0, file: None };
+                let mut state = interpreter::State {
+                    line: 0,
+                    file: None,
+                };
                 match eval_string(input.clone(), &env, &mut state) {
                     Ok(val) => match val.to_string() {
                         Ok(str) => println!("{str}"),
@@ -209,17 +236,24 @@ fn main() {
     if !lsp_files.is_empty() {
         for arg in lsp_files {
             let env = crate::stdlib::std_env();
-            let mut state = interpreter::State { line: 0, file: Some(arg.to_string()) };
+            let mut state = interpreter::State {
+                line: 0,
+                file: Some(arg.to_string()),
+            };
             let contents = match fs::read_to_string(arg).map_err(|e| Error::Custom(e.to_string())) {
                 Ok(text) => text,
-                Err(_err) => { handle_error(&Error::Custom(format!("Failed to open {}", arg).to_string()), &state); continue; },
+                Err(_err) => {
+                    handle_error(
+                        &Error::Custom(format!("Failed to open {}", arg).to_string()),
+                        &state,
+                    );
+                    continue;
+                }
             };
             match eval_string(contents.clone(), &env, &mut state) {
-                Ok(val) => {
-                    match val.to_string() {
-                        Ok(str) => println!("{str}"),
-                        Err(err) => handle_error(&err, &state),
-                    }
+                Ok(val) => match val.to_string() {
+                    Ok(str) => println!("{str}"),
+                    Err(err) => handle_error(&err, &state),
                 },
                 Err(err) => handle_error(&err, &state),
             };

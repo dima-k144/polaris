@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::interpreter::{eval_string, State};
+    use crate::interpreter::{State, eval_string};
     use crate::stdlib::std_env;
     use crate::types::{Expr, ExprValue};
     use polars::prelude::*;
@@ -14,15 +14,32 @@ mod tests {
     select $name $city
 "#;
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let result = eval_string(code.to_string(), &env, &mut state);
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             assert_eq!(df.shape(), (4, 2));
 
-            let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
-            let cities: Vec<&str> = df.column("city").unwrap().str().unwrap().iter().flatten().collect();
+            let names: Vec<&str> = df
+                .column("name")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
+            let cities: Vec<&str> = df
+                .column("city")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
             assert_eq!(names, vec!["Alice", "Bob", "Diana", "Evan"]);
             assert_eq!(cities, vec!["London", "Paris", "Rome", "Madrid"]);
         } else {
@@ -42,22 +59,38 @@ define df
     select $name $city
 "#;
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let result = eval_string(code.to_string(), &env, &mut state);
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             assert_eq!(df.shape(), (4, 2));
 
-            let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
-            let cities: Vec<&str> = df.column("city").unwrap().str().unwrap().iter().flatten().collect();
+            let names: Vec<&str> = df
+                .column("name")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
+            let cities: Vec<&str> = df
+                .column("city")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
             assert_eq!(names, vec!["Alice", "Bob", "Diana", "Evan"]);
             assert_eq!(cities, vec!["London", "Paris", "Rome", "Madrid"]);
         } else {
             panic!("Expected LazyFrame result");
         }
     }
-
 
     #[test]
     fn test_wisp_colon_chaining_and_with_column() {
@@ -68,17 +101,33 @@ define df
     sort $age_months :desc
 "#;
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let result = eval_string(code.to_string(), &env, &mut state);
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             assert_eq!(df.shape(), (5, 5));
 
-            let age_months: Vec<i64> = df.column("age_months").unwrap().i64().unwrap().into_no_null_iter().collect();
+            let age_months: Vec<i64> = df
+                .column("age_months")
+                .unwrap()
+                .i64()
+                .unwrap()
+                .into_no_null_iter()
+                .collect();
             assert_eq!(age_months, vec![420, 360, 336, 300, 264]);
 
-            let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
+            let names: Vec<&str> = df
+                .column("name")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
             assert_eq!(names, vec!["Evan", "Bob", "Diana", "Alice", "Charlie"]);
         } else {
             panic!("Expected LazyFrame result");
@@ -94,16 +143,39 @@ define d2 (read-csv "data2.csv")
     select $name $department $salary
 "#;
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let result = eval_string(code.to_string(), &env, &mut state);
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             assert_eq!(df.shape(), (3, 3));
 
-            let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
-            let departments: Vec<&str> = df.column("department").unwrap().str().unwrap().iter().flatten().collect();
-            let salaries: Vec<i64> = df.column("salary").unwrap().i64().unwrap().into_no_null_iter().collect();
+            let names: Vec<&str> = df
+                .column("name")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
+            let departments: Vec<&str> = df
+                .column("department")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
+            let salaries: Vec<i64> = df
+                .column("salary")
+                .unwrap()
+                .i64()
+                .unwrap()
+                .into_no_null_iter()
+                .collect();
 
             assert_eq!(names, vec!["Alice", "Bob", "Charlie"]);
             assert_eq!(departments, vec!["Engineering", "Marketing", "Engineering"]);
@@ -123,17 +195,42 @@ define d2 (read-csv "data2.csv")
         alias (count) "count"
 "#;
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let result = eval_string(code.to_string(), &env, &mut state);
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             // Sort by department to guarantee deterministic row order
-            let df = lf.sort(["department"], SortMultipleOptions::default()).collect().unwrap();
+            let df = lf
+                .sort(["department"], SortMultipleOptions::default())
+                .collect()
+                .unwrap();
             assert_eq!(df.shape(), (3, 3));
 
-            let depts: Vec<&str> = df.column("department").unwrap().str().unwrap().iter().flatten().collect();
-            let avg_salaries: Vec<f64> = df.column("avg_salary").unwrap().f64().unwrap().into_no_null_iter().collect();
-            let counts: Vec<u32> = df.column("count").unwrap().u32().unwrap().into_no_null_iter().collect();
+            let depts: Vec<&str> = df
+                .column("department")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
+            let avg_salaries: Vec<f64> = df
+                .column("avg_salary")
+                .unwrap()
+                .f64()
+                .unwrap()
+                .into_no_null_iter()
+                .collect();
+            let counts: Vec<u32> = df
+                .column("count")
+                .unwrap()
+                .u32()
+                .unwrap()
+                .into_no_null_iter()
+                .collect();
 
             assert_eq!(depts, vec!["Engineering", "Finance", "Marketing"]);
             assert_eq!(avg_salaries, vec![67500.0, 80000.0, 65000.0]);
@@ -151,14 +248,23 @@ define d2 (read-csv "data2.csv")
         over (mean $salary) $department
 "#;
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let result = eval_string(code.to_string(), &env, &mut state);
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             assert_eq!(df.shape(), (4, 4));
 
-            let dept_avgs: Vec<f64> = df.column("dept_avg").unwrap().f64().unwrap().into_no_null_iter().collect();
+            let dept_avgs: Vec<f64> = df
+                .column("dept_avg")
+                .unwrap()
+                .f64()
+                .unwrap()
+                .into_no_null_iter()
+                .collect();
             assert_eq!(dept_avgs, vec![67500.0, 65000.0, 67500.0, 80000.0]);
         } else {
             panic!("Expected LazyFrame result");
@@ -176,20 +282,45 @@ defun is_senior ()
     with-column $is_senior (is_senior)
     "#;
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let result = eval_string(code.to_string(), &env, &mut state);
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
             assert_eq!(df.shape(), (5, 5));
 
-            let cities: Vec<&str> = df.column("city").unwrap().str().unwrap().iter().flatten().collect();
-            assert_eq!(cities, vec!["London", "Paris", "Unknown", "Rome", "Unknown"]);
+            let cities: Vec<&str> = df
+                .column("city")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
+            assert_eq!(
+                cities,
+                vec!["London", "Paris", "Unknown", "Rome", "Unknown"]
+            );
 
-            let is_senior: Vec<Option<&str>> = df.column("is_senior").unwrap().str().unwrap().iter().collect();
+            let is_senior: Vec<Option<&str>> = df
+                .column("is_senior")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .collect();
             assert_eq!(
                 is_senior,
-                vec![Some("Senior"), Some("Junior"), Some("Junior"), Some("Senior"), Some("Junior")]
+                vec![
+                    Some("Senior"),
+                    Some("Junior"),
+                    Some("Junior"),
+                    Some("Senior"),
+                    Some("Junior")
+                ]
             );
         } else {
             panic!("Expected LazyFrame result");
@@ -205,14 +336,31 @@ defun is_senior ()
     select $name $age
 "#;
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
-            let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
-            let ages: Vec<i64> = df.column("age").unwrap().i64().unwrap().iter().flatten().collect();
+            let names: Vec<&str> = df
+                .column("name")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
+            let ages: Vec<i64> = df
+                .column("age")
+                .unwrap()
+                .i64()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
 
             assert_eq!(df.shape(), (4, 2));
             assert_eq!(names, vec!["Evan", "Bob", "Diana", "Alice"]);
@@ -231,14 +379,31 @@ defun is_senior ()
     select $name $age_next_year
 "#;
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
-            let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
-            let next_ages: Vec<i64> = df.column("age_next_year").unwrap().i64().unwrap().iter().flatten().collect();
+            let names: Vec<&str> = df
+                .column("name")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
+            let next_ages: Vec<i64> = df
+                .column("age_next_year")
+                .unwrap()
+                .i64()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
 
             assert_eq!(df.shape(), (1, 2));
             assert_eq!(names, vec!["Alice"]);
@@ -258,14 +423,31 @@ defun is_senior ()
     sort $name
     "#;
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
-            let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
-            let cities: Vec<&str> = df.column("city_mod").unwrap().str().unwrap().iter().flatten().collect();
+            let names: Vec<&str> = df
+                .column("name")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
+            let cities: Vec<&str> = df
+                .column("city_mod")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
 
             assert_eq!(df.shape(), (3, 2));
             assert_eq!(names, vec!["Alice", "Bob", "Charlie"]);
@@ -283,7 +465,10 @@ scalar
         agg : sum $age
 "#;
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
@@ -304,16 +489,29 @@ scalar
     select $name $category
 "#;
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
-            let categories: Vec<&str> = df.column("category").unwrap().str().unwrap().iter().flatten().collect();
+            let categories: Vec<&str> = df
+                .column("category")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
 
             assert_eq!(df.shape(), (5, 2));
-            assert_eq!(categories, vec!["Junior", "Senior", "Junior", "Senior", "Senior"]);
+            assert_eq!(
+                categories,
+                vec!["Junior", "Senior", "Junior", "Senior", "Senior"]
+            );
         } else {
             panic!("Expected LazyFrame result");
         }
@@ -328,14 +526,31 @@ scalar
     select $name $city
     "#;
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
-            let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
-            let cities: Vec<&str> = df.column("city").unwrap().str().unwrap().iter().flatten().collect();
+            let names: Vec<&str> = df
+                .column("name")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
+            let cities: Vec<&str> = df
+                .column("city")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
 
             assert_eq!(df.shape(), (3, 2));
             assert_eq!(names, vec!["Alice", "Bob", "Evan"]);
@@ -357,14 +572,31 @@ scalar
     select $name $city
     "#;
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
-            let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
-            let cities: Vec<&str> = df.column("city").unwrap().str().unwrap().iter().flatten().collect();
+            let names: Vec<&str> = df
+                .column("name")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
+            let cities: Vec<&str> = df
+                .column("city")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
 
             assert_eq!(df.shape(), (3, 2));
             assert_eq!(names, vec!["Alice", "Bob", "Evan"]);
@@ -383,14 +615,31 @@ scalar
     select $name $age
     "#;
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
-            let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
-            let ages: Vec<i64> = df.column("age").unwrap().i64().unwrap().iter().flatten().collect();
+            let names: Vec<&str> = df
+                .column("name")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
+            let ages: Vec<i64> = df
+                .column("age")
+                .unwrap()
+                .i64()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
 
             assert_eq!(df.shape(), (3, 2));
             assert_eq!(names, vec!["Alice", "Diana", "Bob"]);
@@ -410,14 +659,31 @@ scalar
     select $name $code
     "#;
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
-            let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
-            let codes: Vec<&str> = df.column("code").unwrap().str().unwrap().iter().flatten().collect();
+            let names: Vec<&str> = df
+                .column("name")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
+            let codes: Vec<&str> = df
+                .column("code")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
 
             assert_eq!(df.shape(), (5, 2));
             assert_eq!(names, vec!["Alice", "Bob", "Charlie", "Diana", "Evan"]);
@@ -436,14 +702,31 @@ scalar
     select $name $running_age
     "#;
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
-            let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
-            let running_ages: Vec<i64> = df.column("running_age").unwrap().i64().unwrap().iter().flatten().collect();
+            let names: Vec<&str> = df
+                .column("name")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
+            let running_ages: Vec<i64> = df
+                .column("running_age")
+                .unwrap()
+                .i64()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
 
             assert_eq!(df.shape(), (5, 2));
             assert_eq!(names, vec!["Alice", "Bob", "Charlie", "Diana", "Evan"]);
@@ -463,14 +746,31 @@ scalar
     select $name $running_age
 "#;
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
-            let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
-            let running_ages: Vec<i64> = df.column("running_age").unwrap().i64().unwrap().iter().flatten().collect();
+            let names: Vec<&str> = df
+                .column("name")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
+            let running_ages: Vec<i64> = df
+                .column("running_age")
+                .unwrap()
+                .i64()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
 
             assert_eq!(df.shape(), (5, 2));
             assert_eq!(names, vec!["Alice", "Bob", "Charlie", "Diana", "Evan"]);
@@ -489,14 +789,31 @@ scalar
     select $name $half_age
     "#;
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let result = eval_string(code.to_string(), &env, &mut state);
 
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
-            let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
-            let half_ages: Vec<f64> = df.column("half_age").unwrap().f64().unwrap().iter().flatten().collect();
+            let names: Vec<&str> = df
+                .column("name")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
+            let half_ages: Vec<f64> = df
+                .column("half_age")
+                .unwrap()
+                .f64()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
 
             assert_eq!(df.shape(), (1, 2));
             assert_eq!(names, vec!["Alice"]);
@@ -516,15 +833,32 @@ scalar
     select $name $half_age
     "#;
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let result = eval_string(code.to_string(), &env, &mut state);
-    
+
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
-            let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
-            let half_ages: Vec<f64> = df.column("half_age").unwrap().f64().unwrap().iter().flatten().collect();
-        
+            let names: Vec<&str> = df
+                .column("name")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
+            let half_ages: Vec<f64> = df
+                .column("half_age")
+                .unwrap()
+                .f64()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
+
             assert_eq!(df.shape(), (1, 2));
             assert_eq!(names, vec!["Alice"]);
             assert_eq!(half_ages, vec![12.5]);
@@ -545,15 +879,32 @@ scalar
     select $name $half_age
     "#;
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let result = eval_string(code.to_string(), &env, &mut state);
-    
+
         assert!(result.is_ok());
         if let ExprValue::LazyFrame(lf) = result.unwrap().value {
             let df = lf.collect().unwrap();
-            let names: Vec<&str> = df.column("name").unwrap().str().unwrap().iter().flatten().collect();
-            let half_ages: Vec<f64> = df.column("half_age").unwrap().f64().unwrap().iter().flatten().collect();
-        
+            let names: Vec<&str> = df
+                .column("name")
+                .unwrap()
+                .str()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
+            let half_ages: Vec<f64> = df
+                .column("half_age")
+                .unwrap()
+                .f64()
+                .unwrap()
+                .iter()
+                .flatten()
+                .collect();
+
             assert_eq!(df.shape(), (1, 2));
             assert_eq!(names, vec!["Alice"]);
             assert_eq!(half_ages, vec![12.5]);

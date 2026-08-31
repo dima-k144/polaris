@@ -1,9 +1,9 @@
-use crate::types::{Expr, ExprValue, Error};
+use crate::types::{Error, Expr, ExprValue};
 
 fn transform_infix(items: Vec<Expr>) -> Result<Expr, Error> {
     if items.len() < 3 {
         return Err(Error::Custom(
-            "Infix expression requires at least 3 elements".to_string()
+            "Infix expression requires at least 3 elements".to_string(),
         ));
     }
 
@@ -49,7 +49,7 @@ fn transform_infix(items: Vec<Expr>) -> Result<Expr, Error> {
             Some(right) => right,
             None => {
                 return Err(Error::Custom(
-                    "Infix expression ends with an operator".to_string()
+                    "Infix expression ends with an operator".to_string(),
                 ));
             }
         };
@@ -66,15 +66,15 @@ fn transform_infix(items: Vec<Expr>) -> Result<Expr, Error> {
 pub fn is_dot_list(info: &Expr) -> bool {
     match info.value.clone() {
         ExprValue::List(list) => {
-            if list.is_empty() { return false; }
-            match &list[0].value {
-                ExprValue::Symbol(symbol) => {
-                    symbol == "."
-                },
-                _ => false
+            if list.is_empty() {
+                return false;
             }
-        },
-        _ => false
+            match &list[0].value {
+                ExprValue::Symbol(symbol) => symbol == ".",
+                _ => false,
+            }
+        }
+        _ => false,
     }
 }
 
@@ -91,15 +91,25 @@ pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Result<Expr, Error> {
     };
     let line = token.1;
 
-    if first_char.is_ascii_digit() || (token.0.len() > 1 && first_char == '-' && token.0.chars().nth(1).unwrap().is_ascii_digit()) {
+    if first_char.is_ascii_digit()
+        || (token.0.len() > 1
+            && first_char == '-'
+            && token.0.chars().nth(1).unwrap().is_ascii_digit())
+    {
         if token.0.contains('.') {
             match token.0.parse::<f64>() {
-                Ok(value) => Ok(Expr{value: ExprValue::Float(value), line: Some(line)}),
+                Ok(value) => Ok(Expr {
+                    value: ExprValue::Float(value),
+                    line: Some(line),
+                }),
                 Err(_) => Err(Error::FailedToParseNumber { number: token.0 }),
             }
         } else {
             match token.0.parse::<i64>() {
-                Ok(value) => Ok(Expr{value: ExprValue::Int(value), line: Some(line)}),
+                Ok(value) => Ok(Expr {
+                    value: ExprValue::Int(value),
+                    line: Some(line),
+                }),
                 Err(_) => Err(Error::FailedToParseNumber { number: token.0 }),
             }
         }
@@ -135,27 +145,56 @@ pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Result<Expr, Error> {
             return transform_infix(items);
         }
 
-        Ok(Expr { value: ExprValue::List(items), line: Some(line) })
+        Ok(Expr {
+            value: ExprValue::List(items),
+            line: Some(line),
+        })
     } else if first_char == '"' {
         let inner = &token.0[1..token.0.len().saturating_sub(1)];
-        Ok(Expr { value: ExprValue::String(inner.to_string()), line: Some(line) })
+        Ok(Expr {
+            value: ExprValue::String(inner.to_string()),
+            line: Some(line),
+        })
     } else if token.0 == "$" {
-        let first = Expr { value: ExprValue::Symbol(String::from("col")), line: Some(line) };
+        let first = Expr {
+            value: ExprValue::Symbol(String::from("col")),
+            line: Some(line),
+        };
         let mut second = parse1(tokens)?;
-        if let ExprValue::Symbol(symbol) = second.value { second.value = ExprValue::String(symbol) }
-        Ok(Expr { value: ExprValue::List(vec![first, second]), line: Some(line) })
+        if let ExprValue::Symbol(symbol) = second.value {
+            second.value = ExprValue::String(symbol)
+        }
+        Ok(Expr {
+            value: ExprValue::List(vec![first, second]),
+            line: Some(line),
+        })
     } else if token.0 == "'" {
-        let first = Expr { value: ExprValue::Symbol(String::from("quote")), line: Some(line) };
+        let first = Expr {
+            value: ExprValue::Symbol(String::from("quote")),
+            line: Some(line),
+        };
         let second = parse1(tokens)?;
-        Ok(Expr { value: ExprValue::List(vec![first, second]), line: Some(line) })
+        Ok(Expr {
+            value: ExprValue::List(vec![first, second]),
+            line: Some(line),
+        })
     } else if token.0 == "#" {
-        let first = Expr { value: ExprValue::Symbol(String::from("lookup")), line: Some(line) };
+        let first = Expr {
+            value: ExprValue::Symbol(String::from("lookup")),
+            line: Some(line),
+        };
         let second = parse1(tokens)?;
-        Ok(Expr { value: ExprValue::List(vec![first, second]), line: Some(line) })
+        Ok(Expr {
+            value: ExprValue::List(vec![first, second]),
+            line: Some(line),
+        })
     } else if token.0 == ")" {
         Err(Error::UnexpectedClosedParen)
     } else {
-        Ok(Expr { value: ExprValue::Symbol(token.0), line: Some(line) })
+        Ok(Expr {
+            value: ExprValue::Symbol(token.0),
+            line: Some(line),
+        })
     }
 }
 

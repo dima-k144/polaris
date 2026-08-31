@@ -1,11 +1,11 @@
-use std::{collections::HashMap};
+use crate::corelib::*;
+use crate::plotlarslib;
+use crate::polarslib::*;
+use crate::types::{Env, Error, Expr, ExprValue, NativeFunctionData};
 use polars::prelude::*;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
-use crate::types::{Env, Error, Expr, ExprValue, NativeFunctionData};
-use crate::plotlarslib;
-use crate::corelib::*;
-use crate::polarslib::*;
 
 pub fn insert_native_function(
     defines: &mut HashMap<String, Expr>,
@@ -60,8 +60,20 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "empty?", crate::corelib::is_empty, 1, 1);
 
     // Native String Functions
-    insert_native_function(&mut defines, "str-concat", crate::corelib::str_concat, 1, u8::MAX);
-    insert_native_function(&mut defines, "str-concat", crate::corelib::str_concat, 1, u8::MAX);
+    insert_native_function(
+        &mut defines,
+        "str-concat",
+        crate::corelib::str_concat,
+        1,
+        u8::MAX,
+    );
+    insert_native_function(
+        &mut defines,
+        "str-concat",
+        crate::corelib::str_concat,
+        1,
+        u8::MAX,
+    );
     insert_native_function(&mut defines, "str-len", crate::corelib::str_len, 1, 1);
     insert_native_function(&mut defines, "substring", crate::corelib::substring, 2, 3);
     insert_native_function(&mut defines, "split", crate::corelib::split, 2, 2);
@@ -218,13 +230,37 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "cast", cast_, 2, 2);
 
     // Plotlars
-    insert_native_function(&mut defines, "scatter-plot", plotlarslib::scatter_plot, 1, u8::MAX);
+    insert_native_function(
+        &mut defines,
+        "scatter-plot",
+        plotlarslib::scatter_plot,
+        1,
+        u8::MAX,
+    );
     insert_native_function(&mut defines, "bar-plot", plotlarslib::bar_plot, 1, u8::MAX);
     insert_native_function(&mut defines, "pie-plot", plotlarslib::pie_plot, 1, u8::MAX);
-    insert_native_function(&mut defines, "histogram", plotlarslib::histogram, 1, u8::MAX);
+    insert_native_function(
+        &mut defines,
+        "histogram",
+        plotlarslib::histogram,
+        1,
+        u8::MAX,
+    );
     insert_native_function(&mut defines, "box-plot", plotlarslib::box_plot, 1, u8::MAX);
-    insert_native_function(&mut defines, "time-series-plot", plotlarslib::time_series_plot, 1, u8::MAX);
-    insert_native_function(&mut defines, "line-plot", plotlarslib::line_plot, 1, u8::MAX);
+    insert_native_function(
+        &mut defines,
+        "time-series-plot",
+        plotlarslib::time_series_plot,
+        1,
+        u8::MAX,
+    );
+    insert_native_function(
+        &mut defines,
+        "line-plot",
+        plotlarslib::line_plot,
+        1,
+        u8::MAX,
+    );
 
     // Polars to lisp
     insert_native_function(&mut defines, "scalar", scalar, 1, 1);

@@ -4,12 +4,10 @@ mod tests {
 
     #[test]
     fn test1() {
-        let code = 
-r#"
+        let code = r#"
 a
 "#;
-        let expected = 
-r#"
+        let expected = r#"
 (a)
 "#;
 
@@ -21,12 +19,10 @@ r#"
 
     #[test]
     fn test2() {
-        let code = 
-r#"
+        let code = r#"
 a b c
 "#;
-        let expected = 
-r#"
+        let expected = r#"
 (a b c)
 "#;
 
@@ -38,13 +34,11 @@ r#"
 
     #[test]
     fn test3() {
-        let code = 
-r#"
+        let code = r#"
 a
     b
 "#;
-        let expected = 
-r#"
+        let expected = r#"
 (a
     (b))
 "#;
@@ -57,13 +51,11 @@ r#"
 
     #[test]
     fn test4() {
-        let code = 
-r#"
+        let code = r#"
 a 1 2 3
     b 1 2 3
 "#;
-        let expected = 
-r#"
+        let expected = r#"
 (a 1 2 3
     (b 1 2 3))
 "#;
@@ -76,14 +68,12 @@ r#"
 
     #[test]
     fn test5() {
-        let code = 
-r#"
+        let code = r#"
 a
     b
         c
 "#;
-        let expected = 
-r#"
+        let expected = r#"
 (a
     (b
         (c)))
@@ -97,14 +87,12 @@ r#"
 
     #[test]
     fn test6() {
-        let code = 
-r#"
+        let code = r#"
 a
     b
     c
 "#;
-        let expected = 
-r#"
+        let expected = r#"
 (a
     (b)
     (c))
@@ -118,15 +106,13 @@ r#"
 
     #[test]
     fn test7() {
-        let code = 
-r#"
+        let code = r#"
 a
     b
     c
     d
 "#;
-        let expected = 
-r#"
+        let expected = r#"
 (a
     (b)
     (c)
@@ -141,15 +127,13 @@ r#"
 
     #[test]
     fn test8() {
-        let code = 
-r#"
+        let code = r#"
 a
     b
         c
     d
 "#;
-        let expected = 
-r#"
+        let expected = r#"
 (a
     (b
         (c))
@@ -164,14 +148,12 @@ r#"
 
     #[test]
     fn test9() {
-        let code = 
-r#"
+        let code = r#"
 a
     b
 c
 "#;
-        let expected = 
-r#"
+        let expected = r#"
 (a
     (b))
 (c)
@@ -185,16 +167,14 @@ r#"
 
     #[test]
     fn test10() {
-        let code = 
-r#"
+        let code = r#"
 a
     b
         c
     d
 e
 "#;
-        let expected = 
-r#"
+        let expected = r#"
 (a
     (b
         (c))
@@ -208,15 +188,12 @@ r#"
         assert_eq!(result, expected);
     }
 
-
     #[test]
     fn test_colon1() {
-        let code = 
-r#"
+        let code = r#"
 a : b
 "#;
-        let expected = 
-r#"
+        let expected = r#"
 (a (b))
 "#;
 
@@ -226,14 +203,12 @@ r#"
         assert_eq!(result, expected);
     }
 
-     #[test]
+    #[test]
     fn test_colon2() {
-        let code = 
-r#"
+        let code = r#"
 a 1 2 : b 3 4
 "#;
-        let expected = 
-r#"
+        let expected = r#"
 (a 1 2 (b 3 4))
 "#;
 
@@ -245,12 +220,10 @@ r#"
 
     #[test]
     fn test_colon3() {
-        let code = 
-r#"
+        let code = r#"
 a : b : c
 "#;
-        let expected = 
-r#"
+        let expected = r#"
 (a (b (c)))
 "#;
 
@@ -262,13 +235,11 @@ r#"
 
     #[test]
     fn test_dot1() {
-        let code = 
-r#"
+        let code = r#"
 a
 . b c
 "#;
-        let expected = 
-r#"
+        let expected = r#"
 (a)
 (. b c)
 "#;
@@ -281,13 +252,11 @@ r#"
 
     #[test]
     fn test_dot2() {
-        let code = 
-r#"
+        let code = r#"
 1 2
 . 3 4
 "#;
-        let expected = 
-r#"
+        let expected = r#"
 (1 2)
 (. 3 4)
 "#;
@@ -300,12 +269,10 @@ r#"
 
     #[test]
     fn test_traditional_sexp1() {
-         let code = 
-r#"
+        let code = r#"
 (a)
 "#;
-        let expected = 
-r#"
+        let expected = r#"
 (a)
 "#;
 
@@ -317,13 +284,11 @@ r#"
 
     #[test]
     fn test_traditional_sexp2() {
-         let code = 
-r#"
+        let code = r#"
 (a
     b)
 "#;
-        let expected = 
-r#"
+        let expected = r#"
 (a
     b)
 "#;

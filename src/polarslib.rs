@@ -1,14 +1,17 @@
-use std::fs::File;
+use crate::corelib::*;
+use crate::interpreter::eval;
+use crate::interpreter::{State, expect_args_count, invoke_function};
+use crate::types::{
+    Env, Error, Expr,
+    ExprValue::{self},
+};
+use polars::prelude::QuantileMethod;
+use polars::prelude::RollingOptionsFixedWindow;
 use polars::prelude::*;
 use std::cell::RefCell;
+use std::fs::File;
 use std::rc::Rc;
 use std::sync::Arc;
-use crate::types::{Env, Error, Expr, ExprValue::{self}};
-use crate::interpreter::{State, expect_args_count, invoke_function};
-use polars::prelude::RollingOptionsFixedWindow;
-use crate::corelib::*;
-use polars::prelude::QuantileMethod;
-use crate::interpreter::{eval};
 
 pub fn new_polars_expr(value: polars::prelude::Expr) -> Expr {
     Expr {
@@ -30,8 +33,12 @@ pub fn new_lazy_frame(value: LazyFrame) -> Expr {
 //   (+ $age 5)
 //   (+ $base_salary $bonus)
 pub fn plus(args: Vec<Expr>) -> Result<Expr, Error> {
-    let has_polars_expr_arg = args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)));
-    let has_float_arg = args.iter().any(|arg| matches!(arg.value, ExprValue::Float(_)));
+    let has_polars_expr_arg = args
+        .iter()
+        .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)));
+    let has_float_arg = args
+        .iter()
+        .any(|arg| matches!(arg.value, ExprValue::Float(_)));
 
     if has_polars_expr_arg {
         let mut expr = args[0].clone().expect_polars_expr()?;
@@ -60,8 +67,12 @@ pub fn plus(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (- $age 2)
 //   (- $gross_income $tax)
 pub fn minus(args: Vec<Expr>) -> Result<Expr, Error> {
-    let has_polars_expr_arg = args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)));
-    let has_float_arg = args.iter().any(|arg| matches!(arg.value, ExprValue::Float(_)));
+    let has_polars_expr_arg = args
+        .iter()
+        .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)));
+    let has_float_arg = args
+        .iter()
+        .any(|arg| matches!(arg.value, ExprValue::Float(_)));
 
     if has_polars_expr_arg {
         let mut expr = args[0].clone().expect_polars_expr()?;
@@ -90,8 +101,12 @@ pub fn minus(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (* $price $quantity)
 //   (* $age 2)
 pub fn mult(args: Vec<Expr>) -> Result<Expr, Error> {
-    let has_polars_expr_arg = args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)));
-    let has_float_arg = args.iter().any(|arg| matches!(arg.value, ExprValue::Float(_)));
+    let has_polars_expr_arg = args
+        .iter()
+        .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)));
+    let has_float_arg = args
+        .iter()
+        .any(|arg| matches!(arg.value, ExprValue::Float(_)));
 
     if has_polars_expr_arg {
         let mut expr = args[0].clone().expect_polars_expr()?;
@@ -120,7 +135,9 @@ pub fn mult(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (/ $total_cost $quantity)
 //   (/ $age 2)
 pub fn divide(args: Vec<Expr>) -> Result<Expr, Error> {
-    let has_polars_expr_arg = args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)));
+    let has_polars_expr_arg = args
+        .iter()
+        .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)));
 
     if has_polars_expr_arg {
         let mut expr = args[0]
@@ -150,10 +167,11 @@ pub fn read_csv(args: Vec<Expr>) -> Result<Expr, Error> {
     let path = args[0].clone().expect_string()?;
     match LazyCsvReader::new(path.as_str().into())
         .with_has_header(true)
-        .finish() {
-            Ok(lf) => Ok(new_lazy_frame(lf)),
-            Err(err) => Err(Error::PolarsError(err)),
-        }
+        .finish()
+    {
+        Ok(lf) => Ok(new_lazy_frame(lf)),
+        Err(err) => Err(Error::PolarsError(err)),
+    }
 }
 
 // --- Write CSV File ---
@@ -176,7 +194,7 @@ pub fn write_csv(args: Vec<Expr>) -> Result<Expr, Error> {
         .finish(&mut df)
         .map_err(Error::PolarsError)?;
 
-    Ok(nil()) 
+    Ok(nil())
 }
 
 // (sink df "path/to/output.parquet") or (sink df "path/to/output.csv")
@@ -278,13 +296,15 @@ pub fn slice(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (schema df)
 //   (schema (read-csv "data.csv"))
 pub fn schema(args: Vec<Expr>) -> Result<Expr, Error> {
-    let mut lf = args[0].clone().expect_lazy_frame()?; 
+    let mut lf = args[0].clone().expect_lazy_frame()?;
     let schema = lf.collect_schema().map_err(Error::PolarsError)?;
     let mut result = Vec::<Expr>::new();
     let mut fields = Vec::<Expr>::new();
     for field in schema.iter_fields() {
-        
-        fields.push(new_list(vec![new_string(field.name.into_string()), new_string(field.dtype.to_string())]));
+        fields.push(new_list(vec![
+            new_string(field.name.into_string()),
+            new_string(field.dtype.to_string()),
+        ]));
     }
     result.push(new_list(fields));
     Ok(new_list(result))
@@ -294,9 +314,12 @@ pub fn schema(args: Vec<Expr>) -> Result<Expr, Error> {
 // Examples in Lisp:
 //   (shape df) -> (rows cols)
 pub fn shape(args: Vec<Expr>) -> Result<Expr, Error> {
-    let lf = args[0].clone().expect_lazy_frame()?;  
+    let lf = args[0].clone().expect_lazy_frame()?;
     let shape = lf.collect().map_err(Error::PolarsError)?.shape();
-    Ok(new_list(vec![new_int(shape.0 as i64), new_int(shape.1 as i64)]))
+    Ok(new_list(vec![
+        new_int(shape.0 as i64),
+        new_int(shape.1 as i64),
+    ]))
 }
 
 // --- Column Reference ---
@@ -317,7 +340,10 @@ pub fn lit_(args: Vec<Expr>) -> Result<Expr, Error> {
         ExprValue::Int(num) => Ok(new_polars_expr(lit(num))),
         ExprValue::Float(num) => Ok(new_polars_expr(lit(num))),
         ExprValue::String(string) => Ok(new_polars_expr(lit(string))),
-        _ => Err(Error::WrongType { expected: String::from("number"), got: args[0].clone() })
+        _ => Err(Error::WrongType {
+            expected: String::from("number"),
+            got: args[0].clone(),
+        }),
     }
 }
 
@@ -341,7 +367,10 @@ pub fn eq_polars(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (= $city "London")
 //   (filter df (= $id 10))
 pub fn eq(args: Vec<Expr>) -> Result<Expr, Error> {
-    if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
+    if args
+        .iter()
+        .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)))
+    {
         eq_polars(args)
     } else {
         eq_core(args)
@@ -368,7 +397,10 @@ pub fn neq_core(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (!= $status "inactive")
 //   (filter df (!= $age 30))
 pub fn neq(args: Vec<Expr>) -> Result<Expr, Error> {
-    if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
+    if args
+        .iter()
+        .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)))
+    {
         neq_polars(args)
     } else {
         neq_core(args)
@@ -385,9 +417,8 @@ pub fn cmp_numbers(a: &Expr, b: &Expr) -> Result<std::cmp::Ordering, Error> {
         _ => {
             let f1 = num_a.to_float();
             let f2 = num_b.to_float();
-            f1.partial_cmp(&f2).ok_or_else(|| {
-                Error::Custom("Cannot compare NaN values".to_string())
-            })
+            f1.partial_cmp(&f2)
+                .ok_or_else(|| Error::Custom("Cannot compare NaN values".to_string()))
         }
     }
 }
@@ -410,7 +441,10 @@ pub fn gt_core(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (> $age 25)
 //   (filter df (> $salary 80000))
 pub fn gt(args: Vec<Expr>) -> Result<Expr, Error> {
-    if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
+    if args
+        .iter()
+        .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)))
+    {
         gt_polars(args)
     } else {
         gt_core(args)
@@ -435,7 +469,10 @@ pub fn lt_core(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (< $age 30)
 //   (filter df (< $price 50.0))
 pub fn lt(args: Vec<Expr>) -> Result<Expr, Error> {
-    if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
+    if args
+        .iter()
+        .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)))
+    {
         lt_polars(args)
     } else {
         lt_core(args)
@@ -451,7 +488,9 @@ pub fn gt_eq_polars(args: Vec<Expr>) -> Result<Expr, Error> {
 
 pub fn gt_eq_core(args: Vec<Expr>) -> Result<Expr, Error> {
     let ord = cmp_numbers(&args[0], &args[1])?;
-    Ok(new_bool(ord == std::cmp::Ordering::Greater || ord == std::cmp::Ordering::Equal))
+    Ok(new_bool(
+        ord == std::cmp::Ordering::Greater || ord == std::cmp::Ordering::Equal,
+    ))
 }
 
 // --- Greater Than or Equal (>=) ---
@@ -460,7 +499,10 @@ pub fn gt_eq_core(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (>= $age 18)
 //   (filter df (>= $score 75))
 pub fn gt_eq(args: Vec<Expr>) -> Result<Expr, Error> {
-    if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
+    if args
+        .iter()
+        .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)))
+    {
         gt_eq_polars(args)
     } else {
         gt_eq_core(args)
@@ -476,7 +518,9 @@ pub fn lt_eq_polars(args: Vec<Expr>) -> Result<Expr, Error> {
 
 pub fn lt_eq_core(args: Vec<Expr>) -> Result<Expr, Error> {
     let ord = cmp_numbers(&args[0], &args[1])?;
-    Ok(new_bool(ord == std::cmp::Ordering::Less || ord == std::cmp::Ordering::Equal))
+    Ok(new_bool(
+        ord == std::cmp::Ordering::Less || ord == std::cmp::Ordering::Equal,
+    ))
 }
 
 // --- Less Than or Equal (<=) ---
@@ -485,7 +529,10 @@ pub fn lt_eq_core(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (<= $age 65)
 //   (filter df (<= $rank 3))
 pub fn lt_eq(args: Vec<Expr>) -> Result<Expr, Error> {
-    if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
+    if args
+        .iter()
+        .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)))
+    {
         lt_eq_polars(args)
     } else {
         lt_eq_core(args)
@@ -517,7 +564,10 @@ pub fn not_core(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (not (> $age 25) (= $city "Paris")) ; negates the AND of all conditions
 //   (filter df (not (= $city "London") (> $age 30)))
 pub fn not(args: Vec<Expr>) -> Result<Expr, Error> {
-    if args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_))) {
+    if args
+        .iter()
+        .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)))
+    {
         not_polars(args)
     } else {
         not_core(args)
@@ -794,12 +844,12 @@ pub fn alias(args: Vec<Expr>) -> Result<Expr, Error> {
 pub fn agg(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let mut exprs = Vec::<polars::prelude::Expr>::new();
-    
+
     // Collect all expression arguments passed to agg
     for arg in args.iter().skip(1) {
         exprs.push(arg.clone().expect_polars_expr()?);
     }
-    
+
     // Polars aggregates entire lazy frames via select
     Ok(new_lazy_frame(lf.select(exprs)))
 }
@@ -807,7 +857,7 @@ pub fn agg(args: Vec<Expr>) -> Result<Expr, Error> {
 pub fn join(args: Vec<Expr>) -> Result<Expr, Error> {
     let left_lf = args[0].clone().expect_lazy_frame()?;
     let right_lf = args[1].clone().expect_lazy_frame()?;
-    
+
     // Parse left key(s)
     let left_on = match &args[2].value {
         ExprValue::List(cols) => {
@@ -846,12 +896,7 @@ pub fn join(args: Vec<Expr>) -> Result<Expr, Error> {
         JoinType::Inner
     };
 
-    let joined = left_lf.join(
-        right_lf,
-        left_on,
-        right_on,
-        JoinArgs::new(how),
-    );
+    let joined = left_lf.join(right_lf, left_on, right_on, JoinArgs::new(how));
 
     Ok(new_lazy_frame(joined))
 }
@@ -937,10 +982,11 @@ pub fn when(args: Vec<Expr>) -> Result<Expr, Error> {
 
     if args.len() >= 2
         && let Ok(sym) = args[args.len() - 2].clone().expect_symbol()
-            && (sym == ":default" || sym == ":else") {
-                default_expr = args[args.len() - 1].clone().expect_polars_expr()?;
-                pairs_slice = &args[..args.len() - 2];
-            }
+        && (sym == ":default" || sym == ":else")
+    {
+        default_expr = args[args.len() - 1].clone().expect_polars_expr()?;
+        pairs_slice = &args[..args.len() - 2];
+    }
 
     if pairs_slice.is_empty() {
         return Err(Error::WrongNumberOfArguments {
@@ -988,7 +1034,7 @@ pub fn str_contains(args: Vec<Expr>) -> Result<Expr, Error> {
     }
     let col_expr = args[0].clone().expect_polars_expr()?;
     let pat_expr = args[1].clone().expect_polars_expr()?;
-    
+
     // Polars: expr.str().contains(pattern, strict)
     Ok(new_polars_expr(col_expr.str().contains(pat_expr, true)))
 }
@@ -1000,7 +1046,9 @@ pub fn str_replace(args: Vec<Expr>) -> Result<Expr, Error> {
     let rep_expr = args[2].clone().expect_polars_expr()?;
 
     // false = interpret pattern as regex, not literal
-    Ok(new_polars_expr(col_expr.str().replace(pat_expr, rep_expr, false)))
+    Ok(new_polars_expr(
+        col_expr.str().replace(pat_expr, rep_expr, false),
+    ))
 }
 
 // (str-extract $code "([A-Z]+)-(\\d+)" 1)
@@ -1036,7 +1084,7 @@ pub fn over(args: Vec<Expr>) -> Result<Expr, Error> {
     match expr.over(partition_by) {
         Ok(result) => Ok(new_polars_expr(result)),
         Err(err) => Err(Error::PolarsError(err)),
-    } 
+    }
 }
 
 // (shift $col 1) or (shift $col -1)
@@ -1050,11 +1098,14 @@ pub fn shift(args: Vec<Expr>) -> Result<Expr, Error> {
 pub fn cum_sum(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let reverse = if args.len() > 1 {
-        matches!(args[1].clone().expect_symbol()?.as_str(), ":desc" | ":reverse")
+        matches!(
+            args[1].clone().expect_symbol()?.as_str(),
+            ":desc" | ":reverse"
+        )
     } else {
         false
     };
-    
+
     Ok(new_polars_expr(expr.cum_sum(reverse)))
 }
 
@@ -1062,7 +1113,10 @@ pub fn cum_sum(args: Vec<Expr>) -> Result<Expr, Error> {
 pub fn cum_min(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let reverse = if args.len() > 1 {
-        matches!(args[1].clone().expect_symbol()?.as_str(), ":desc" | ":reverse")
+        matches!(
+            args[1].clone().expect_symbol()?.as_str(),
+            ":desc" | ":reverse"
+        )
     } else {
         false
     };
@@ -1073,7 +1127,10 @@ pub fn cum_min(args: Vec<Expr>) -> Result<Expr, Error> {
 pub fn cum_max(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let reverse = if args.len() > 1 {
-        matches!(args[1].clone().expect_symbol()?.as_str(), ":desc" | ":reverse")
+        matches!(
+            args[1].clone().expect_symbol()?.as_str(),
+            ":desc" | ":reverse"
+        )
     } else {
         false
     };
@@ -1084,7 +1141,10 @@ pub fn cum_max(args: Vec<Expr>) -> Result<Expr, Error> {
 pub fn cum_count(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let reverse = if args.len() > 1 {
-        matches!(args[1].clone().expect_symbol()?.as_str(), ":desc" | ":reverse")
+        matches!(
+            args[1].clone().expect_symbol()?.as_str(),
+            ":desc" | ":reverse"
+        )
     } else {
         false
     };
@@ -1132,7 +1192,7 @@ pub fn to_date(args: Vec<Expr>) -> Result<Expr, Error> {
     };
 
     Ok(new_polars_expr(col_expr.str().to_date(options)))
-} 
+}
 
 // (to-datetime $col "%Y-%m-%d %H:%M:%S")
 pub fn to_datetime(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -1313,11 +1373,13 @@ pub fn concat_(args: Vec<Expr>) -> Result<Expr, Error> {
         }
     }
 
-    if args.len() > 1 && how_str.is_none()
+    if args.len() > 1
+        && how_str.is_none()
         && let Ok(sym) = args.last().unwrap().clone().expect_symbol()
-            && sym.starts_with(':') {
-                how_str = Some(sym);
-            }
+        && sym.starts_with(':')
+    {
+        how_str = Some(sym);
+    }
 
     let concatted = match how_str.as_deref() {
         Some(":horizontal") | Some(":horiz") => {
@@ -1352,7 +1414,9 @@ pub fn cast_(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // Helper to construct window options: (expr, window_size, [min_periods], [center])
-pub fn parse_rolling_options(args: &[Expr]) -> Result<(polars::prelude::Expr, RollingOptionsFixedWindow), Error> {
+pub fn parse_rolling_options(
+    args: &[Expr],
+) -> Result<(polars::prelude::Expr, RollingOptionsFixedWindow), Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let window_size = args[1].clone().expect_int()? as usize;
 
@@ -1463,15 +1527,20 @@ pub fn str_slice(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let offset = args[1].clone().expect_int()?;
     let length = args[2].clone().expect_int()?;
-    Ok(new_polars_expr(col_expr.str().slice(lit(offset), lit(length))))
+    Ok(new_polars_expr(
+        col_expr.str().slice(lit(offset), lit(length)),
+    ))
 }
 
 // (str-extract-groups $col "([A-Z]+)-(\\d+)")
 pub fn str_extract_groups(args: Vec<Expr>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let pat = args[1].clone().expect_string()?;
-    
-    let res = col_expr.str().extract_groups(&pat).map_err(Error::PolarsError)?;
+
+    let res = col_expr
+        .str()
+        .extract_groups(&pat)
+        .map_err(Error::PolarsError)?;
     Ok(new_polars_expr(res))
 }
 
@@ -1479,7 +1548,9 @@ pub fn str_extract_groups(args: Vec<Expr>) -> Result<Expr, Error> {
 pub fn scalar(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let df = lf.collect().map_err(Error::PolarsError)?;
-    if df.shape() != (1, 1) { return Err(Error::ScalarShapeError { shape: df.shape() }) }
+    if df.shape() != (1, 1) {
+        return Err(Error::ScalarShapeError { shape: df.shape() });
+    }
     let row = match df.get(0) {
         Some(val) => val,
         None => return Err(Error::Custom("empty row in scalar".to_string())),
@@ -1501,28 +1572,59 @@ pub fn scalar(args: Vec<Expr>) -> Result<Expr, Error> {
         AnyValue::Float16(f) => Ok(new_float(f.into())),
         AnyValue::Float32(f) => Ok(new_float(f.into())),
         AnyValue::Float64(f) => Ok(new_float(f)),
-        AnyValue::Date(_) => Err(Error::ScalarUnsupportedError { name: "Date".to_string() }),
-        AnyValue::Datetime(_, _time_unit, _time_zone) => Err(Error::ScalarUnsupportedError { name: "DateTime".to_string() }),
-        AnyValue::DatetimeOwned(_, _time_unit, _time_zone) => Err(Error::ScalarUnsupportedError { name: "DatetimeOwned".to_string() }),
-        AnyValue::Duration(_, _time_unit) => Err(Error::ScalarUnsupportedError { name: "Duration".to_string() }),
-        AnyValue::Time(_) => Err(Error::ScalarUnsupportedError { name: "Time".to_string() }),
-        AnyValue::Categorical(_, _categorical_mapping) => Err(Error::ScalarUnsupportedError { name: "Categorical".to_string() }),
-        AnyValue::CategoricalOwned(_, _categorical_mapping) => Err(Error::ScalarUnsupportedError { name: "CategoricalOwned".to_string() }),
-        AnyValue::Enum(_, _categorical_mapping) => Err(Error::ScalarUnsupportedError { name: "Enum".to_string() }),
-        AnyValue::EnumOwned(_, _categorical_mapping) => Err(Error::ScalarUnsupportedError { name: "EnumOwned".to_string() }),
-        AnyValue::List(_series) => Err(Error::ScalarUnsupportedError { name: "List".to_string() }),
-        AnyValue::Struct(_, _struct_array, _fields) => Err(Error::ScalarUnsupportedError { name: "Struct".to_string() }),
-        AnyValue::StructOwned(_) => Err(Error::ScalarUnsupportedError { name: "StructOwned".to_string() }),
+        AnyValue::Date(_) => Err(Error::ScalarUnsupportedError {
+            name: "Date".to_string(),
+        }),
+        AnyValue::Datetime(_, _time_unit, _time_zone) => Err(Error::ScalarUnsupportedError {
+            name: "DateTime".to_string(),
+        }),
+        AnyValue::DatetimeOwned(_, _time_unit, _time_zone) => Err(Error::ScalarUnsupportedError {
+            name: "DatetimeOwned".to_string(),
+        }),
+        AnyValue::Duration(_, _time_unit) => Err(Error::ScalarUnsupportedError {
+            name: "Duration".to_string(),
+        }),
+        AnyValue::Time(_) => Err(Error::ScalarUnsupportedError {
+            name: "Time".to_string(),
+        }),
+        AnyValue::Categorical(_, _categorical_mapping) => Err(Error::ScalarUnsupportedError {
+            name: "Categorical".to_string(),
+        }),
+        AnyValue::CategoricalOwned(_, _categorical_mapping) => Err(Error::ScalarUnsupportedError {
+            name: "CategoricalOwned".to_string(),
+        }),
+        AnyValue::Enum(_, _categorical_mapping) => Err(Error::ScalarUnsupportedError {
+            name: "Enum".to_string(),
+        }),
+        AnyValue::EnumOwned(_, _categorical_mapping) => Err(Error::ScalarUnsupportedError {
+            name: "EnumOwned".to_string(),
+        }),
+        AnyValue::List(_series) => Err(Error::ScalarUnsupportedError {
+            name: "List".to_string(),
+        }),
+        AnyValue::Struct(_, _struct_array, _fields) => Err(Error::ScalarUnsupportedError {
+            name: "Struct".to_string(),
+        }),
+        AnyValue::StructOwned(_) => Err(Error::ScalarUnsupportedError {
+            name: "StructOwned".to_string(),
+        }),
         AnyValue::StringOwned(pl_small_str) => Ok(new_string(pl_small_str.to_string())),
-        AnyValue::Binary(_items) => Err(Error::ScalarUnsupportedError { name: "Binary".to_string() }),
-        AnyValue::BinaryOwned(_items) => Err(Error::ScalarUnsupportedError { name: "BinaryOwned".to_string() }),
-        _ => Err(Error::ScalarUnsupportedError { name: "Unknown".to_string() })
+        AnyValue::Binary(_items) => Err(Error::ScalarUnsupportedError {
+            name: "Binary".to_string(),
+        }),
+        AnyValue::BinaryOwned(_items) => Err(Error::ScalarUnsupportedError {
+            name: "BinaryOwned".to_string(),
+        }),
+        _ => Err(Error::ScalarUnsupportedError {
+            name: "Unknown".to_string(),
+        }),
     }
 }
 
 pub fn collect_(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
-    lf.collect_with_engine(polars::prelude::Engine::Streaming).map_err(Error::PolarsError)?;
+    lf.collect_with_engine(polars::prelude::Engine::Streaming)
+        .map_err(Error::PolarsError)?;
     Ok(nil())
 }
 
@@ -1541,7 +1643,7 @@ pub fn variance(args: Vec<Expr>) -> Result<Expr, Error> {
 pub fn quantile(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let q = args[1].clone().expect_number()?.to_float();
-    
+
     let method = if args.len() > 2 {
         match args[2].clone().expect_symbol()?.as_str() {
             ":linear" => QuantileMethod::Linear,
@@ -1554,7 +1656,9 @@ pub fn quantile(args: Vec<Expr>) -> Result<Expr, Error> {
         QuantileMethod::Nearest
     };
 
-    Ok(new_polars_expr(expr.quantile(polars::prelude::lit(q), method)))
+    Ok(new_polars_expr(
+        expr.quantile(polars::prelude::lit(q), method),
+    ))
 }
 
 // (cov $col_a $col_b) or (cov $col_a $col_b 1)
@@ -1591,18 +1695,63 @@ pub fn describe(args: Vec<Expr>) -> Result<Expr, Error> {
         let c = col(name.clone());
 
         if field.dtype().is_numeric() {
-            stats_exprs.push(c.clone().count().cast(DataType::Float64).alias(format!("{}_count", name)));
-            stats_exprs.push(c.clone().null_count().cast(DataType::Float64).alias(format!("{}_null_count", name)));
+            stats_exprs.push(
+                c.clone()
+                    .count()
+                    .cast(DataType::Float64)
+                    .alias(format!("{}_count", name)),
+            );
+            stats_exprs.push(
+                c.clone()
+                    .null_count()
+                    .cast(DataType::Float64)
+                    .alias(format!("{}_null_count", name)),
+            );
             stats_exprs.push(c.clone().mean().alias(format!("{}_mean", name)));
             stats_exprs.push(c.clone().std(1).alias(format!("{}_std", name)));
-            stats_exprs.push(c.clone().min().cast(DataType::Float64).alias(format!("{}_min", name)));
-            stats_exprs.push(c.clone().quantile(lit(0.25), QuantileMethod::Linear).cast(DataType::Float64).alias(format!("{}_25%", name)));
-            stats_exprs.push(c.clone().median().cast(DataType::Float64).alias(format!("{}_50%", name)));
-            stats_exprs.push(c.clone().quantile(lit(0.75), QuantileMethod::Linear).cast(DataType::Float64).alias(format!("{}_75%", name)));
-            stats_exprs.push(c.clone().max().cast(DataType::Float64).alias(format!("{}_max", name)));
+            stats_exprs.push(
+                c.clone()
+                    .min()
+                    .cast(DataType::Float64)
+                    .alias(format!("{}_min", name)),
+            );
+            stats_exprs.push(
+                c.clone()
+                    .quantile(lit(0.25), QuantileMethod::Linear)
+                    .cast(DataType::Float64)
+                    .alias(format!("{}_25%", name)),
+            );
+            stats_exprs.push(
+                c.clone()
+                    .median()
+                    .cast(DataType::Float64)
+                    .alias(format!("{}_50%", name)),
+            );
+            stats_exprs.push(
+                c.clone()
+                    .quantile(lit(0.75), QuantileMethod::Linear)
+                    .cast(DataType::Float64)
+                    .alias(format!("{}_75%", name)),
+            );
+            stats_exprs.push(
+                c.clone()
+                    .max()
+                    .cast(DataType::Float64)
+                    .alias(format!("{}_max", name)),
+            );
         } else {
-            stats_exprs.push(c.clone().count().cast(DataType::Float64).alias(format!("{}_count", name)));
-            stats_exprs.push(c.clone().null_count().cast(DataType::Float64).alias(format!("{}_null_count", name)));
+            stats_exprs.push(
+                c.clone()
+                    .count()
+                    .cast(DataType::Float64)
+                    .alias(format!("{}_count", name)),
+            );
+            stats_exprs.push(
+                c.clone()
+                    .null_count()
+                    .cast(DataType::Float64)
+                    .alias(format!("{}_null_count", name)),
+            );
         }
     }
 
@@ -1636,7 +1785,10 @@ pub fn expr_to_any_value<'a>(expr: Expr) -> Result<AnyValue<'a>, Error> {
         ExprValue::Int(i) => Ok(AnyValue::Int64(i)),
         ExprValue::Float(f) => Ok(AnyValue::Float64(f)),
         ExprValue::String(s) => Ok(AnyValue::StringOwned(PlSmallStr::from(s.as_str()))),
-        other => Err(Error::Custom(format!("Cannot convert expr '{:?}' to Series AnyValue", other))),
+        other => Err(Error::Custom(format!(
+            "Cannot convert expr '{:?}' to Series AnyValue",
+            other
+        ))),
     }
 }
 
@@ -1658,7 +1810,12 @@ pub fn eval_apply_udf(
             ":float" | ":f64" => DataType::Float64,
             ":str" | ":string" => DataType::String,
             ":bool" => DataType::Boolean,
-            other => return Err(Error::Custom(format!("Unsupported UDF return type: {}", other))),
+            other => {
+                return Err(Error::Custom(format!(
+                    "Unsupported UDF return type: {}",
+                    other
+                )));
+            }
         }
     } else {
         DataType::Float64
@@ -1674,7 +1831,10 @@ pub fn eval_apply_udf(
         move |series: Column| {
             let s = series.as_materialized_series();
             let mut results = Vec::with_capacity(s.len());
-            let mut thread_state = State { line: 0, file: None };
+            let mut thread_state = State {
+                line: 0,
+                file: None,
+            };
 
             // Reconstruct the lexical environment for this worker thread batch
             let local_env = Rc::new(RefCell::new(Env {
@@ -1683,11 +1843,14 @@ pub fn eval_apply_udf(
             }));
 
             for i in 0..s.len() {
-                let av = s.get(i).map_err(|e| PolarsError::ComputeError(e.to_string().into()))?;
+                let av = s
+                    .get(i)
+                    .map_err(|e| PolarsError::ComputeError(e.to_string().into()))?;
                 let arg_expr = any_value_to_expr(av);
 
-                let eval_res = invoke_function(&func_payload, vec![arg_expr], &local_env, &mut thread_state)
-                    .map_err(|e| PolarsError::ComputeError(format!("{:?}", e).into()))?;
+                let eval_res =
+                    invoke_function(&func_payload, vec![arg_expr], &local_env, &mut thread_state)
+                        .map_err(|e| PolarsError::ComputeError(format!("{:?}", e).into()))?;
 
                 results.push(eval_res);
             }
@@ -1698,10 +1861,9 @@ pub fn eval_apply_udf(
                         .into_iter()
                         .map(|e| match e.value {
                             ExprValue::Nil => Ok(None),
-                            _ => e
-                                .expect_int()
-                                .map(Some)
-                                .map_err(|err| PolarsError::ComputeError(format!("{:?}", err).into())),
+                            _ => e.expect_int().map(Some).map_err(|err| {
+                                PolarsError::ComputeError(format!("{:?}", err).into())
+                            }),
                         })
                         .collect();
                     Series::new(s.name().clone(), vals?)
@@ -1711,10 +1873,9 @@ pub fn eval_apply_udf(
                         .into_iter()
                         .map(|e| match e.value {
                             ExprValue::Nil => Ok(None),
-                            _ => e
-                                .expect_float()
-                                .map(Some)
-                                .map_err(|err| PolarsError::ComputeError(format!("{:?}", err).into())),
+                            _ => e.expect_float().map(Some).map_err(|err| {
+                                PolarsError::ComputeError(format!("{:?}", err).into())
+                            }),
                         })
                         .collect();
                     Series::new(s.name().clone(), vals?)
@@ -1724,10 +1885,9 @@ pub fn eval_apply_udf(
                         .into_iter()
                         .map(|e| match e.value {
                             ExprValue::Nil => Ok(None),
-                            _ => e
-                                .expect_string()
-                                .map(Some)
-                                .map_err(|err| PolarsError::ComputeError(format!("{:?}", err).into())),
+                            _ => e.expect_string().map(Some).map_err(|err| {
+                                PolarsError::ComputeError(format!("{:?}", err).into())
+                            }),
                         })
                         .collect();
                     Series::new(s.name().clone(), vals?)
@@ -1737,22 +1897,23 @@ pub fn eval_apply_udf(
                         .into_iter()
                         .map(|e| match e.value {
                             ExprValue::Nil => Ok(None),
-                            _ => e
-                                .expect_bool()
-                                .map(Some)
-                                .map_err(|err| PolarsError::ComputeError(format!("{:?}", err).into())),
+                            _ => e.expect_bool().map(Some).map_err(|err| {
+                                PolarsError::ComputeError(format!("{:?}", err).into())
+                            }),
                         })
                         .collect();
                     Series::new(s.name().clone(), vals?)
                 }
-                _ => return Err(PolarsError::ComputeError("Unsupported series materialization".into())),
+                _ => {
+                    return Err(PolarsError::ComputeError(
+                        "Unsupported series materialization".into(),
+                    ));
+                }
             };
 
             Ok(out_series.into_column())
         },
-        move |_: &Schema, field: &Field| {
-            Ok(Field::new(field.name().clone(), return_dtype.clone()))
-        },
+        move |_: &Schema, field: &Field| Ok(Field::new(field.name().clone(), return_dtype.clone())),
     );
 
     Ok(new_polars_expr(mapped))
@@ -1762,7 +1923,7 @@ pub fn eval_apply_udf(
 // (unique df ($col1 $col2) :last) -> :first, :last, :any, :none
 pub fn unique_(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
-    
+
     if args.len() == 1 {
         return Ok(new_lazy_frame(lf.unique(None, UniqueKeepStrategy::Any)));
     }

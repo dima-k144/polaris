@@ -1,14 +1,17 @@
-use plotlars::{Plot, ScatterPlot, BarPlot, PieChart, Histogram, BoxPlot, TimeSeriesPlot, LinePlot};
-use crate::types::{Expr, ExprValue, Error};
-use polars::prelude::*;
 use crate::corelib::*;
+use crate::types::{Error, Expr, ExprValue};
+use plotlars::{
+    BarPlot, BoxPlot, Histogram, LinePlot, PieChart, Plot, ScatterPlot, TimeSeriesPlot,
+};
+use polars::prelude::*;
 
 fn kw(args: &[Expr], name: &str) -> Option<Expr> {
     for (i, arg) in args.iter().enumerate() {
         if let ExprValue::Symbol(symbol) = arg.value.clone()
-            && symbol == name {
-                return args.get(i + 1).cloned();
-            }
+            && symbol == name
+        {
+            return args.get(i + 1).cloned();
+        }
     }
     None
 }
@@ -16,17 +19,23 @@ fn kw(args: &[Expr], name: &str) -> Option<Expr> {
 fn require_kw(args: &[Expr], name: &str) -> Result<Expr, Error> {
     match kw(args, name) {
         Some(expr) => Ok(expr),
-        None => Err(Error::MissingRequiredKWArg { name: name.to_string() }),
+        None => Err(Error::MissingRequiredKWArg {
+            name: name.to_string(),
+        }),
     }
 }
 
 fn has_flag(args: &[Expr], name: &str) -> bool {
-    args.iter().any(|arg| matches!(arg.value.clone(), ExprValue::Symbol(s) if s == name))
+    args.iter()
+        .any(|arg| matches!(arg.value.clone(), ExprValue::Symbol(s) if s == name))
 }
 
 pub fn scatter_plot(args: Vec<Expr>) -> Result<Expr, Error> {
-    let lf = args.first()
-        .ok_or_else(|| Error::MissingRequiredKWArg { name: "dataframe".to_string() })?
+    let lf = args
+        .first()
+        .ok_or_else(|| Error::MissingRequiredKWArg {
+            name: "dataframe".to_string(),
+        })?
         .clone()
         .expect_lazy_frame()?;
 
@@ -38,16 +47,24 @@ pub fn scatter_plot(args: Vec<Expr>) -> Result<Expr, Error> {
 
     // Optional arguments
     let title = kw(&args, ":title").map(|k| k.expect_string()).transpose()?;
-    let x_title = kw(&args, ":x-title").map(|k| k.expect_string()).transpose()?;
-    let y_title = kw(&args, ":y-title").map(|k| k.expect_string()).transpose()?;
+    let x_title = kw(&args, ":x-title")
+        .map(|k| k.expect_string())
+        .transpose()?;
+    let y_title = kw(&args, ":y-title")
+        .map(|k| k.expect_string())
+        .transpose()?;
     let group = kw(&args, ":group").map(|k| k.expect_string()).transpose()?;
-    let opacity = kw(&args, ":opacity").map(|k| k.expect_float()).transpose()?;
+    let opacity = kw(&args, ":opacity")
+        .map(|k| k.expect_float())
+        .transpose()?;
     let size = kw(&args, ":size")
-    .map(|k| {
-        let val = k.expect_int()?;
-        usize::try_from(val).map_err(|_| Error::Custom(format!("`:size` must be a positive integer, got {}", val)))
-    })
-    .transpose()?;
+        .map(|k| {
+            let val = k.expect_int()?;
+            usize::try_from(val).map_err(|_| {
+                Error::Custom(format!("`:size` must be a positive integer, got {}", val))
+            })
+        })
+        .transpose()?;
 
     let plot = ScatterPlot::builder()
         .data(&df)
@@ -67,8 +84,11 @@ pub fn scatter_plot(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 pub fn bar_plot(args: Vec<Expr>) -> Result<Expr, Error> {
-    let lf = args.first()
-        .ok_or_else(|| Error::MissingRequiredKWArg { name: "dataframe".to_string() })?
+    let lf = args
+        .first()
+        .ok_or_else(|| Error::MissingRequiredKWArg {
+            name: "dataframe".to_string(),
+        })?
         .clone()
         .expect_lazy_frame()?;
 
@@ -77,18 +97,26 @@ pub fn bar_plot(args: Vec<Expr>) -> Result<Expr, Error> {
     // Required arguments (accepts :labels or alias :x, and :values or alias :y)
     let labels = kw(&args, ":labels")
         .or_else(|| kw(&args, ":x"))
-        .ok_or_else(|| Error::MissingRequiredKWArg { name: ":labels".to_string() })?
+        .ok_or_else(|| Error::MissingRequiredKWArg {
+            name: ":labels".to_string(),
+        })?
         .expect_string()?;
 
     let values = kw(&args, ":values")
         .or_else(|| kw(&args, ":y"))
-        .ok_or_else(|| Error::MissingRequiredKWArg { name: ":values".to_string() })?
+        .ok_or_else(|| Error::MissingRequiredKWArg {
+            name: ":values".to_string(),
+        })?
         .expect_string()?;
 
     // Optional arguments
     let title = kw(&args, ":title").map(|k| k.expect_string()).transpose()?;
-    let x_title = kw(&args, ":x-title").map(|k| k.expect_string()).transpose()?;
-    let y_title = kw(&args, ":y-title").map(|k| k.expect_string()).transpose()?;
+    let x_title = kw(&args, ":x-title")
+        .map(|k| k.expect_string())
+        .transpose()?;
+    let y_title = kw(&args, ":y-title")
+        .map(|k| k.expect_string())
+        .transpose()?;
     let group = kw(&args, ":group").map(|k| k.expect_string()).transpose()?;
     let error = kw(&args, ":error").map(|k| k.expect_string()).transpose()?;
 
@@ -109,8 +137,11 @@ pub fn bar_plot(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 pub fn pie_plot(args: Vec<Expr>) -> Result<Expr, Error> {
-    let lf = args.first()
-        .ok_or_else(|| Error::MissingRequiredKWArg { name: "dataframe".to_string() })?
+    let lf = args
+        .first()
+        .ok_or_else(|| Error::MissingRequiredKWArg {
+            name: "dataframe".to_string(),
+        })?
         .clone()
         .expect_lazy_frame()?;
 
@@ -123,7 +154,9 @@ pub fn pie_plot(args: Vec<Expr>) -> Result<Expr, Error> {
     let title = kw(&args, ":title").map(|k| k.expect_string()).transpose()?;
     let hole = kw(&args, ":hole").map(|k| k.expect_float()).transpose()?;
     let pull = kw(&args, ":pull").map(|k| k.expect_float()).transpose()?;
-    let rotation = kw(&args, ":rotation").map(|k| k.expect_float()).transpose()?;
+    let rotation = kw(&args, ":rotation")
+        .map(|k| k.expect_float())
+        .transpose()?;
     let facet = kw(&args, ":facet").map(|k| k.expect_string()).transpose()?;
 
     let plot = PieChart::builder()
@@ -142,8 +175,11 @@ pub fn pie_plot(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 pub fn histogram(args: Vec<Expr>) -> Result<Expr, Error> {
-    let lf = args.first()
-        .ok_or_else(|| Error::MissingRequiredKWArg { name: "dataframe".to_string() })?
+    let lf = args
+        .first()
+        .ok_or_else(|| Error::MissingRequiredKWArg {
+            name: "dataframe".to_string(),
+        })?
         .clone()
         .expect_lazy_frame()?;
 
@@ -154,10 +190,16 @@ pub fn histogram(args: Vec<Expr>) -> Result<Expr, Error> {
 
     // Optional arguments
     let title = kw(&args, ":title").map(|k| k.expect_string()).transpose()?;
-    let x_title = kw(&args, ":x-title").map(|k| k.expect_string()).transpose()?;
-    let y_title = kw(&args, ":y-title").map(|k| k.expect_string()).transpose()?;
+    let x_title = kw(&args, ":x-title")
+        .map(|k| k.expect_string())
+        .transpose()?;
+    let y_title = kw(&args, ":y-title")
+        .map(|k| k.expect_string())
+        .transpose()?;
     let group = kw(&args, ":group").map(|k| k.expect_string()).transpose()?;
-    let opacity = kw(&args, ":opacity").map(|k| k.expect_float()).transpose()?;
+    let opacity = kw(&args, ":opacity")
+        .map(|k| k.expect_float())
+        .transpose()?;
     let facet = kw(&args, ":facet").map(|k| k.expect_string()).transpose()?;
 
     let plot = Histogram::builder()
@@ -177,8 +219,11 @@ pub fn histogram(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 pub fn box_plot(args: Vec<Expr>) -> Result<Expr, Error> {
-    let lf = args.first()
-        .ok_or_else(|| Error::MissingRequiredKWArg { name: "dataframe".to_string() })?
+    let lf = args
+        .first()
+        .ok_or_else(|| Error::MissingRequiredKWArg {
+            name: "dataframe".to_string(),
+        })?
         .clone()
         .expect_lazy_frame()?;
 
@@ -187,23 +232,35 @@ pub fn box_plot(args: Vec<Expr>) -> Result<Expr, Error> {
     // Required arguments (accepts :labels / :x, and :values / :y)
     let labels = kw(&args, ":labels")
         .or_else(|| kw(&args, ":x"))
-        .ok_or_else(|| Error::MissingRequiredKWArg { name: ":labels".to_string() })?
+        .ok_or_else(|| Error::MissingRequiredKWArg {
+            name: ":labels".to_string(),
+        })?
         .expect_string()?;
 
     let values = kw(&args, ":values")
         .or_else(|| kw(&args, ":y"))
-        .ok_or_else(|| Error::MissingRequiredKWArg { name: ":values".to_string() })?
+        .ok_or_else(|| Error::MissingRequiredKWArg {
+            name: ":values".to_string(),
+        })?
         .expect_string()?;
 
     // Optional arguments
     let title = kw(&args, ":title").map(|k| k.expect_string()).transpose()?;
-    let x_title = kw(&args, ":x-title").map(|k| k.expect_string()).transpose()?;
-    let y_title = kw(&args, ":y-title").map(|k| k.expect_string()).transpose()?;
+    let x_title = kw(&args, ":x-title")
+        .map(|k| k.expect_string())
+        .transpose()?;
+    let y_title = kw(&args, ":y-title")
+        .map(|k| k.expect_string())
+        .transpose()?;
     let group = kw(&args, ":group").map(|k| k.expect_string()).transpose()?;
-    let opacity = kw(&args, ":opacity").map(|k| k.expect_float()).transpose()?;
+    let opacity = kw(&args, ":opacity")
+        .map(|k| k.expect_float())
+        .transpose()?;
     let facet = kw(&args, ":facet").map(|k| k.expect_string()).transpose()?;
     let jitter = kw(&args, ":jitter").map(|k| k.expect_float()).transpose()?;
-    let point_offset = kw(&args, ":point-offset").map(|k| k.expect_float()).transpose()?;
+    let point_offset = kw(&args, ":point-offset")
+        .map(|k| k.expect_float())
+        .transpose()?;
     let box_points = if has_flag(&args, ":box-points") {
         Some(true)
     } else {
@@ -231,8 +288,11 @@ pub fn box_plot(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 pub fn time_series_plot(args: Vec<Expr>) -> Result<Expr, Error> {
-    let lf = args.first()
-        .ok_or_else(|| Error::MissingRequiredKWArg { name: "dataframe".to_string() })?
+    let lf = args
+        .first()
+        .ok_or_else(|| Error::MissingRequiredKWArg {
+            name: "dataframe".to_string(),
+        })?
         .clone()
         .expect_lazy_frame()?;
 
@@ -244,22 +304,31 @@ pub fn time_series_plot(args: Vec<Expr>) -> Result<Expr, Error> {
 
     // Cast Date / Datetime to ISO-8601 String for Plotly rendering
     if let Ok(col) = df.column(&x)
-        && matches!(col.dtype(), DataType::Date | DataType::Datetime(_, _)) {
-            let str_col = col.cast(&DataType::String).map_err(Error::PolarsError)?;
-            df.with_column(str_col).map_err(Error::PolarsError)?;
-        }
+        && matches!(col.dtype(), DataType::Date | DataType::Datetime(_, _))
+    {
+        let str_col = col.cast(&DataType::String).map_err(Error::PolarsError)?;
+        df.with_column(str_col).map_err(Error::PolarsError)?;
+    }
 
     // Optional arguments
     let title = kw(&args, ":title").map(|k| k.expect_string()).transpose()?;
-    let x_title = kw(&args, ":x-title").map(|k| k.expect_string()).transpose()?;
-    let y_title = kw(&args, ":y-title").map(|k| k.expect_string()).transpose()?;
-    let y2_title = kw(&args, ":y2-title").map(|k| k.expect_string()).transpose()?;
+    let x_title = kw(&args, ":x-title")
+        .map(|k| k.expect_string())
+        .transpose()?;
+    let y_title = kw(&args, ":y-title")
+        .map(|k| k.expect_string())
+        .transpose()?;
+    let y2_title = kw(&args, ":y2-title")
+        .map(|k| k.expect_string())
+        .transpose()?;
     let facet = kw(&args, ":facet").map(|k| k.expect_string()).transpose()?;
     let width = kw(&args, ":width").map(|k| k.expect_float()).transpose()?;
     let size = kw(&args, ":size")
         .map(|k| {
             let val = k.expect_int()?;
-            usize::try_from(val).map_err(|_| Error::Custom(format!("`:size` must be a positive integer, got {}", val)))
+            usize::try_from(val).map_err(|_| {
+                Error::Custom(format!("`:size` must be a positive integer, got {}", val))
+            })
         })
         .transpose()?;
 
@@ -274,7 +343,12 @@ pub fn time_series_plot(args: Vec<Expr>) -> Result<Expr, Error> {
                 Some(series_vec)
             }
             ExprValue::String(s) => Some(vec![s]),
-            _other => return Err(Error::WrongType { expected: "list or string".into(), got: some.clone() }),
+            _other => {
+                return Err(Error::WrongType {
+                    expected: "list or string".into(),
+                    got: some.clone(),
+                });
+            }
         },
         None => None,
     };
@@ -303,8 +377,11 @@ pub fn time_series_plot(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 pub fn line_plot(args: Vec<Expr>) -> Result<Expr, Error> {
-    let lf = args.first()
-        .ok_or_else(|| Error::MissingRequiredKWArg { name: "dataframe".to_string() })?
+    let lf = args
+        .first()
+        .ok_or_else(|| Error::MissingRequiredKWArg {
+            name: "dataframe".to_string(),
+        })?
         .clone()
         .expect_lazy_frame()?;
 
@@ -316,15 +393,23 @@ pub fn line_plot(args: Vec<Expr>) -> Result<Expr, Error> {
 
     // Optional arguments
     let title = kw(&args, ":title").map(|k| k.expect_string()).transpose()?;
-    let x_title = kw(&args, ":x-title").map(|k| k.expect_string()).transpose()?;
-    let y_title = kw(&args, ":y-title").map(|k| k.expect_string()).transpose()?;
-    let y2_title = kw(&args, ":y2-title").map(|k| k.expect_string()).transpose()?;
+    let x_title = kw(&args, ":x-title")
+        .map(|k| k.expect_string())
+        .transpose()?;
+    let y_title = kw(&args, ":y-title")
+        .map(|k| k.expect_string())
+        .transpose()?;
+    let y2_title = kw(&args, ":y2-title")
+        .map(|k| k.expect_string())
+        .transpose()?;
     let facet = kw(&args, ":facet").map(|k| k.expect_string()).transpose()?;
     let width = kw(&args, ":width").map(|k| k.expect_float()).transpose()?;
     let size = kw(&args, ":size")
         .map(|k| {
             let val = k.expect_int()?;
-            usize::try_from(val).map_err(|_| Error::Custom(format!("`:size` must be a positive integer, got {}", val)))
+            usize::try_from(val).map_err(|_| {
+                Error::Custom(format!("`:size` must be a positive integer, got {}", val))
+            })
         })
         .transpose()?;
 
@@ -339,7 +424,12 @@ pub fn line_plot(args: Vec<Expr>) -> Result<Expr, Error> {
                 Some(lines_vec)
             }
             ExprValue::String(s) => Some(vec![s]),
-            _other => return Err(Error::WrongType { expected: "list or string".into(), got: some }),
+            _other => {
+                return Err(Error::WrongType {
+                    expected: "list or string".into(),
+                    got: some,
+                });
+            }
         },
         None => None,
     };

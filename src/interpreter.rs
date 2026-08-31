@@ -1,12 +1,12 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::types::{Env, Error, Expr, ExprValue, UserFunctionData};
 use crate::{corelib, polarslib};
-use crate::types::{Env, Expr, ExprValue, Error, UserFunctionData};
 
 pub struct State {
     pub line: usize,
-    pub file: Option<String>
+    pub file: Option<String>,
 }
 
 pub fn invoke_function(
@@ -66,19 +66,27 @@ pub fn set_symbol(symbol: &str, value: Expr, env: &Rc<RefCell<Env>>) -> Result<(
         }
         curr = borrow.outer.as_ref().map(Rc::clone);
     }
-    Err(Error::LookupNotFound { symbol: symbol.to_string() })
+    Err(Error::LookupNotFound {
+        symbol: symbol.to_string(),
+    })
 }
 
 pub fn expect_args_count(got: usize, min: usize, max: usize) -> Result<(), Error> {
     if got < min || got > max {
-        Err(Error::WrongNumberOfArguments { expected_min: min as u8, expected_max: max as u8, got: got as u8 })
+        Err(Error::WrongNumberOfArguments {
+            expected_min: min as u8,
+            expected_max: max as u8,
+            got: got as u8,
+        })
     } else {
         Ok(())
     }
 }
 
 pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Expr, Error> {
-    if let Some(line) = expr.line { state.line = line }
+    if let Some(line) = expr.line {
+        state.line = line
+    }
 
     match expr.value.clone() {
         ExprValue::Symbol(symbol) => {
@@ -99,13 +107,13 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
             let symbol = list[0].clone().expect_symbol()?;
 
             match symbol.as_str() {
-                "define" => { 
+                "define" => {
                     expect_args_count(list.len() - 1, 2, 2)?;
                     let name = list[1].clone().expect_symbol()?;
                     let value = eval(list[2].clone(), env, state)?;
                     define(&name, value, env);
                     return Ok(corelib::nil());
-                },
+                }
                 "lambda" => {
                     expect_args_count(list.len() - 1, 2, usize::MAX)?;
                     let mut params = Vec::<String>::new();
@@ -113,16 +121,19 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                         params.push(param.expect_symbol()?);
                     }
                     let body = list.get(2..).unwrap().to_vec();
-                
+
                     let func_data = UserFunctionData {
                         body,
                         params,
                         name: None,
                     };
-                
+
                     let func = ExprValue::UserFunction(Box::new(func_data));
-                    return Ok(Expr { value: func, line: None });
-                },
+                    return Ok(Expr {
+                        value: func,
+                        line: None,
+                    });
+                }
                 "defun" => {
                     expect_args_count(list.len() - 1, 3, usize::MAX)?;
                     let name = list[1].clone().expect_symbol()?;
@@ -145,7 +156,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
 
                     define(&name, func.clone(), env);
                     return Ok(func);
-                },
+                }
                 "let" => {
                     expect_args_count(list.len() - 1, 2, usize::MAX)?;
 
@@ -176,21 +187,28 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     }
 
                     return Ok(result);
-                },
+                }
                 "->" => {
                     expect_args_count(list.len() - 1, 2, usize::MAX)?;
                     let mut var = eval(list[1].clone(), env, state)?;
                     for i in 2..list.len() {
                         let mut expr2 = list[i].clone().expect_list()?;
                         expr2.insert(1, var.clone());
-                        var = eval(Expr { value: ExprValue::List(expr2), line: None }, env, state)?;
+                        var = eval(
+                            Expr {
+                                value: ExprValue::List(expr2),
+                                line: None,
+                            },
+                            env,
+                            state,
+                        )?;
                     }
                     return Ok(var);
-                },
+                }
                 "quote" => {
                     expect_args_count(list.len() - 1, 1, 1)?;
                     return Ok(list[1].clone());
-                },
+                }
                 "if" => {
                     expect_args_count(list.len() - 1, 3, 3)?;
                     let test = list[1].clone();
@@ -201,7 +219,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     } else {
                         return eval(on_false, env, state);
                     }
-                },
+                }
                 "for" => {
                     expect_args_count(list.len() - 1, 3, usize::MAX)?;
 
@@ -228,7 +246,10 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
 
                     let mut i = start;
                     while (step > 0 && i < end) || (step < 0 && i > end) {
-                        child_env.borrow_mut().defines.insert(var_name.clone(), corelib::new_int(i));
+                        child_env
+                            .borrow_mut()
+                            .defines
+                            .insert(var_name.clone(), corelib::new_int(i));
                         for expr in body {
                             last_result = eval(expr.clone(), &child_env, state)?;
                         }
@@ -236,7 +257,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     }
 
                     return Ok(last_result);
-                },
+                }
 
                 "for-each" => {
                     expect_args_count(list.len() - 1, 2, usize::MAX)?;
@@ -249,36 +270,39 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     let mut last_result = corelib::nil();
 
                     for item in items {
-                        child_env.borrow_mut().defines.insert(var_name.clone(), item);
+                        child_env
+                            .borrow_mut()
+                            .defines
+                            .insert(var_name.clone(), item);
                         for expr in body {
                             last_result = eval(expr.clone(), &child_env, state)?;
                         }
                     }
 
                     return Ok(last_result);
-                },
+                }
                 "set" => {
                     expect_args_count(list.len() - 1, 2, 2)?;
                     let name = list[1].clone().expect_symbol()?;
                     let value = eval(list[2].clone(), env, state)?;
                     set_symbol(&name, value, env)?;
                     return Ok(corelib::nil());
-                },
+                }
                 "lookup" => {
                     expect_args_count(list.len() - 1, 1, 1)?;
                     let symbol = list[1].clone().expect_symbol()?;
                     return match lookup(&symbol, env) {
                         Some(value) => Ok(value),
                         None => Err(Error::LookupNotFound { symbol }),
-                    }
-                },
+                    };
+                }
                 "and" => {
                     let args = &list[1..];
                     if args.is_empty() {
                         return Ok(corelib::true_());
                     }
 
-                    // 1. Polars context: if any unevaluated arg or function call represents Polars, 
+                    // 1. Polars context: if any unevaluated arg or function call represents Polars,
                     // or if the first arg evaluates to a PolarsExpr, fall back to building the Polars expression.
                     let first_val = eval(args[0].clone(), env, state)?;
                     if matches!(first_val.value, ExprValue::PolarsExpr(_)) {
@@ -307,7 +331,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     }
 
                     return Ok(corelib::true_());
-                },
+                }
                 "or" => {
                     let args = &list[1..];
                     if args.is_empty() {
@@ -339,7 +363,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     }
 
                     return Ok(corelib::false_());
-                },
+                }
                 "load" => {
                     expect_args_count(list.len() - 1, 1, 1)?;
                     let path_expr = eval(list[1].clone(), env, state)?;
@@ -356,16 +380,16 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     };
 
                     return eval_string(contents, env, &mut file_state);
-                },
+                }
                 "apply-udf" => {
                     return crate::polarslib::eval_apply_udf(&list[1..], env, state);
-                },
+                }
                 _ => {}
             }
 
             let func = match lookup(&symbol, env) {
                 Some(val) => val,
-                None => { return Err(Error::LookupNotFound { symbol }) },
+                None => return Err(Error::LookupNotFound { symbol }),
             };
 
             let mut args = Vec::<Expr>::new();
@@ -375,10 +399,14 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
 
             match func.value {
                 ExprValue::NativeFunction(data) => {
-                    expect_args_count(list.len() - 1, data.min_args as usize, data.max_args as usize)?;
-                    
+                    expect_args_count(
+                        list.len() - 1,
+                        data.min_args as usize,
+                        data.max_args as usize,
+                    )?;
+
                     (data.body)(args)
-                },
+                }
                 ExprValue::UserFunction(data) => {
                     expect_args_count(list.len() - 1, data.params.len(), usize::MAX)?;
 
@@ -393,11 +421,14 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                         result = eval(expr, &child_env, state)?;
                     }
                     Ok(result)
-                },
-                _ => Err(Error::WrongType { expected: String::from("callable"), got: func })
+                }
+                _ => Err(Error::WrongType {
+                    expected: String::from("callable"),
+                    got: func,
+                }),
             }
-        },
-        _ => Ok(expr)
+        }
+        _ => Ok(expr),
     }
 }
 
@@ -405,13 +436,17 @@ pub fn pretty_wisp(source: String) -> String {
     source.replace("\n)", ")\n")
 }
 
-pub fn eval_string(source: String, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Expr, Error> {
+pub fn eval_string(
+    source: String,
+    env: &Rc<RefCell<Env>>,
+    state: &mut State,
+) -> Result<Expr, Error> {
     let s_expr_source = crate::wisp::preprocess_wisp3(&source)?;
     //println!("wisp: {}", s_expr_source.clone());
     //println!("end wisp");
     let mut tokens = crate::lexer::scan(&s_expr_source)?;
     let exprs = crate::parser::parse(&mut tokens)?;
-    
+
     let mut last_res = corelib::nil();
     for expr in exprs {
         // Return immediately if an expression fails

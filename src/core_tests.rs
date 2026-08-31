@@ -1,18 +1,22 @@
 mod tests {
     use crate::corelib::new_int;
-    use crate::interpreter::{eval_string, State};
+    use crate::interpreter::{State, eval_string};
     use crate::stdlib::std_env;
     use polars::prelude::*;
 
     #[test]
     fn test_defun_basic() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         let code = r#"
             (defun add (a b) (+ a b))
             (add 10 25)
-        "#.to_string();
+        "#
+        .to_string();
 
         let res = eval_string(code, &env, &mut state)
             .expect("eval defun basic failed")
@@ -25,14 +29,18 @@ mod tests {
     #[test]
     fn test_defun_multi_expression_body() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         let code = r#"
             (defun compute (x y)
                 (+ x 1)
                 (* x y))
             (compute 4 5)
-        "#.to_string();
+        "#
+        .to_string();
 
         let res = eval_string(code, &env, &mut state)
             .expect("eval defun multi-body failed")
@@ -45,12 +53,16 @@ mod tests {
     #[test]
     fn test_lambda_bound_with_define() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         let code = r#"
             (define square (lambda (x) (* x x)))
             (square 6)
-        "#.to_string();
+        "#
+        .to_string();
 
         let res = eval_string(code, &env, &mut state)
             .expect("eval lambda bound failed")
@@ -63,12 +75,16 @@ mod tests {
     #[test]
     fn test_lambda_multiple_parameters() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         let code = r#"
             (define calc (lambda (a b c) (- (+ a b) c)))
             (calc 10 20 5)
-        "#.to_string();
+        "#
+        .to_string();
 
         let res = eval_string(code, &env, &mut state)
             .expect("eval multi-param lambda failed")
@@ -81,13 +97,17 @@ mod tests {
     #[test]
     fn test_defun_scoping_isolation() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         let code = r#"
             (define x 100)
             (defun override_param (x) (+ x 5))
             (override_param 10)
-        "#.to_string();
+        "#
+        .to_string();
 
         let res = eval_string(code, &env, &mut state)
             .expect("eval defun scope failed")
@@ -100,11 +120,15 @@ mod tests {
     #[test]
     fn test_let_basic() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         let code = r#"
             (let (a 1 b 2 c 3) (+ a b c))
-        "#.to_string();
+        "#
+        .to_string();
 
         let res = eval_string(code, &env, &mut state)
             .expect("eval let basic failed")
@@ -117,12 +141,16 @@ mod tests {
     #[test]
     fn test_let_scoping_isolation() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         let code = r#"
             (define x 100)
             (let (x 10 y 20) (+ x y))
-        "#.to_string();
+        "#
+        .to_string();
 
         let res = eval_string(code, &env, &mut state)
             .expect("eval let scope failed")
@@ -143,13 +171,17 @@ mod tests {
     #[test]
     fn test_let_multi_expression_body() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         let code = r#"
             (let (a 5 b 10)
                 (+ a b)
                 (* a b))
-        "#.to_string();
+        "#
+        .to_string();
 
         let res = eval_string(code, &env, &mut state)
             .expect("eval multi-expression let failed")
@@ -162,13 +194,17 @@ mod tests {
     #[test]
     fn test_let_nested() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         let code = r#"
             (let (a 2 b 3)
                 (let (c 4 d 5)
                     (+ (* a b) (* c d))))
-        "#.to_string();
+        "#
+        .to_string();
 
         let res = eval_string(code, &env, &mut state)
             .expect("eval nested let failed")
@@ -181,11 +217,15 @@ mod tests {
     #[test]
     fn test_let_odd_bindings_error() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         let code = r#"
             (let (a 1 b) (+ a 1))
-        "#.to_string();
+        "#
+        .to_string();
 
         let res = eval_string(code, &env, &mut state);
         assert!(res.is_err());
@@ -194,7 +234,10 @@ mod tests {
     #[test]
     fn test_core_comparisons() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         // Greater than (>)
         assert_eq!(
@@ -313,7 +356,10 @@ mod tests {
     #[test]
     fn test_core_logical_operators() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         // NOT
         assert_eq!(
@@ -381,14 +427,18 @@ mod tests {
     #[test]
     fn test_core_logic_with_control_flow() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         let code = r#"
             (let (x 15 y 20)
                 (if (and (> x 10) (<= y 20))
                     "in-range"
                     "out-of-range"))
-        "#.to_string();
+        "#
+        .to_string();
 
         let res = eval_string(code, &env, &mut state)
             .unwrap()
@@ -401,7 +451,10 @@ mod tests {
     #[test]
     fn test_core_math_abs() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         assert_eq!(
             eval_string("(abs -5)".to_string(), &env, &mut state)
@@ -429,7 +482,10 @@ mod tests {
     #[test]
     fn test_core_math_sqrt_and_pow() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         assert_eq!(
             eval_string("(sqrt 16)".to_string(), &env, &mut state)
@@ -464,7 +520,10 @@ mod tests {
     #[test]
     fn test_core_math_exp_and_logs() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         assert_eq!(
             eval_string("(exp 0)".to_string(), &env, &mut state)
@@ -496,7 +555,10 @@ mod tests {
     #[test]
     fn test_core_math_round_floor_ceil() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         assert_eq!(
             eval_string("(round 3.4)".to_string(), &env, &mut state)
@@ -554,7 +616,10 @@ mod tests {
     #[test]
     fn test_core_math_trig() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         let sin_zero = eval_string("(sin 0)".to_string(), &env, &mut state)
             .unwrap()
@@ -584,25 +649,40 @@ mod tests {
     #[test]
     fn test_infix_list1() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let code = "{1 + 2}".to_string();
-        let result = eval_string(code, &env, &mut state).unwrap().expect_int().unwrap();
+        let result = eval_string(code, &env, &mut state)
+            .unwrap()
+            .expect_int()
+            .unwrap();
         assert!(result == 3)
     }
 
     #[test]
     fn test_infix_list2() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
         let code = "{1 + 2 * 3}".to_string();
-        let result = eval_string(code, &env, &mut state).unwrap().expect_int().unwrap();
+        let result = eval_string(code, &env, &mut state)
+            .unwrap()
+            .expect_int()
+            .unwrap();
         assert!(result == 9)
     }
 
     #[test]
     fn test_core_shell() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         // Test running echo with multiple string arguments
         let code = r#"(shell "echo" "hello" "world")"#.to_string();
@@ -618,7 +698,10 @@ mod tests {
     #[test]
     fn test_core_list_operations() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         // car / first
         assert_eq!(
@@ -687,7 +770,10 @@ mod tests {
     #[test]
     fn test_core_type_conversions() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         // to-str
         assert_eq!(
@@ -764,7 +850,10 @@ mod tests {
     #[test]
     fn test_core_type_of() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         assert_eq!(
             eval_string("(type-of 42)".to_string(), &env, &mut state)
@@ -816,18 +905,22 @@ mod tests {
             "nil"
         );
     }
-    
+
     #[test]
     fn test_for_loop_basic() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         let code = r#"
             (define total 0)
             (for i 1 5
                 (set total (+ total i)))
             total
-        "#.to_string();
+        "#
+        .to_string();
 
         let res = eval_string(code, &env, &mut state)
             .expect("eval for loop basic failed")
@@ -840,7 +933,10 @@ mod tests {
     #[test]
     fn test_for_loop_custom_step() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         // Positive step: 0 + 2 + 4 + 6 + 8 = 20
         let code = r#"
@@ -848,7 +944,8 @@ mod tests {
             (for i 0 10 2
                 (set total (+ total i)))
             total
-        "#.to_string();
+        "#
+        .to_string();
 
         let res = eval_string(code, &env, &mut state)
             .expect("eval for loop positive step failed")
@@ -863,7 +960,8 @@ mod tests {
             (for i 10 0 -3
                 (set total (+ total i)))
             total
-        "#.to_string();
+        "#
+        .to_string();
 
         let res_neg = eval_string(code_neg, &env, &mut state)
             .expect("eval for loop negative step failed")
@@ -876,14 +974,18 @@ mod tests {
     #[test]
     fn test_for_loop_zero_iterations() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         let code = r#"
             (define run false)
             (for i 5 5
                 (set run true))
             run
-        "#.to_string();
+        "#
+        .to_string();
 
         let res = eval_string(code, &env, &mut state)
             .expect("eval zero iteration for loop failed")
@@ -896,14 +998,18 @@ mod tests {
     #[test]
     fn test_for_loop_scoping() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         let code = r#"
             (define i 999)
             (for i 0 3
                 (+ i 1))
             i
-        "#.to_string();
+        "#
+        .to_string();
 
         let res = eval_string(code, &env, &mut state)
             .expect("eval for loop scope failed")
@@ -916,14 +1022,18 @@ mod tests {
     #[test]
     fn test_for_each_loop_basic() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         let code = r#"
             (define acc 1)
             (for-each item '(2 3 4)
                 (set acc (* acc item)))
             acc
-        "#.to_string();
+        "#
+        .to_string();
 
         let res = eval_string(code, &env, &mut state)
             .expect("eval for-each loop basic failed")
@@ -936,14 +1046,18 @@ mod tests {
     #[test]
     fn test_for_each_loop_empty_list() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         let code = r#"
             (define counter 0)
             (for-each x '()
                 (set counter (+ counter 1)))
             counter
-        "#.to_string();
+        "#
+        .to_string();
 
         let res = eval_string(code, &env, &mut state)
             .expect("eval empty for-each loop failed")
@@ -956,7 +1070,10 @@ mod tests {
     #[test]
     fn test_for_each_loop_multi_expression_body() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         let code = r#"
             (define count 0)
@@ -965,7 +1082,8 @@ mod tests {
                 (set count (+ count 1))
                 (set sum (+ sum x)))
             (+ count sum)
-        "#.to_string();
+        "#
+        .to_string();
 
         let res = eval_string(code, &env, &mut state)
             .expect("eval multi-expression for-each failed")
@@ -992,7 +1110,10 @@ mod tests {
         fs::write(&script_path, script_content).expect("failed to write test script");
 
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         // Test loading the script and using its definitions
         let run_code = format!(
@@ -1017,7 +1138,10 @@ mod tests {
     #[test]
     fn test_load_nonexistent_file_error() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         let code = r#"(load "nonexistent_file_path_12345.lsp")"#.to_string();
         let res = eval_string(code, &env, &mut state);
@@ -1028,7 +1152,10 @@ mod tests {
     #[test]
     fn test_core_range() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         // (range end)
         let res = eval_string("(range 4)".to_string(), &env, &mut state)
@@ -1049,7 +1176,10 @@ mod tests {
             .unwrap()
             .expect_list()
             .unwrap();
-        assert_eq!(res3, vec![new_int(0), new_int(2), new_int(4), new_int(6), new_int(8)]);
+        assert_eq!(
+            res3,
+            vec![new_int(0), new_int(2), new_int(4), new_int(6), new_int(8)]
+        );
 
         // (range start end step) - negative step
         let res4 = eval_string("(range 10 0 -3)".to_string(), &env, &mut state)
@@ -1066,7 +1196,10 @@ mod tests {
     #[test]
     fn test_core_apply() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         // Apply native arithmetic function
         let code = "(apply #+ '(1 2 3 4))".to_string();
@@ -1088,7 +1221,8 @@ mod tests {
         let code_udf = r#"
             (defun add3 (a b c) (+ a b c))
             (apply #add3 '(10 20 30))
-        "#.to_string();
+        "#
+        .to_string();
         let res_udf = eval_string(code_udf, &env, &mut state)
             .unwrap()
             .expect_int()
@@ -1099,13 +1233,17 @@ mod tests {
     #[test]
     fn test_core_map() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         // Map using user function
         let code = r#"
             (defun double (x) (* x 2))
             (map #double (range 1 5))
-        "#.to_string();
+        "#
+        .to_string();
         let res = eval_string(code, &env, &mut state)
             .unwrap()
             .expect_list()
@@ -1132,13 +1270,17 @@ mod tests {
     #[test]
     fn test_core_filter() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         // Filter using user function
         let code = r#"
             (defun is-big (x) (> x 3))
             (filter #is-big (range 1 6))
-        "#.to_string();
+        "#
+        .to_string();
         let res = eval_string(code, &env, &mut state)
             .unwrap()
             .expect_list()
@@ -1165,7 +1307,10 @@ mod tests {
     #[test]
     fn test_core_reduce() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         // Reduce without initial accumulator value
         let code_no_init = "(reduce #+ '(1 2 3 4))".to_string();
@@ -1184,7 +1329,8 @@ mod tests {
         assert_eq!(res_init, 240);
 
         // Reduce over strings with lambda
-        let code_str = r#"(reduce (lambda (acc x) (str-concat acc "-" x)) '("a" "b" "c"))"#.to_string();
+        let code_str =
+            r#"(reduce (lambda (acc x) (str-concat acc "-" x)) '("a" "b" "c"))"#.to_string();
         let res_str = eval_string(code_str, &env, &mut state)
             .unwrap()
             .expect_string()
@@ -1208,14 +1354,18 @@ mod tests {
     #[test]
     fn test_core_functional_chaining() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         // Pipeline: create range -> filter even -> square -> sum
         let code = r#"
             (defun square (x) (* x x))
             (defun is-even (x) (= (- x (* (floor (/ x 2)) 2)) 0))
             (reduce #+ (map #square (filter #is-even (range 1 6))))
-        "#.to_string();
+        "#
+        .to_string();
         // evens in [1..5]: 2, 4 -> squared: 4, 16 -> sum: 20
         let res = eval_string(code, &env, &mut state)
             .unwrap()
@@ -1227,7 +1377,10 @@ mod tests {
     #[test]
     fn test_core_string_toolkit() {
         let env = std_env();
-        let mut state = State { line: 0, file: None };
+        let mut state = State {
+            line: 0,
+            file: None,
+        };
 
         // str-len
         assert_eq!(
@@ -1247,17 +1400,25 @@ mod tests {
 
         // substring
         assert_eq!(
-            eval_string(r#"(substring "hello world" 0 5)"#.to_string(), &env, &mut state)
-                .unwrap()
-                .expect_string()
-                .unwrap(),
+            eval_string(
+                r#"(substring "hello world" 0 5)"#.to_string(),
+                &env,
+                &mut state
+            )
+            .unwrap()
+            .expect_string()
+            .unwrap(),
             "hello"
         );
         assert_eq!(
-            eval_string(r#"(substring "hello world" 6)"#.to_string(), &env, &mut state)
-                .unwrap()
-                .expect_string()
-                .unwrap(),
+            eval_string(
+                r#"(substring "hello world" 6)"#.to_string(),
+                &env,
+                &mut state
+            )
+            .unwrap()
+            .expect_string()
+            .unwrap(),
             "world"
         );
 
@@ -1277,10 +1438,14 @@ mod tests {
 
         // join
         assert_eq!(
-            eval_string(r#"(str-join '("a" "b" "c") ", ")"#.to_string(), &env, &mut state)
-                .unwrap()
-                .expect_string()
-                .unwrap(),
+            eval_string(
+                r#"(str-join '("a" "b" "c") ", ")"#.to_string(),
+                &env,
+                &mut state
+            )
+            .unwrap()
+            .expect_string()
+            .unwrap(),
             "a, b, c"
         );
         assert_eq!(

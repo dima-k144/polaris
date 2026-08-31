@@ -116,8 +116,9 @@ pub fn detect_indentation(source: &str) -> Result<Indentation, Error> {
 }
 
 fn indent(line: &str, indent_type: &Indentation) -> usize {
-    if line.trim().is_empty() { 0 }
-    else { 
+    if line.trim().is_empty() {
+        0
+    } else {
         match indent_type {
             Indentation::TwoSpaces => (line.len() - line.trim_start_matches(' ').len()) / 2,
             Indentation::FourSpaces => (line.len() - line.trim_start_matches(' ').len()) / 4,
@@ -128,8 +129,8 @@ fn indent(line: &str, indent_type: &Indentation) -> usize {
 
 pub fn preprocess_wisp3(input: &str) -> Result<String, Error> {
     let indent_type = detect_indentation(input)?;
-    
-    let mut lines: Vec::<String> = input.lines().map(String::from).collect();
+
+    let mut lines: Vec<String> = input.lines().map(String::from).collect();
     lines.push("".to_string());
     let mut i = 0;
 
@@ -139,7 +140,10 @@ pub fn preprocess_wisp3(input: &str) -> Result<String, Error> {
 
     while i != lines.len() {
         // empty line
-        if lines[i].trim().is_empty() { i += 1; continue; }
+        if lines[i].trim().is_empty() {
+            i += 1;
+            continue;
+        }
 
         // traditional s exp
         if lines[i].trim().starts_with('(') || lines[i].trim().starts_with("{") {
@@ -152,8 +156,8 @@ pub fn preprocess_wisp3(input: &str) -> Result<String, Error> {
         // add (
         let cur_indent = indent(&lines[i], &indent_type);
         match indent_type {
-            Indentation::TwoSpaces => lines[i].insert(cur_indent*2, '('),
-            Indentation::FourSpaces => lines[i].insert(cur_indent*4, '('),
+            Indentation::TwoSpaces => lines[i].insert(cur_indent * 2, '('),
+            Indentation::FourSpaces => lines[i].insert(cur_indent * 4, '('),
             Indentation::Tabs => lines[i].insert(cur_indent, '('),
         };
 
@@ -169,8 +173,10 @@ pub fn preprocess_wisp3(input: &str) -> Result<String, Error> {
             lines[i].push(')');
         } else if indent(&lines[i], &indent_type) > indent(&lines[i + 1], &indent_type) {
             let diff = indent(&lines[i], &indent_type) - indent(&lines[i + 1], &indent_type);
-            lines[i].push(')'); 
-            for _ in 0..diff { lines[i].push(')'); }
+            lines[i].push(')');
+            for _ in 0..diff {
+                lines[i].push(')');
+            }
         }
 
         i += 1;

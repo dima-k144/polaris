@@ -1,34 +1,67 @@
 use crate::types::*;
 use std::process::Command;
 
-pub fn nil() -> Expr { Expr{ value: ExprValue::Nil, line: None } }
+pub fn nil() -> Expr {
+    Expr {
+        value: ExprValue::Nil,
+        line: None,
+    }
+}
 
-pub fn true_() -> Expr { Expr { value: ExprValue::Bool(true), line: None } }
+pub fn true_() -> Expr {
+    Expr {
+        value: ExprValue::Bool(true),
+        line: None,
+    }
+}
 
-pub fn false_() -> Expr { Expr { value: ExprValue::Bool(false), line: None } }
+pub fn false_() -> Expr {
+    Expr {
+        value: ExprValue::Bool(false),
+        line: None,
+    }
+}
 
 pub fn new_int(value: i64) -> Expr {
-    Expr { value: ExprValue::Int(value), line: None }
+    Expr {
+        value: ExprValue::Int(value),
+        line: None,
+    }
 }
 
 pub fn new_float(value: f64) -> Expr {
-    Expr { value: ExprValue::Float(value), line: None }
+    Expr {
+        value: ExprValue::Float(value),
+        line: None,
+    }
 }
 
 pub fn new_string(value: String) -> Expr {
-    Expr { value: ExprValue::String(value), line: None }
+    Expr {
+        value: ExprValue::String(value),
+        line: None,
+    }
 }
 
 pub fn new_list(value: Vec<Expr>) -> Expr {
-    Expr { value: ExprValue::List(value), line: None }
+    Expr {
+        value: ExprValue::List(value),
+        line: None,
+    }
 }
 
 pub fn new_bool(value: bool) -> Expr {
-    Expr { value: ExprValue::Bool(value), line: None }
+    Expr {
+        value: ExprValue::Bool(value),
+        line: None,
+    }
 }
 
 pub fn new_symbol(value: String) -> Expr {
-    Expr { value: ExprValue::Symbol(value), line: None }
+    Expr {
+        value: ExprValue::Symbol(value),
+        line: None,
+    }
 }
 
 pub fn print(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -53,7 +86,8 @@ where
 // --- Math Functions ---
 
 fn has_polars_arg(args: &[Expr]) -> bool {
-    args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)))
+    args.iter()
+        .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)))
 }
 
 pub fn abs(args: Vec<Expr>) -> Result<Expr, Error> {
@@ -188,8 +222,9 @@ pub fn shell(args: Vec<Expr>) -> Result<Expr, Error> {
 
     let output = Command::new(command)
         .args(command_args)
-        .output().map_err(|e| Error::Custom(e.to_string()))?;
-    
+        .output()
+        .map_err(|e| Error::Custom(e.to_string()))?;
+
     if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
         Ok(new_string(stdout.to_string()))
@@ -283,10 +318,12 @@ pub fn to_str(args: Vec<Expr>) -> Result<Expr, Error> {
         ExprValue::Bool(b) => b.to_string(),
         ExprValue::Nil => "nil".to_string(),
         ExprValue::List(_) => format!("{}", arg),
-        _ => return Err(Error::WrongType {
-            expected: "convertible value to string".into(),
-            got: arg.clone(),
-        }),
+        _ => {
+            return Err(Error::WrongType {
+                expected: "convertible value to string".into(),
+                got: arg.clone(),
+            });
+        }
     };
     Ok(new_string(s))
 }
@@ -298,11 +335,10 @@ pub fn to_int(args: Vec<Expr>) -> Result<Expr, Error> {
         ExprValue::Int(i) => Ok(new_int(*i)),
         ExprValue::Float(f) => Ok(new_int(*f as i64)),
         ExprValue::Bool(b) => Ok(new_int(if *b { 1 } else { 0 })),
-        ExprValue::String(s) => {
-            s.parse::<i64>()
-                .map(new_int)
-                .map_err(|_| Error::FailedToParseNumber { number: s.clone() })
-        }
+        ExprValue::String(s) => s
+            .parse::<i64>()
+            .map(new_int)
+            .map_err(|_| Error::FailedToParseNumber { number: s.clone() }),
         _ => Err(Error::WrongType {
             expected: "convertible value to int".into(),
             got: arg.clone(),
@@ -317,11 +353,10 @@ pub fn to_float(args: Vec<Expr>) -> Result<Expr, Error> {
         ExprValue::Float(f) => Ok(new_float(*f)),
         ExprValue::Int(i) => Ok(new_float(*i as f64)),
         ExprValue::Bool(b) => Ok(new_float(if *b { 1.0 } else { 0.0 })),
-        ExprValue::String(s) => {
-            s.parse::<f64>()
-                .map(new_float)
-                .map_err(|_| Error::FailedToParseNumber { number: s.clone() })
-        }
+        ExprValue::String(s) => s
+            .parse::<f64>()
+            .map(new_float)
+            .map_err(|_| Error::FailedToParseNumber { number: s.clone() }),
         _ => Err(Error::WrongType {
             expected: "convertible value to float".into(),
             got: arg.clone(),
@@ -396,21 +431,33 @@ pub fn str_concat(args: Vec<Expr>) -> Result<Expr, Error> {
 pub fn invoke_callable(func: &Expr, args: Vec<Expr>) -> Result<Expr, Error> {
     match &func.value {
         ExprValue::NativeFunction(data) => {
-            crate::interpreter::expect_args_count(args.len(), data.min_args as usize, data.max_args as usize)?;
+            crate::interpreter::expect_args_count(
+                args.len(),
+                data.min_args as usize,
+                data.max_args as usize,
+            )?;
             (data.body)(args)
         }
         ExprValue::UserFunction(data) => {
-            crate::interpreter::expect_args_count(args.len(), data.params.len(), data.params.len())?;
-            
+            crate::interpreter::expect_args_count(
+                args.len(),
+                data.params.len(),
+                data.params.len(),
+            )?;
+
             // Re-use std_env as base so standard functions/macros are visible inside closures
             let env = crate::stdlib::std_env();
-            let child_env = std::rc::Rc::new(std::cell::RefCell::new(crate::types::Env::with_parent(env)));
+            let child_env =
+                std::rc::Rc::new(std::cell::RefCell::new(crate::types::Env::with_parent(env)));
 
             for (param, arg) in data.params.iter().zip(args) {
                 crate::interpreter::define(param, arg, &child_env);
             }
 
-            let mut state = crate::interpreter::State { line: 0, file: None };
+            let mut state = crate::interpreter::State {
+                line: 0,
+                file: None,
+            };
             let mut result = nil();
             for expr in &data.body {
                 result = crate::interpreter::eval(expr.clone(), &child_env, &mut state)?;
@@ -429,13 +476,21 @@ pub fn invoke_callable(func: &Expr, args: Vec<Expr>) -> Result<Expr, Error> {
 pub fn range(args: Vec<Expr>) -> Result<Expr, Error> {
     let (start, end, step) = match args.len() {
         1 => (0, args[0].clone().expect_int()?, 1),
-        2 => (args[0].clone().expect_int()?, args[1].clone().expect_int()?, 1),
+        2 => (
+            args[0].clone().expect_int()?,
+            args[1].clone().expect_int()?,
+            1,
+        ),
         3 => {
             let step = args[2].clone().expect_int()?;
             if step == 0 {
                 return Err(Error::Custom("range step cannot be 0".into()));
             }
-            (args[0].clone().expect_int()?, args[1].clone().expect_int()?, step)
+            (
+                args[0].clone().expect_int()?,
+                args[1].clone().expect_int()?,
+                step,
+            )
         }
         _ => {
             return Err(Error::WrongNumberOfArguments {
@@ -533,7 +588,9 @@ pub fn reduce(args: Vec<Expr>) -> Result<Expr, Error> {
     if args.len() == 2 {
         let items = args[1].clone().expect_list()?;
         if items.is_empty() {
-            return Err(Error::Custom("reduce over empty list without initial value".into()));
+            return Err(Error::Custom(
+                "reduce over empty list without initial value".into(),
+            ));
         }
         let mut acc = items[0].clone();
         for item in &items[1..] {
@@ -569,7 +626,10 @@ pub fn substring(args: Vec<Expr>) -> Result<Expr, Error> {
     let start = args[1].clone().expect_int()?;
 
     if start < 0 {
-        return Err(Error::Custom(format!("substring start index cannot be negative: {}", start)));
+        return Err(Error::Custom(format!(
+            "substring start index cannot be negative: {}",
+            start
+        )));
     }
 
     let char_count = s.chars().count();
@@ -578,7 +638,10 @@ pub fn substring(args: Vec<Expr>) -> Result<Expr, Error> {
     let sub: String = if args.len() > 2 {
         let len = args[2].clone().expect_int()?;
         if len < 0 {
-            return Err(Error::Custom(format!("substring length cannot be negative: {}", len)));
+            return Err(Error::Custom(format!(
+                "substring length cannot be negative: {}",
+                len
+            )));
         }
         s.chars().skip(start_idx).take(len as usize).collect()
     } else {

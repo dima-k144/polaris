@@ -1,14 +1,14 @@
+use polars::prelude::*;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::ptr;
-use polars::prelude::*;
+use std::rc::Rc;
 
 #[derive(Clone)]
 pub struct Expr {
     pub value: ExprValue,
-    pub line: Option<usize>
+    pub line: Option<usize>,
 }
 
 #[derive(Clone, PartialEq)]
@@ -42,11 +42,11 @@ pub enum ExprValue {
 
 pub enum Number {
     Int(i64),
-    Float(f64)
+    Float(f64),
 }
 
 impl Expr {
-     pub fn expect_symbol(self) -> Result<String, Error> {
+    pub fn expect_symbol(self) -> Result<String, Error> {
         let Expr { value, line } = self;
         match value {
             ExprValue::Symbol(s) => Ok(s),
@@ -170,7 +170,11 @@ impl Expr {
     pub fn to_string(self) -> Result<String, Error> {
         match self.value {
             ExprValue::LazyFrame(lf) => {
-                let df = lf.clone().collect().map_err(Error::PolarsError)?.head(Some(10));
+                let df = lf
+                    .clone()
+                    .collect()
+                    .map_err(Error::PolarsError)?
+                    .head(Some(10));
                 Ok(format!("{}", df))
             }
             // For others, fall back to standard Display or format manually
@@ -217,23 +221,19 @@ impl fmt::Display for ExprValue {
                     write!(f, "{}", item.value)?;
                 }
                 write!(f, ")")
-            },
-            ExprValue::Bool(value) => {
-                match value {
-                    true => write!(f, "true"),
-                    false => write!(f, "false"),
-                }
+            }
+            ExprValue::Bool(value) => match value {
+                true => write!(f, "true"),
+                false => write!(f, "false"),
             },
             ExprValue::Nil => {
                 write!(f, "nil")
-            },
-            ExprValue::NativeFunction(_data) => write!(f, "<NativeFunction>"),
-            ExprValue::UserFunction(data) => {
-                match data.name.clone() {
-                    Some(name) => write!(f, "<{name}>"),
-                    None => write!(f, "<lambda>"),
-                }
             }
+            ExprValue::NativeFunction(_data) => write!(f, "<NativeFunction>"),
+            ExprValue::UserFunction(data) => match data.name.clone() {
+                Some(name) => write!(f, "<{name}>"),
+                None => write!(f, "<lambda>"),
+            },
             ExprValue::LazyFrame(_lf) => write!(f, "<LazyFrame>"),
             ExprValue::PolarsExpr(pe) => write!(f, "{}", pe),
         }
@@ -259,10 +259,10 @@ impl fmt::Debug for ExprValue {
             ExprValue::List(items) => f.debug_tuple("List").field(items).finish(),
             ExprValue::Bool(b) => f.debug_tuple("Bool").field(b).finish(),
             ExprValue::Nil => f.write_str("Nil"),
-            ExprValue::NativeFunction(_data) => { f.write_str("NativeFunction") },
-            ExprValue::UserFunction(_data) => { f.write_str("UserFunction") },
-            ExprValue::LazyFrame(_) => { f.write_str("LazyFrame") },
-            ExprValue::PolarsExpr(_) => { f.write_str("PolarsExpr") },
+            ExprValue::NativeFunction(_data) => f.write_str("NativeFunction"),
+            ExprValue::UserFunction(_data) => f.write_str("UserFunction"),
+            ExprValue::LazyFrame(_) => f.write_str("LazyFrame"),
+            ExprValue::PolarsExpr(_) => f.write_str("PolarsExpr"),
         }
     }
 }
@@ -305,36 +305,36 @@ pub enum Error {
     UnclosedString,
     UnclosedListExpr,
     FailedToParseNumber {
-        number: String
+        number: String,
     },
     UnexpectedClosedParen,
     WrongType {
         expected: String,
-        got: Expr
+        got: Expr,
     },
     LookupNotFound {
-        symbol: String
+        symbol: String,
     },
     WrongNumberOfArguments {
         expected_min: u8,
         expected_max: u8,
-        got: u8
+        got: u8,
     },
-    ScalarShapeError{
-        shape: (usize, usize)
+    ScalarShapeError {
+        shape: (usize, usize),
     },
-    ScalarUnsupportedError{
-        name: String
+    ScalarUnsupportedError {
+        name: String,
     },
-    MissingRequiredKWArg{
-        name: String
+    MissingRequiredKWArg {
+        name: String,
     },
-    MixedWithinLine(usize),      // Both tabs and spaces on the same line (Line #)
-    MixedAcrossFile(usize),      // Inconsistent style compared to previous lines (Line #)
-    AmbiguousSpaces(usize),      // Spaces found, but not a multiple of 2 or 4 (Line #)
+    MixedWithinLine(usize), // Both tabs and spaces on the same line (Line #)
+    MixedAcrossFile(usize), // Inconsistent style compared to previous lines (Line #)
+    AmbiguousSpaces(usize), // Spaces found, but not a multiple of 2 or 4 (Line #)
     EmptyListEval,
     Custom(String),
-    PolarsError(polars::prelude::PolarsError)
+    PolarsError(polars::prelude::PolarsError),
 }
 
 impl PartialEq for Expr {
@@ -357,9 +357,7 @@ impl PartialEq for ExprValue {
         match (self, other) {
             (ExprValue::Symbol(a), ExprValue::Symbol(b)) => a == b,
             (ExprValue::Int(a), ExprValue::Int(b)) => a == b,
-            (ExprValue::Float(a), ExprValue::Float(b)) => {
-                a == b || (a.is_nan() && b.is_nan())
-            }
+            (ExprValue::Float(a), ExprValue::Float(b)) => a == b || (a.is_nan() && b.is_nan()),
             (ExprValue::String(a), ExprValue::String(b)) => a == b,
             (ExprValue::List(a), ExprValue::List(b)) => a == b,
             (ExprValue::Bool(a), ExprValue::Bool(b)) => a == b,
@@ -387,10 +385,22 @@ impl PartialEq for ExprValue {
 #[test]
 fn print_sizes() {
     println!("\n==============================");
-    println!("Expr:        {} bytes", std::mem::size_of::<crate::types::Expr>());
-    println!("ExprValue:   {} bytes", std::mem::size_of::<crate::types::ExprValue>());
-    println!("Option<usize>: {} bytes", std::mem::size_of::<Option<usize>>());
+    println!(
+        "Expr:        {} bytes",
+        std::mem::size_of::<crate::types::Expr>()
+    );
+    println!(
+        "ExprValue:   {} bytes",
+        std::mem::size_of::<crate::types::ExprValue>()
+    );
+    println!(
+        "Option<usize>: {} bytes",
+        std::mem::size_of::<Option<usize>>()
+    );
     println!("LazyFrame: {} bytes", std::mem::size_of::<LazyFrame>());
-    println!("Polars Expr: {} bytes", std::mem::size_of::<polars::prelude::Expr>());
+    println!(
+        "Polars Expr: {} bytes",
+        std::mem::size_of::<polars::prelude::Expr>()
+    );
     println!("==============================\n");
 }

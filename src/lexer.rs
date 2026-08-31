@@ -20,14 +20,14 @@ pub fn scan(source: &str) -> Result<Vec<(String, usize)>, Error> {
         if in_string {
             if escape {
                 match c {
-                    'n'  => item.push('\n'),
-                    't'  => item.push('\t'),
-                    'r'  => item.push('\r'),
+                    'n' => item.push('\n'),
+                    't' => item.push('\t'),
+                    'r' => item.push('\r'),
                     '\\' => item.push('\\'),
-                    '"'  => item.push('"'),
-                    '0'  => item.push('\0'),
+                    '"' => item.push('"'),
+                    '0' => item.push('\0'),
                     // Optionally handle invalid escapes or pass through:
-                    _    => item.push(c),
+                    _ => item.push(c),
                 }
                 escape = false;
             } else if c == '\\' {
