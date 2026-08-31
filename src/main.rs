@@ -247,15 +247,21 @@ fn main() {
                         &Error::Custom(format!("Failed to open {}", arg).to_string()),
                         &state,
                     );
-                    continue;
+                    std::process::exit(1)
                 }
             };
             match eval_string(contents.clone(), &env, &mut state) {
                 Ok(val) => match val.to_string() {
                     Ok(str) => println!("{str}"),
-                    Err(err) => handle_error(&err, &state),
+                    Err(err) => { 
+                        handle_error(&err, &state);
+                        std::process::exit(1)
+                    },
                 },
-                Err(err) => handle_error(&err, &state),
+                Err(err) => {
+                    handle_error(&err, &state);
+                    std::process::exit(1)
+                },
             };
         }
         return; // Exit without entering REPL
