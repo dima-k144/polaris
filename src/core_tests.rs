@@ -1223,4 +1223,72 @@ use crate::interpreter::{eval_string, State};
             .unwrap();
         assert_eq!(res, 20);
     }
+
+    #[test]
+    fn test_core_string_toolkit() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // str-len
+        assert_eq!(
+            eval_string(r#"(str-len "hello world")"#.to_string(), &env, &mut state)
+                .unwrap()
+                .expect_int()
+                .unwrap(),
+            11
+        );
+        assert_eq!(
+            eval_string(r#"(str-len "")"#.to_string(), &env, &mut state)
+                .unwrap()
+                .expect_int()
+                .unwrap(),
+            0
+        );
+
+        // substring
+        assert_eq!(
+            eval_string(r#"(substring "hello world" 0 5)"#.to_string(), &env, &mut state)
+                .unwrap()
+                .expect_string()
+                .unwrap(),
+            "hello"
+        );
+        assert_eq!(
+            eval_string(r#"(substring "hello world" 6)"#.to_string(), &env, &mut state)
+                .unwrap()
+                .expect_string()
+                .unwrap(),
+            "world"
+        );
+
+        // split
+        let split_res = eval_string(r#"(split "a,b,c" ",")"#.to_string(), &env, &mut state)
+            .unwrap()
+            .expect_list()
+            .unwrap();
+        assert_eq!(
+            split_res,
+            vec![
+                crate::corelib::new_string("a".into()),
+                crate::corelib::new_string("b".into()),
+                crate::corelib::new_string("c".into()),
+            ]
+        );
+
+        // join
+        assert_eq!(
+            eval_string(r#"(str-join '("a" "b" "c") ", ")"#.to_string(), &env, &mut state)
+                .unwrap()
+                .expect_string()
+                .unwrap(),
+            "a, b, c"
+        );
+        assert_eq!(
+            eval_string(r#"(str-join '(1 2 3) "-")"#.to_string(), &env, &mut state)
+                .unwrap()
+                .expect_string()
+                .unwrap(),
+            "1-2-3"
+        );
+    }
 }

@@ -61,6 +61,11 @@ pub fn std_env() -> Rc<RefCell<Env>> {
 
     // Native String Functions
     insert_native_function(&mut defines, "str-concat", crate::corelib::str_concat, 1, u8::MAX);
+    insert_native_function(&mut defines, "str-concat", crate::corelib::str_concat, 1, u8::MAX);
+    insert_native_function(&mut defines, "str-len", crate::corelib::str_len, 1, 1);
+    insert_native_function(&mut defines, "substring", crate::corelib::substring, 2, 3);
+    insert_native_function(&mut defines, "split", crate::corelib::split, 2, 2);
+    insert_native_function(&mut defines, "str-join", crate::corelib::str_join, 1, 2);
 
     // Native Conversion Functions
     insert_native_function(&mut defines, "to-str", crate::corelib::to_str, 1, 1);

@@ -555,3 +555,66 @@ pub fn reduce(args: Vec<Expr>) -> Result<Expr, Error> {
         })
     }
 }
+
+// (str-len "hello") -> 5
+pub fn str_len(args: Vec<Expr>) -> Result<Expr, Error> {
+    let s = args[0].clone().expect_string()?;
+    Ok(new_int(s.chars().count() as i64))
+}
+
+// (substring "hello" 1 3) -> "el" (start index, length)
+// (substring "hello" 1)   -> "ello" (to the end)
+pub fn substring(args: Vec<Expr>) -> Result<Expr, Error> {
+    let s = args[0].clone().expect_string()?;
+    let start = args[1].clone().expect_int()?;
+
+    if start < 0 {
+        return Err(Error::Custom(format!("substring start index cannot be negative: {}", start)));
+    }
+
+    let char_count = s.chars().count();
+    let start_idx = (start as usize).min(char_count);
+
+    let sub: String = if args.len() > 2 {
+        let len = args[2].clone().expect_int()?;
+        if len < 0 {
+            return Err(Error::Custom(format!("substring length cannot be negative: {}", len)));
+        }
+        s.chars().skip(start_idx).take(len as usize).collect()
+    } else {
+        s.chars().skip(start_idx).collect()
+    };
+
+    Ok(new_string(sub))
+}
+
+// (split "a,b,c" ",") -> '("a" "b" "c")
+pub fn split(args: Vec<Expr>) -> Result<Expr, Error> {
+    let s = args[0].clone().expect_string()?;
+    let delim = args[1].clone().expect_string()?;
+
+    let parts: Vec<Expr> = s
+        .split(&delim)
+        .map(|part| new_string(part.to_string()))
+        .collect();
+
+    Ok(new_list(parts))
+}
+
+// (str-join '("a" "b" "c") ", ") -> "a, b, c"
+// (str-join '("a" "b" "c"))      -> "abc" (default empty delimiter)
+pub fn str_join(args: Vec<Expr>) -> Result<Expr, Error> {
+    let items = args[0].clone().expect_list()?;
+    let delim = if args.len() > 1 {
+        args[1].clone().expect_string()?
+    } else {
+        String::new()
+    };
+
+    let mut string_parts = Vec::with_capacity(items.len());
+    for item in items {
+        string_parts.push(to_str(vec![item])?.expect_string()?);
+    }
+
+    Ok(new_string(string_parts.join(&delim)))
+}
