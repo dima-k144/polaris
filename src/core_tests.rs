@@ -815,4 +815,162 @@ mod tests {
             "nil"
         );
     }
+    
+    #[test]
+    fn test_for_loop_basic() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (define total 0)
+            (for i 1 5
+                (set total (+ total i)))
+            total
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval for loop basic failed")
+            .expect_int()
+            .expect("expected int");
+
+        assert_eq!(res, 10);
+    }
+
+    #[test]
+    fn test_for_loop_custom_step() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Positive step: 0 + 2 + 4 + 6 + 8 = 20
+        let code = r#"
+            (define total 0)
+            (for i 0 10 2
+                (set total (+ total i)))
+            total
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval for loop positive step failed")
+            .expect_int()
+            .expect("expected int");
+
+        assert_eq!(res, 20);
+
+        // Negative step: 10 + 7 + 4 + 1 = 22
+        let code_neg = r#"
+            (define total 0)
+            (for i 10 0 -3
+                (set total (+ total i)))
+            total
+        "#.to_string();
+
+        let res_neg = eval_string(code_neg, &env, &mut state)
+            .expect("eval for loop negative step failed")
+            .expect_int()
+            .expect("expected int");
+
+        assert_eq!(res_neg, 22);
+    }
+
+    #[test]
+    fn test_for_loop_zero_iterations() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (define run false)
+            (for i 5 5
+                (set run true))
+            run
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval zero iteration for loop failed")
+            .expect_bool()
+            .expect("expected bool");
+
+        assert_eq!(res, false);
+    }
+
+    #[test]
+    fn test_for_loop_scoping() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (define i 999)
+            (for i 0 3
+                (+ i 1))
+            i
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval for loop scope failed")
+            .expect_int()
+            .expect("expected int");
+
+        assert_eq!(res, 999);
+    }
+
+    #[test]
+    fn test_for_each_loop_basic() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (define acc 1)
+            (for-each item '(2 3 4)
+                (set acc (* acc item)))
+            acc
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval for-each loop basic failed")
+            .expect_int()
+            .expect("expected int");
+
+        assert_eq!(res, 24);
+    }
+
+    #[test]
+    fn test_for_each_loop_empty_list() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (define counter 0)
+            (for-each x '()
+                (set counter (+ counter 1)))
+            counter
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval empty for-each loop failed")
+            .expect_int()
+            .expect("expected int");
+
+        assert_eq!(res, 0);
+    }
+
+    #[test]
+    fn test_for_each_loop_multi_expression_body() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (define count 0)
+            (define sum 0)
+            (for-each x '(10 20 30)
+                (set count (+ count 1))
+                (set sum (+ sum x)))
+            (+ count sum)
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval multi-expression for-each failed")
+            .expect_int()
+            .expect("expected int");
+
+        assert_eq!(res, 63);
+    }
 }

@@ -25,6 +25,19 @@ pub fn define(symbol: &String, value: Expr, env: &Rc<RefCell<Env>>) {
     env.borrow_mut().defines.insert(symbol.to_string(), value);
 }
 
+pub fn set_symbol(symbol: &str, value: Expr, env: &Rc<RefCell<Env>>) -> Result<(), Error> {
+    let mut curr = Some(Rc::clone(env));
+    while let Some(current_env) = curr {
+        let mut borrow = current_env.borrow_mut();
+        if borrow.defines.contains_key(symbol) {
+            borrow.defines.insert(symbol.to_string(), value);
+            return Ok(());
+        }
+        curr = borrow.outer.as_ref().map(Rc::clone);
+    }
+    Err(Error::LookupNotFound { symbol: symbol.to_string() })
+}
+
 pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Expr, Error> {
     if expr.line.is_some() {
         state.line = expr.line.unwrap();
@@ -147,7 +160,87 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     } else {
                         return Ok(eval(on_false, env, state)?);
                     }
-                }
+                },
+                "for" => {
+                    if list.len() < 4 {
+                        return Err(Error::WrongNumberOfArguments {
+                            expected_min: 3,
+                            expected_max: u8::MAX,
+                            got: (list.len().saturating_sub(1)) as u8,
+                        });
+                    }
+
+                    let var_name = list[1].clone().expect_symbol()?;
+                    let start = eval(list[2].clone(), env, state)?.expect_int()?;
+                    let end = eval(list[3].clone(), env, state)?.expect_int()?;
+
+                    let (step, body_start_idx) = if list.len() >= 5 {
+                        match &list[4].value {
+                            ExprValue::Int(s) => (*s, 5),
+                            _ => (if start <= end { 1 } else { -1 }, 4),
+                        }
+                    } else {
+                        (if start <= end { 1 } else { -1 }, 4)
+                    };
+
+                    if step == 0 {
+                        return Err(Error::Custom("Step cannot be zero in 'for' loop".into()));
+                    }
+
+                    let body = &list[body_start_idx..];
+                    let child_env = Rc::new(RefCell::new(Env::with_parent(Rc::clone(env))));
+                    let mut last_result = corelib::nil();
+
+                    let mut i = start;
+                    while (step > 0 && i < end) || (step < 0 && i > end) {
+                        child_env.borrow_mut().defines.insert(var_name.clone(), corelib::new_int(i));
+                        for expr in body {
+                            last_result = eval(expr.clone(), &child_env, state)?;
+                        }
+                        i += step;
+                    }
+
+                    return Ok(last_result);
+                },
+
+                "for-each" => {
+                    if list.len() < 3 {
+                        return Err(Error::WrongNumberOfArguments {
+                            expected_min: 2,
+                            expected_max: u8::MAX,
+                            got: (list.len().saturating_sub(1)) as u8,
+                        });
+                    }
+
+                    let var_name = list[1].clone().expect_symbol()?;
+                    let items = eval(list[2].clone(), env, state)?.expect_list()?;
+                    let body = &list[3..];
+
+                    let child_env = Rc::new(RefCell::new(Env::with_parent(Rc::clone(env))));
+                    let mut last_result = corelib::nil();
+
+                    for item in items {
+                        child_env.borrow_mut().defines.insert(var_name.clone(), item);
+                        for expr in body {
+                            last_result = eval(expr.clone(), &child_env, state)?;
+                        }
+                    }
+
+                    return Ok(last_result);
+                },
+                "set" => {
+                    if list.len() != 3 {
+                        return Err(Error::WrongNumberOfArguments {
+                            expected_min: 2,
+                            expected_max: 2,
+                            got: (list.len().saturating_sub(1)) as u8,
+                        });
+                    }
+                    let name = list[1].clone().expect_symbol()?;
+                    let value = eval(list[2].clone(), env, state)?;
+                    set_symbol(&name, value, env)?;
+                    return Ok(lookup(&String::from("nil"), env).unwrap());
+                },
                 _ => {}
             }
 
