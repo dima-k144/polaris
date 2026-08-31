@@ -60,20 +60,7 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "empty?", crate::corelib::is_empty, 1, 1);
 
     // Native String Functions
-    insert_native_function(
-        &mut defines,
-        "str-concat",
-        crate::corelib::str_concat,
-        1,
-        u8::MAX,
-    );
-    insert_native_function(
-        &mut defines,
-        "str-concat",
-        crate::corelib::str_concat,
-        1,
-        u8::MAX,
-    );
+    insert_native_function(&mut defines, "str-concat", crate::corelib::str_concat, 1, u8::MAX);
     insert_native_function(&mut defines, "str-len", crate::corelib::str_len, 1, 1);
     insert_native_function(&mut defines, "substring", crate::corelib::substring, 2, 3);
     insert_native_function(&mut defines, "split", crate::corelib::split, 2, 2);

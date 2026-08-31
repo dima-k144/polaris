@@ -131,7 +131,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     let func = ExprValue::UserFunction(Box::new(func_data));
                     return Ok(Expr {
                         value: func,
-                        line: None,
+                        line: expr.line, // <-- Preserve line number from lambda token
                     });
                 }
                 "defun" => {
@@ -151,7 +151,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
 
                     let func = Expr {
                         value: ExprValue::UserFunction(Box::new(func_data)),
-                        line: None,
+                        line: expr.line, // <-- Preserve line number from defun token
                     };
 
                     define(&name, func.clone(), env);
@@ -192,12 +192,14 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     expect_args_count(list.len() - 1, 2, usize::MAX)?;
                     let mut var = eval(list[1].clone(), env, state)?;
                     for i in 2..list.len() {
-                        let mut expr2 = list[i].clone().expect_list()?;
+                        let step_expr = &list[i];
+                        let step_line = step_expr.line.or(expr.line); // Preserve line info
+                        let mut expr2 = step_expr.clone().expect_list()?;
                         expr2.insert(1, var.clone());
                         var = eval(
                             Expr {
                                 value: ExprValue::List(expr2),
-                                line: None,
+                                line: step_line, // <-- Pass the pipeline step's line number
                             },
                             env,
                             state,

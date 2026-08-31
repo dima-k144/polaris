@@ -7,35 +7,31 @@ fn transform_infix(items: Vec<Expr>) -> Result<Expr, Error> {
         ));
     }
 
-    // Version 1:
-    // {a + b} -> (+ a b)
+    let default_line = items.first().and_then(|e| e.line);
 
     if items.len() == 3 {
         let mut iter = items.into_iter();
-
         let left = iter.next().unwrap();
         let op = iter.next().unwrap();
         let right = iter.next().unwrap();
+        let line = op.line.or(left.line).or(default_line);
 
         return Ok(Expr {
             value: ExprValue::List(vec![op, left, right]),
-            line: None,
+            line,
         });
     }
 
-    // Version 2:
-    // {a + b + c} -> (+ (+ a b) c)
-
     let mut iter = items.into_iter();
-
     let mut result = {
         let left = iter.next().unwrap();
         let op = iter.next().unwrap();
         let right = iter.next().unwrap();
+        let line = op.line.or(left.line).or(default_line);
 
         Expr {
             value: ExprValue::List(vec![op, left, right]),
-            line: None,
+            line,
         }
     };
 
@@ -54,9 +50,10 @@ fn transform_infix(items: Vec<Expr>) -> Result<Expr, Error> {
             }
         };
 
+        let line = op.line.or(right.line).or(result.line);
         result = Expr {
             value: ExprValue::List(vec![op, result, right]),
-            line: None,
+            line,
         };
     }
 
@@ -162,11 +159,14 @@ pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Result<Expr, Error> {
         };
         let mut second = parse1(tokens)?;
         if let ExprValue::Symbol(symbol) = second.value {
-            second.value = ExprValue::String(symbol)
+            second.value = ExprValue::String(symbol);
+            if second.line.is_none() {
+                second.line = Some(line);
+            }
         }
         Ok(Expr {
             value: ExprValue::List(vec![first, second]),
-            line: Some(line),
+            line: Some(line), // <-- propagate line
         })
     } else if token.0 == "'" {
         let first = Expr {
@@ -174,9 +174,10 @@ pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Result<Expr, Error> {
             line: Some(line),
         };
         let second = parse1(tokens)?;
+        let line_val = second.line.or(Some(line));
         Ok(Expr {
             value: ExprValue::List(vec![first, second]),
-            line: Some(line),
+            line: line_val,
         })
     } else if token.0 == "#" {
         let first = Expr {
@@ -184,9 +185,10 @@ pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Result<Expr, Error> {
             line: Some(line),
         };
         let second = parse1(tokens)?;
+        let line_val = second.line.or(Some(line));
         Ok(Expr {
             value: ExprValue::List(vec![first, second]),
-            line: Some(line),
+            line: line_val,
         })
     } else if token.0 == ")" {
         Err(Error::UnexpectedClosedParen)
