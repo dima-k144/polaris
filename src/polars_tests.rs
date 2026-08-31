@@ -3121,4 +3121,175 @@ defun compute_score (age)
 
         assert_eq!(df, expected_df);
     }
+
+    #[test]
+    fn test_polars_math_abs_and_pow() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (-> (read-csv "data1.csv")
+                (with-column $abs_diff (abs (- $age 30))
+                            $age_sq   (pow $age 2))
+                (select $id $abs_diff $age_sq))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval abs and pow failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "abs_diff" => &[5i64, 0, 8, 2, 5],
+            "age_sq" => &[625.0f64, 900.0, 484.0, 784.0, 1225.0],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_polars_math_sqrt() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Filter to Alice (age = 25) to test exact sqrt
+        let code = r#"
+            (-> (read-csv "data1.csv")
+                (filter (= $id 1))
+                (with-column $sqrt_age (sqrt (cast $age :float)))
+                (select $name $sqrt_age))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval sqrt failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "name" => &["Alice"],
+            "sqrt_age" => &[5.0f64],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_polars_math_floor_and_ceil() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Dividing ages (25, 30, 22, 28, 35) by 4 gives (6.25, 7.5, 5.5, 7.0, 8.75)
+        let code = r#"
+            (-> (read-csv "data1.csv")
+                (with-column $quarter (/ (cast $age :float) 4.0))
+                (with-column $fl (floor $quarter)
+                            $cl (ceil $quarter))
+                (select $id $fl $cl))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval floor and ceil failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "fl" => &[6.0f64, 7.0, 5.0, 7.0, 8.0],
+            "cl" => &[7.0f64, 8.0, 6.0, 7.0, 9.0],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_polars_math_round() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Dividing ages by 4 gives: [6.25, 7.5, 5.5, 7.0, 8.75]
+        // HalfToEven rounding to 1 decimal gives: [6.2, 7.5, 5.5, 7.0, 8.8]
+        let code = r#"
+            (-> (read-csv "data1.csv")
+                (with-column $quarter (/ (cast $age :float) 4.0))
+                (with-column $rounded (round $quarter 1))
+                (select $id $rounded))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval round failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "rounded" => &[6.2f64, 7.5, 5.5, 7.0, 8.8],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_polars_math_exp_and_log() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // ln(exp(x)) = x
+        let code = r#"
+            (-> (read-csv "data1.csv")
+                (with-column $normalized (/ (cast $age :float) 10.0))
+                (with-column $round_trip (round (log (exp $normalized)) 1))
+                (select $id $round_trip))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval exp/log failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "round_trip" => &[2.5f64, 3.0, 2.2, 2.8, 3.5],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_polars_math_trig_identity() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Verify sin^2(x) + cos^2(x) = 1.0 for all age entries
+        let code = r#"
+            (-> (read-csv "data1.csv")
+                (with-column $rad (cast $age :float))
+                (with-column $identity (round (+ (pow (sin $rad) 2) (pow (cos $rad) 2)) 4))
+                (select $id $identity))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval trig identity failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "identity" => &[1.0f64, 1.0, 1.0, 1.0, 1.0],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
 }

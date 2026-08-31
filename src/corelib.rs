@@ -52,7 +52,14 @@ where
 
 // --- Math Functions ---
 
+fn has_polars_arg(args: &[Expr]) -> bool {
+    args.iter().any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)))
+}
+
 pub fn abs(args: Vec<Expr>) -> Result<Expr, Error> {
+    if has_polars_arg(&args) {
+        return crate::polarslib::abs_polars(args);
+    }
     match args[0].clone().expect_number()? {
         Number::Int(i) => Ok(new_int(i.abs())),
         Number::Float(f) => Ok(new_float(f.abs())),
@@ -60,14 +67,23 @@ pub fn abs(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 pub fn sqrt(args: Vec<Expr>) -> Result<Expr, Error> {
+    if has_polars_arg(&args) {
+        return crate::polarslib::sqrt_polars(args);
+    }
     apply_unary_math(args, |f| f.sqrt())
 }
 
 pub fn exp(args: Vec<Expr>) -> Result<Expr, Error> {
+    if has_polars_arg(&args) {
+        return crate::polarslib::exp_polars(args);
+    }
     apply_unary_math(args, |f| f.exp())
 }
 
 pub fn log(args: Vec<Expr>) -> Result<Expr, Error> {
+    if has_polars_arg(&args) {
+        return crate::polarslib::log_polars(args);
+    }
     let val = args[0].clone().expect_number()?.to_float();
     if args.len() > 1 {
         let base = args[1].clone().expect_number()?.to_float();
@@ -78,10 +94,16 @@ pub fn log(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 pub fn log10(args: Vec<Expr>) -> Result<Expr, Error> {
+    if has_polars_arg(&args) {
+        return crate::polarslib::log10_polars(args);
+    }
     apply_unary_math(args, |f| f.log10())
 }
 
 pub fn pow(args: Vec<Expr>) -> Result<Expr, Error> {
+    if has_polars_arg(&args) {
+        return crate::polarslib::pow_polars(args);
+    }
     let base = args[0].clone().expect_number()?;
     let exponent = args[1].clone().expect_number()?;
 
@@ -94,6 +116,9 @@ pub fn pow(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 pub fn round(args: Vec<Expr>) -> Result<Expr, Error> {
+    if has_polars_arg(&args) {
+        return crate::polarslib::round_polars(args);
+    }
     let val = args[0].clone().expect_number()?.to_float();
     let decimals = if args.len() > 1 {
         args[1].clone().expect_int()? as i32
@@ -112,6 +137,9 @@ pub fn round(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 pub fn floor(args: Vec<Expr>) -> Result<Expr, Error> {
+    if has_polars_arg(&args) {
+        return crate::polarslib::floor_polars(args);
+    }
     let val = args[0].clone().expect_number()?;
     match val {
         Number::Int(i) => Ok(new_int(i)),
@@ -120,6 +148,9 @@ pub fn floor(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 pub fn ceil(args: Vec<Expr>) -> Result<Expr, Error> {
+    if has_polars_arg(&args) {
+        return crate::polarslib::ceil_polars(args);
+    }
     let val = args[0].clone().expect_number()?;
     match val {
         Number::Int(i) => Ok(new_int(i)),
@@ -128,14 +159,23 @@ pub fn ceil(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 pub fn sin(args: Vec<Expr>) -> Result<Expr, Error> {
+    if has_polars_arg(&args) {
+        return crate::polarslib::sin_polars(args);
+    }
     apply_unary_math(args, |f| f.sin())
 }
 
 pub fn cos(args: Vec<Expr>) -> Result<Expr, Error> {
+    if has_polars_arg(&args) {
+        return crate::polarslib::cos_polars(args);
+    }
     apply_unary_math(args, |f| f.cos())
 }
 
 pub fn tan(args: Vec<Expr>) -> Result<Expr, Error> {
+    if has_polars_arg(&args) {
+        return crate::polarslib::tan_polars(args);
+    }
     apply_unary_math(args, |f| f.tan())
 }
 

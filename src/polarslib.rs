@@ -1839,3 +1839,76 @@ pub fn rename_(args: Vec<Expr>) -> Result<Expr, Error> {
 
     Ok(new_lazy_frame(lf.rename(existing, new_names, true)))
 }
+
+// Unary Math Operations
+pub fn abs_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    Ok(new_polars_expr(expr.abs()))
+}
+
+pub fn sqrt_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    Ok(new_polars_expr(expr.sqrt()))
+}
+
+pub fn exp_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    Ok(new_polars_expr(expr.exp()))
+}
+
+pub fn log_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    if args.len() > 1 {
+        let base = args[1].clone().expect_number()?.to_float();
+        Ok(new_polars_expr(expr.log(lit(base))))
+    } else {
+        // Natural logarithm (ln)
+        Ok(new_polars_expr(expr.log(lit(std::f64::consts::E))))
+    }
+}
+
+pub fn log10_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    Ok(new_polars_expr(expr.log(lit(10.0))))
+}
+
+pub fn pow_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+    let base = args[0].clone().expect_polars_expr()?;
+    let exponent = args[1].clone().expect_polars_expr()?;
+    Ok(new_polars_expr(base.pow(exponent)))
+}
+
+pub fn round_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    let decimals = if args.len() > 1 {
+        args[1].clone().expect_int()? as u32
+    } else {
+        0
+    };
+    Ok(new_polars_expr(expr.round(decimals, Default::default())))
+}
+
+pub fn floor_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    Ok(new_polars_expr(expr.floor()))
+}
+
+pub fn ceil_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    Ok(new_polars_expr(expr.ceil()))
+}
+
+pub fn sin_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    Ok(new_polars_expr(expr.sin()))
+}
+
+pub fn cos_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    Ok(new_polars_expr(expr.cos()))
+}
+
+pub fn tan_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+    let expr = args[0].clone().expect_polars_expr()?;
+    Ok(new_polars_expr(expr.tan()))
+}
