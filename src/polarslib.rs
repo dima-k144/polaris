@@ -280,7 +280,7 @@ pub fn slice(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (schema (read-csv "data.csv"))
 pub fn schema(args: Vec<Expr>) -> Result<Expr, Error> {
     let mut lf = args[0].clone().expect_lazy_frame()?; 
-    let schema = lf.collect_schema().unwrap();
+    let schema = lf.collect_schema().map_err(|e| Error::PolarsError(e))?;
     let mut result = Vec::<Expr>::new();
     let mut fields = Vec::<Expr>::new();
     for field in schema.iter_fields() {
@@ -296,7 +296,7 @@ pub fn schema(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (shape df) -> (rows cols)
 pub fn shape(args: Vec<Expr>) -> Result<Expr, Error> {
     let mut lf = args[0].clone().expect_lazy_frame()?;  
-    let shape = lf.collect().unwrap().shape();
+    let shape = lf.collect().map_err(|e| Error::PolarsError(e))?.shape();
     Ok(new_list(vec![new_int(shape.0 as i64), new_int(shape.1 as i64)]))
 }
 
@@ -1563,7 +1563,7 @@ pub fn scalar(args: Vec<Expr>) -> Result<Expr, Error> {
 
 pub fn collect_(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
-    lf.collect_with_engine(polars::prelude::Engine::Streaming).unwrap();
+    lf.collect_with_engine(polars::prelude::Engine::Streaming).map_err(|e| Error::PolarsError(e))?;
     Ok(nil())
 }
 

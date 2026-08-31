@@ -52,6 +52,7 @@ pub fn format_error_message(error: &Error) -> String {
         Error::MixedWithinLine(line) => format!("Error: both tabs and spaces on the same line, on line {}", line),
         Error::MixedAcrossFile(line) => format!("Error: inconsistent style compared to previous lines, on line {}", line),
         Error::AmbiguousSpaces(line) => format!("Error: spaces found, but not a multiple of 2 or 4, on line {}", line),
+        Error::EmptyListEval => format!("Error: attempted to evaluate empty list")
     }
 }
 
@@ -86,11 +87,10 @@ pub fn format_error_line_info(error: &Error, state: &interpreter::State) -> Opti
 
 fn handle_error(error: &Error, state: &interpreter::State) {
     let error_message = format_error_message(error);
-    print!("{}", error_message);
 
     match format_error_line_info(error, state) {
-        Some(line_info) => println!("{}", line_info),
-        None => {},
+        Some(line_info) => println!("{} {}", error_message, line_info),
+        None => println!("{}", error_message),
     }
 }
 

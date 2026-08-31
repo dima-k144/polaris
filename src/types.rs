@@ -317,6 +317,7 @@ pub enum Error {
     MixedWithinLine(usize),      // Both tabs and spaces on the same line (Line #)
     MixedAcrossFile(usize),      // Inconsistent style compared to previous lines (Line #)
     AmbiguousSpaces(usize),      // Spaces found, but not a multiple of 2 or 4 (Line #)
+    EmptyListEval,
     Custom(String),
     PolarsError(polars::prelude::PolarsError)
 }

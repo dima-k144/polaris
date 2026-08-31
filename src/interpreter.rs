@@ -2,6 +2,7 @@ use std::{collections::HashMap, ops::Deref};
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::types::Error::EmptyListEval;
 use crate::{corelib, polarslib};
 use crate::types::{Env, Expr, ExprValue, Error, UserFunctionData, NativeFunctionData};
 
@@ -38,6 +39,14 @@ pub fn set_symbol(symbol: &str, value: Expr, env: &Rc<RefCell<Env>>) -> Result<(
     Err(Error::LookupNotFound { symbol: symbol.to_string() })
 }
 
+pub fn expect_args_count(got: usize, min: usize, max: usize) -> Result<(), Error> {
+    if got < min || got > max {
+        Err(Error::WrongNumberOfArguments { expected_min: min as u8, expected_max: max as u8, got: got as u8 })
+    } else {
+        Ok(())
+    }
+}
+
 pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Expr, Error> {
     if expr.line.is_some() {
         state.line = expr.line.unwrap();
@@ -55,16 +64,22 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
             }
         }
         ExprValue::List(list) => {
+            if list.is_empty() {
+                return Err(Error::EmptyListEval);
+            }
+
             let symbol = list[0].clone().expect_symbol()?;
 
             match symbol.as_str() {
                 "define" => { 
+                    expect_args_count(list.len() - 1, 2, 2)?;
                     let name = list[1].clone().expect_symbol()?;
                     let value = eval(list[2].clone(), env, state)?;
                     define(&name, value, env);
                     return Ok(lookup(&String::from("nil"), env).unwrap());
                 },
                 "lambda" => {
+                    expect_args_count(list.len() - 1, 2, usize::MAX)?;
                     let mut params = Vec::<String>::new();
                     for param in list[1].clone().expect_list()? {
                         params.push(param.expect_symbol()?);
@@ -81,6 +96,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     return Ok(Expr { value: func, line: None });
                 },
                 "defun" => {
+                    expect_args_count(list.len() - 1, 3, usize::MAX)?;
                     let name = list[1].clone().expect_symbol()?;
                     let mut params = Vec::<String>::new();
                     for param in list[2].clone().expect_list()? {
@@ -103,13 +119,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     return Ok(func);
                 },
                 "let" => {
-                    if list.len() < 3 {
-                        return Err(Error::WrongNumberOfArguments {
-                            expected_min: 2,
-                            expected_max: u8::MAX,
-                            got: (list.len().saturating_sub(1)) as u8,
-                        });
-                    }
+                    expect_args_count(list.len() - 1, 2, usize::MAX)?;
 
                     let bindings = list[1].clone().expect_list()?;
                     if bindings.len() % 2 != 0 {
@@ -140,6 +150,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     return Ok(result);
                 },
                 "->" => {
+                    expect_args_count(list.len() - 1, 2, usize::MAX)?;
                     let mut var = eval(list[1].clone(), env, state)?;
                     for i in 2..list.len() {
                         let mut expr2 = list[i].clone().expect_list()?;
@@ -149,9 +160,11 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     return Ok(var);
                 },
                 "quote" => {
+                    expect_args_count(list.len() - 1, 1, 1)?;
                     return Ok(list[1].clone());
                 },
                 "if" => {
+                    expect_args_count(list.len() - 1, 3, 3)?;
                     let test = list[1].clone();
                     let on_true = list[2].clone();
                     let on_false = list[3].clone();
@@ -162,13 +175,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     }
                 },
                 "for" => {
-                    if list.len() < 4 {
-                        return Err(Error::WrongNumberOfArguments {
-                            expected_min: 3,
-                            expected_max: u8::MAX,
-                            got: (list.len().saturating_sub(1)) as u8,
-                        });
-                    }
+                    expect_args_count(list.len() - 1, 3, usize::MAX)?;
 
                     let var_name = list[1].clone().expect_symbol()?;
                     let start = eval(list[2].clone(), env, state)?.expect_int()?;
@@ -204,13 +211,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                 },
 
                 "for-each" => {
-                    if list.len() < 3 {
-                        return Err(Error::WrongNumberOfArguments {
-                            expected_min: 2,
-                            expected_max: u8::MAX,
-                            got: (list.len().saturating_sub(1)) as u8,
-                        });
-                    }
+                    expect_args_count(list.len() - 1, 2, usize::MAX)?;
 
                     let var_name = list[1].clone().expect_symbol()?;
                     let items = eval(list[2].clone(), env, state)?.expect_list()?;
@@ -229,13 +230,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     return Ok(last_result);
                 },
                 "set" => {
-                    if list.len() != 3 {
-                        return Err(Error::WrongNumberOfArguments {
-                            expected_min: 2,
-                            expected_max: 2,
-                            got: (list.len().saturating_sub(1)) as u8,
-                        });
-                    }
+                    expect_args_count(list.len() - 1, 2, 2)?;
                     let name = list[1].clone().expect_symbol()?;
                     let value = eval(list[2].clone(), env, state)?;
                     set_symbol(&name, value, env)?;
@@ -256,18 +251,12 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
 
             match func.value {
                 ExprValue::NativeFunction(data) => {
-                    if args.len() < data.min_args as usize {
-                        return Err(Error::WrongNumberOfArguments { expected_min: data.min_args, expected_max: data.max_args, got: args.len() as u8 });
-                    }
+                    expect_args_count(list.len() - 1, data.min_args as usize, data.max_args as usize)?;
                     
                     return (data.body)(args);
                 },
                 ExprValue::UserFunction(data) => {
-                    if args.len() < data.params.len() {
-                        return Err(Error::WrongNumberOfArguments { 
-                            expected_min: data.params.len() as u8, expected_max: data.params.len() as u8, got: args.len() as u8 
-                        });
-                    }
+                    expect_args_count(list.len() - 1, data.params.len() as usize, usize::MAX)?;
 
                     let child_env = Rc::new(RefCell::new(Env::with_parent(Rc::clone(env))));
 
