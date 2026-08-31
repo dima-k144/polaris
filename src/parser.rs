@@ -155,6 +155,10 @@ pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Result<Expr, Error> {
         let first = Expr { value: ExprValue::Symbol(String::from("quote")), line: Some(line) };
         let second = parse1(tokens)?;
         Ok(Expr { value: ExprValue::List(vec![first, second]), line: Some(line) })
+    } else if token.0 == "#" {
+        let first = Expr { value: ExprValue::Symbol(String::from("lookup")), line: Some(line) };
+        let mut second = parse1(tokens)?;
+        Ok(Expr { value: ExprValue::List(vec![first, second]), line: Some(line) })
     } else if token.0 == ")" {
         Err(Error::UnexpectedClosedParen)
     } else {

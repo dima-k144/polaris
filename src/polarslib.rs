@@ -6,7 +6,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use crate::types::{Env, Error, Expr, ExprValue::{self, PolarsExpr}};
 use crate::plotlarslib;
-use crate::interpreter::{eval_string, State, expect_args_count, define};
+use crate::interpreter::{eval_string, State, expect_args_count, define, invoke_function};
 use polars::prelude::RollingOptionsFixedWindow;
 use crate::corelib::*;
 use polars::prelude::QuantileMethod;
@@ -1643,38 +1643,6 @@ pub fn expr_to_any_value<'a>(expr: Expr) -> Result<AnyValue<'a>, Error> {
         ExprValue::Float(f) => Ok(AnyValue::Float64(f)),
         ExprValue::String(s) => Ok(AnyValue::StringOwned(PlSmallStr::from(s.as_str()))),
         other => Err(Error::Custom(format!("Cannot convert expr '{:?}' to Series AnyValue", other))),
-    }
-}
-
-pub fn invoke_function(
-    func: &Expr,
-    args: Vec<Expr>,
-    env: &Rc<RefCell<Env>>,
-    state: &mut State,
-) -> Result<Expr, Error> {
-    match &func.value {
-        ExprValue::NativeFunction(data) => {
-            expect_args_count(args.len(), data.min_args as usize, data.max_args as usize)?;
-            (data.body)(args)
-        }
-        ExprValue::UserFunction(data) => {
-            expect_args_count(args.len(), data.params.len(), usize::MAX)?;
-            let child_env = Rc::new(RefCell::new(Env::with_parent(Rc::clone(env))));
-
-            for (param, arg) in data.params.iter().zip(args) {
-                define(param, arg, &child_env);
-            }
-
-            let mut result = nil();
-            for expr in &data.body {
-                result = eval(expr.clone(), &child_env, state)?;
-            }
-            Ok(result)
-        }
-        _ => Err(Error::WrongType {
-            expected: "callable (user function or native function)".into(),
-            got: func.clone(),
-        }),
     }
 }
 

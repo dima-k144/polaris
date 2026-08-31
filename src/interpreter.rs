@@ -11,6 +11,38 @@ pub struct State {
     pub file: Option<String>
 }
 
+pub fn invoke_function(
+    func: &Expr,
+    args: Vec<Expr>,
+    env: &Rc<RefCell<Env>>,
+    state: &mut State,
+) -> Result<Expr, Error> {
+    match &func.value {
+        ExprValue::NativeFunction(data) => {
+            expect_args_count(args.len(), data.min_args as usize, data.max_args as usize)?;
+            (data.body)(args)
+        }
+        ExprValue::UserFunction(data) => {
+            expect_args_count(args.len(), data.params.len(), usize::MAX)?;
+            let child_env = Rc::new(RefCell::new(Env::with_parent(Rc::clone(env))));
+
+            for (param, arg) in data.params.iter().zip(args) {
+                define(param, arg, &child_env);
+            }
+
+            let mut result = corelib::nil();
+            for expr in &data.body {
+                result = eval(expr.clone(), &child_env, state)?;
+            }
+            Ok(result)
+        }
+        _ => Err(Error::WrongType {
+            expected: "callable (user function or native function)".into(),
+            got: func.clone(),
+        }),
+    }
+}
+
 pub fn lookup(symbol: &str, env: &Rc<RefCell<Env>>) -> Option<Expr> {
     let env_borrow = env.borrow();
     if let Some(val) = env_borrow.defines.get(symbol) {

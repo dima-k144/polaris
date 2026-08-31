@@ -1,5 +1,6 @@
 mod tests {
-    use crate::interpreter::{eval_string, State};
+    use crate::corelib::new_int;
+use crate::interpreter::{eval_string, State};
     use crate::stdlib::std_env;
     use polars::prelude::*;
 
@@ -1022,5 +1023,204 @@ mod tests {
         let res = eval_string(code, &env, &mut state);
 
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_core_range() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // (range end)
+        let res = eval_string("(range 4)".to_string(), &env, &mut state)
+            .unwrap()
+            .expect_list()
+            .unwrap();
+        assert_eq!(res, vec![new_int(0), new_int(1), new_int(2), new_int(3)]);
+
+        // (range start end)
+        let res2 = eval_string("(range 1 5)".to_string(), &env, &mut state)
+            .unwrap()
+            .expect_list()
+            .unwrap();
+        assert_eq!(res2, vec![new_int(1), new_int(2), new_int(3), new_int(4)]);
+
+        // (range start end step) - positive step
+        let res3 = eval_string("(range 0 10 2)".to_string(), &env, &mut state)
+            .unwrap()
+            .expect_list()
+            .unwrap();
+        assert_eq!(res3, vec![new_int(0), new_int(2), new_int(4), new_int(6), new_int(8)]);
+
+        // (range start end step) - negative step
+        let res4 = eval_string("(range 10 0 -3)".to_string(), &env, &mut state)
+            .unwrap()
+            .expect_list()
+            .unwrap();
+        assert_eq!(res4, vec![new_int(10), new_int(7), new_int(4), new_int(1)]);
+
+        // Step 0 error
+        let res_err = eval_string("(range 1 5 0)".to_string(), &env, &mut state);
+        assert!(res_err.is_err());
+    }
+
+    #[test]
+    fn test_core_apply() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Apply native arithmetic function
+        let code = "(apply #+ '(1 2 3 4))".to_string();
+        let res = eval_string(code, &env, &mut state)
+            .unwrap()
+            .expect_int()
+            .unwrap();
+        assert_eq!(res, 10);
+
+        // Apply with leading args: (apply #str-concat "a" "b" '("c" "d"))
+        let code_concat = r#"(apply #str-concat "a" "b" '("c" "d"))"#.to_string();
+        let res_concat = eval_string(code_concat, &env, &mut state)
+            .unwrap()
+            .expect_string()
+            .unwrap();
+        assert_eq!(res_concat, "abcd");
+
+        // Apply user-defined function
+        let code_udf = r#"
+            (defun add3 (a b c) (+ a b c))
+            (apply #add3 '(10 20 30))
+        "#.to_string();
+        let res_udf = eval_string(code_udf, &env, &mut state)
+            .unwrap()
+            .expect_int()
+            .unwrap();
+        assert_eq!(res_udf, 60);
+    }
+
+    #[test]
+    fn test_core_map() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Map using user function
+        let code = r#"
+            (defun double (x) (* x 2))
+            (map #double (range 1 5))
+        "#.to_string();
+        let res = eval_string(code, &env, &mut state)
+            .unwrap()
+            .expect_list()
+            .unwrap();
+        assert_eq!(res, vec![new_int(2), new_int(4), new_int(6), new_int(8)]);
+
+        // Map using lambda expression
+        let code_lambda = "(map (lambda (x) (+ x 10)) '(1 2 3))".to_string();
+        let res_lambda = eval_string(code_lambda, &env, &mut state)
+            .unwrap()
+            .expect_list()
+            .unwrap();
+        assert_eq!(res_lambda, vec![new_int(11), new_int(12), new_int(13)]);
+
+        // Map over empty list
+        let code_empty = "(map #double '())".to_string();
+        let res_empty = eval_string(code_empty, &env, &mut state)
+            .unwrap()
+            .expect_list()
+            .unwrap();
+        assert!(res_empty.is_empty());
+    }
+
+    #[test]
+    fn test_core_filter() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Filter using user function
+        let code = r#"
+            (defun is-big (x) (> x 3))
+            (filter #is-big (range 1 6))
+        "#.to_string();
+        let res = eval_string(code, &env, &mut state)
+            .unwrap()
+            .expect_list()
+            .unwrap();
+        assert_eq!(res, vec![new_int(4), new_int(5)]);
+
+        // Filter using lambda
+        let code_lambda = "(filter (lambda (x) (< x 3)) '(1 2 3 4 5))".to_string();
+        let res_lambda = eval_string(code_lambda, &env, &mut state)
+            .unwrap()
+            .expect_list()
+            .unwrap();
+        assert_eq!(res_lambda, vec![new_int(1), new_int(2)]);
+
+        // Filter returns empty list
+        let code_none = "(filter (lambda (x) (> x 100)) (range 5))".to_string();
+        let res_none = eval_string(code_none, &env, &mut state)
+            .unwrap()
+            .expect_list()
+            .unwrap();
+        assert!(res_none.is_empty());
+    }
+
+    #[test]
+    fn test_core_reduce() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Reduce without initial accumulator value
+        let code_no_init = "(reduce #+ '(1 2 3 4))".to_string();
+        let res = eval_string(code_no_init, &env, &mut state)
+            .unwrap()
+            .expect_int()
+            .unwrap();
+        assert_eq!(res, 10);
+
+        // Reduce with initial accumulator value
+        let code_init = "(reduce #* 10 '(1 2 3 4))".to_string();
+        let res_init = eval_string(code_init, &env, &mut state)
+            .unwrap()
+            .expect_int()
+            .unwrap();
+        assert_eq!(res_init, 240);
+
+        // Reduce over strings with lambda
+        let code_str = r#"(reduce (lambda (acc x) (str-concat acc "-" x)) '("a" "b" "c"))"#.to_string();
+        let res_str = eval_string(code_str, &env, &mut state)
+            .unwrap()
+            .expect_string()
+            .unwrap();
+        assert_eq!(res_str, "a-b-c");
+
+        // Reduce on single-element list without initial value returns that element
+        let code_single = "(reduce #+ '(42))".to_string();
+        let res_single = eval_string(code_single, &env, &mut state)
+            .unwrap()
+            .expect_int()
+            .unwrap();
+        assert_eq!(res_single, 42);
+
+        // Reduce on empty list without initial value errors out
+        let code_empty = "(reduce #+ '())".to_string();
+        let res_empty = eval_string(code_empty, &env, &mut state);
+        assert!(res_empty.is_err());
+    }
+
+    #[test]
+    fn test_core_functional_chaining() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Pipeline: create range -> filter even -> square -> sum
+        let code = r#"
+            (defun square (x) (* x x))
+            (defun is-even (x) (= (- x (* (floor (/ x 2)) 2)) 0))
+            (reduce #+ (map #square (filter #is-even (range 1 6))))
+        "#.to_string();
+        // evens in [1..5]: 2, 4 -> squared: 4, 16 -> sum: 20
+        let res = eval_string(code, &env, &mut state)
+            .unwrap()
+            .expect_int()
+            .unwrap();
+        assert_eq!(res, 20);
     }
 }

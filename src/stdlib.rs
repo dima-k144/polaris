@@ -71,6 +71,12 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "to-bool", crate::corelib::to_bool, 1, 1);
     insert_native_function(&mut defines, "to-list", crate::corelib::to_list, 1, 1);
 
+    // Native Higher Order Functions
+    insert_native_function(&mut defines, "range", crate::corelib::range, 1, 3);
+    insert_native_function(&mut defines, "apply", crate::corelib::apply, 2, u8::MAX);
+    insert_native_function(&mut defines, "map", crate::corelib::map, 2, 2);
+    insert_native_function(&mut defines, "reduce", crate::corelib::reduce, 2, 3);
+
     // Arithmetic
     insert_native_function(&mut defines, "+", plus, 1, u8::MAX);
     insert_native_function(&mut defines, "-", minus, 1, u8::MAX);
@@ -142,7 +148,7 @@ pub fn std_env() -> Rc<RefCell<Env>> {
 
     // LazyFrame Operations
     insert_native_function(&mut defines, "select", select, 1, u8::MAX);
-    insert_native_function(&mut defines, "filter", filter, 2, u8::MAX);
+    insert_native_function(&mut defines, "filter", filter_core, 2, u8::MAX);
     insert_native_function(&mut defines, "with-column", with_column, 3, u8::MAX);
     insert_native_function(&mut defines, "sort", sort, 2, 3);
     insert_native_function(&mut defines, "group-by", group_by, 2, u8::MAX);

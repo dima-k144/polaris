@@ -391,3 +391,167 @@ pub fn str_concat(args: Vec<Expr>) -> Result<Expr, Error> {
     }
     Ok(new_string(out))
 }
+
+// Helper to execute any callable Expr (NativeFunction or UserFunction)
+pub fn invoke_callable(func: &Expr, args: Vec<Expr>) -> Result<Expr, Error> {
+    match &func.value {
+        ExprValue::NativeFunction(data) => {
+            crate::interpreter::expect_args_count(args.len(), data.min_args as usize, data.max_args as usize)?;
+            (data.body)(args)
+        }
+        ExprValue::UserFunction(data) => {
+            crate::interpreter::expect_args_count(args.len(), data.params.len(), data.params.len())?;
+            
+            // Re-use std_env as base so standard functions/macros are visible inside closures
+            let env = crate::stdlib::std_env();
+            let child_env = std::rc::Rc::new(std::cell::RefCell::new(crate::types::Env::with_parent(env)));
+
+            for (param, arg) in data.params.iter().zip(args) {
+                crate::interpreter::define(param, arg, &child_env);
+            }
+
+            let mut state = crate::interpreter::State { line: 0, file: None };
+            let mut result = nil();
+            for expr in &data.body {
+                result = crate::interpreter::eval(expr.clone(), &child_env, &mut state)?;
+            }
+            Ok(result)
+        }
+        _ => Err(Error::WrongType {
+            expected: "callable function".into(),
+            got: func.clone(),
+        }),
+    }
+}
+
+// (range end)
+// (range start end [step])
+pub fn range(args: Vec<Expr>) -> Result<Expr, Error> {
+    let (start, end, step) = match args.len() {
+        1 => (0, args[0].clone().expect_int()?, 1),
+        2 => (args[0].clone().expect_int()?, args[1].clone().expect_int()?, 1),
+        3 => {
+            let step = args[2].clone().expect_int()?;
+            if step == 0 {
+                return Err(Error::Custom("range step cannot be 0".into()));
+            }
+            (args[0].clone().expect_int()?, args[1].clone().expect_int()?, step)
+        }
+        _ => {
+            return Err(Error::WrongNumberOfArguments {
+                expected_min: 1,
+                expected_max: 3,
+                got: args.len() as u8,
+            });
+        }
+    };
+
+    let mut values = Vec::new();
+    let mut curr = start;
+
+    if step > 0 {
+        while curr < end {
+            values.push(new_int(curr));
+            curr += step;
+        }
+    } else {
+        while curr > end {
+            values.push(new_int(curr));
+            curr += step;
+        }
+    }
+
+    Ok(new_list(values))
+}
+
+// (apply func [arg1 arg2 ...] list)
+pub fn apply(args: Vec<Expr>) -> Result<Expr, Error> {
+    if args.len() < 2 {
+        return Err(Error::WrongNumberOfArguments {
+            expected_min: 2,
+            expected_max: u8::MAX,
+            got: args.len() as u8,
+        });
+    }
+
+    let func = &args[0];
+    let mut call_args = Vec::new();
+
+    for arg in &args[1..args.len() - 1] {
+        call_args.push(arg.clone());
+    }
+
+    let final_list = args.last().unwrap().clone().expect_list()?;
+    call_args.extend(final_list);
+
+    invoke_callable(func, call_args)
+}
+
+// (map func list)
+pub fn map(args: Vec<Expr>) -> Result<Expr, Error> {
+    let func = &args[0];
+    let items = args[1].clone().expect_list()?;
+
+    let mut out = Vec::with_capacity(items.len());
+    for item in items {
+        out.push(invoke_callable(func, vec![item])?);
+    }
+    Ok(new_list(out))
+}
+
+// (filter predicate list) - with Polars DataFrame fallback
+pub fn filter_core(args: Vec<Expr>) -> Result<Expr, Error> {
+    if matches!(args[0].value, ExprValue::LazyFrame(_)) {
+        return crate::polarslib::filter(args);
+    }
+
+    if args.len() != 2 {
+        return Err(Error::WrongNumberOfArguments {
+            expected_min: 2,
+            expected_max: 2,
+            got: args.len() as u8,
+        });
+    }
+
+    let func = &args[0];
+    let items = args[1].clone().expect_list()?;
+
+    let mut out = Vec::new();
+    for item in items {
+        let keep = invoke_callable(func, vec![item.clone()])?.expect_bool()?;
+        if keep {
+            out.push(item);
+        }
+    }
+    Ok(new_list(out))
+}
+
+// (reduce func list) OR (reduce func init list)
+pub fn reduce(args: Vec<Expr>) -> Result<Expr, Error> {
+    let func = &args[0];
+
+    if args.len() == 2 {
+        let items = args[1].clone().expect_list()?;
+        if items.is_empty() {
+            return Err(Error::Custom("reduce over empty list without initial value".into()));
+        }
+        let mut acc = items[0].clone();
+        for item in &items[1..] {
+            acc = invoke_callable(func, vec![acc, item.clone()])?;
+        }
+        Ok(acc)
+    } else if args.len() == 3 {
+        let mut acc = args[1].clone();
+        let items = args[2].clone().expect_list()?;
+        for item in items {
+            acc = invoke_callable(func, vec![acc, item])?;
+        }
+        Ok(acc)
+    } else {
+        Err(Error::WrongNumberOfArguments {
+            expected_min: 2,
+            expected_max: 3,
+            got: args.len() as u8,
+        })
+    }
+}
