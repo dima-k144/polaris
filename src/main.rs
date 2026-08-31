@@ -39,6 +39,7 @@ pub fn format_error_message(error: &Error) -> String {
         Error::UnclosedString => format!("Error: unclosed string"),
         Error::UnclosedListExpr => format!("Error: unclosed list expression"),
         Error::FailedToParseNumber { number } => format!("Error: failed to parse number '{number}'"),
+        Error::UnexpectedClosedParen => format!("Error: unexpected ')'"),
         Error::WrongType { expected, got } => format!("Error: expected {0}, got {1}", expected, got.clone().type_to_str()),
         Error::LookupNotFound { symbol } => format!("Error: symbol '{symbol}' is not defined"),
         Error::WrongNumberOfArguments { 
@@ -174,8 +175,11 @@ fn main() {
     if !lsp_files.is_empty() {
         for arg in lsp_files {
             let env = crate::stdlib::std_env();
-            let contents = fs::read_to_string(arg).unwrap();
             let mut state = interpreter::State { line: 0, file: Some(arg.to_string()) };
+            let contents = match fs::read_to_string(arg).map_err(|e| Error::Custom(e.to_string())) {
+                Ok(text) => text,
+                Err(err) => { handle_error(&Error::Custom(format!("Failed to open {}", arg).to_string()), &state); continue; },
+            };
             match eval_string(contents.clone(), &env, &mut state) {
                 Ok(val) => {
                     match val.to_string() {

@@ -149,6 +149,9 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     insert_native_function(&mut defines, "alias", alias, 2, 2);
     insert_native_function(&mut defines, "agg", agg, 1, u8::MAX);
     insert_native_function(&mut defines, "join", join, 4, 5);
+    insert_native_function(&mut defines, "unique", unique_, 1, u8::MAX);
+    insert_native_function(&mut defines, "drop", drop_, 2, u8::MAX);
+    insert_native_function(&mut defines, "rename", rename_, 3, 3);
 
     // Null Handling & Conditionals
     insert_native_function(&mut defines, "null?", is_null_, 1, 1);

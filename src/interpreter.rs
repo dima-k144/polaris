@@ -48,8 +48,9 @@ pub fn expect_args_count(got: usize, min: usize, max: usize) -> Result<(), Error
 }
 
 pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Expr, Error> {
-    if expr.line.is_some() {
-        state.line = expr.line.unwrap();
+    match expr.line {
+        Some(line) => state.line = line,
+        None => {},
     }
 
     match expr.value.clone() {

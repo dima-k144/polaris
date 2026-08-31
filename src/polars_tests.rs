@@ -2914,4 +2914,211 @@ defun compute_score (age)
 
         assert_eq!(df, expected_df);
     }
+
+    #[test]
+    fn test_unique_single_column() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (-> (read-csv "data1.csv")
+                (unique $city)
+                (sort $id)
+                (select $city))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval unique single col failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "city" => &["London", "Paris", "Berlin", "Rome", "Madrid"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_unique_with_keep_strategy() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (-> (read-csv "data1.csv")
+                (unique (list $city) :first)
+                (sort $id)
+                (select $id $name $city))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval unique with keep strategy failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
+            "city" => &["London", "Paris", "Berlin", "Rome", "Madrid"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_drop_single_and_multiple_columns() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Test dropping multiple columns via varargs
+        let code = r#"
+            (-> (read-csv "data1.csv")
+                (drop $age $city)
+                (sort $id))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval drop multiple args failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "name" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_drop_list_arguments() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Test dropping columns passed inside a list
+        let code = r#"
+            (-> (read-csv "data1.csv")
+                (drop (list $id $age $city))
+                (sort $name))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval drop list failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "name" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_rename_single_column() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (-> (read-csv "data1.csv")
+                (rename $name "full_name")
+                (sort $id)
+                (select $id $full_name))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval rename single column failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 3, 4, 5],
+            "full_name" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_rename_multiple_columns_list() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        let code = r#"
+            (-> (read-csv "data1.csv")
+                (rename (list $id $name $city) (list "user_id" "username" "location"))
+                (sort $user_id)
+                (select $user_id $username $location))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state)
+            .expect("eval rename multiple columns list failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "user_id" => &[1i64, 2, 3, 4, 5],
+            "username" => &["Alice", "Bob", "Charlie", "Diana", "Evan"],
+            "location" => &["London", "Paris", "Berlin", "Rome", "Madrid"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
+
+    #[test]
+    fn test_rename_mismatched_lengths_error() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Attempting to rename 2 columns with 1 target name should return an error
+        let code = r#"
+            (rename (read-csv "data1.csv") (list $id $name) (list "identifier"))
+        "#.to_string();
+
+        let res = eval_string(code, &env, &mut state);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_wisp_pipeline_unique_drop_rename() {
+        let env = std_env();
+        let mut state = State { line: 0, file: None };
+
+        // Combined test in indentation-based Wisp syntax
+        let code = r#"
+-> (read-csv "data1.csv")
+    filter : > $age 23
+    drop $age
+    rename $name "person"
+    rename $city "residence"
+    sort $person
+"#;
+
+        let res = eval_string(code.to_string(), &env, &mut state)
+            .expect("eval pipeline unique/drop/rename failed")
+            .expect_lazy_frame()
+            .expect("expected lazy frame");
+
+        let df = res.collect().expect("failed to collect DataFrame");
+
+        let expected_df = df!(
+            "id" => &[1i64, 2, 4, 5],
+            "person" => &["Alice", "Bob", "Diana", "Evan"],
+            "residence" => &["London", "Paris", "Rome", "Madrid"],
+        ).expect("failed to construct expected DataFrame");
+
+        assert_eq!(df, expected_df);
+    }
 }

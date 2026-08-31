@@ -168,7 +168,7 @@ impl Expr {
     pub fn to_string(self) -> Result<String, Error> {
         match self.value {
             ExprValue::LazyFrame(lf) => {
-                let df = lf.clone().collect().map_err(Error::PolarsError)?;
+                let df = lf.clone().collect().map_err(Error::PolarsError)?.head(Some(10));
                 Ok(format!("{}", df))
             }
             // For others, fall back to standard Display or format manually
@@ -305,6 +305,7 @@ pub enum Error {
     FailedToParseNumber {
         number: String
     },
+    UnexpectedClosedParen,
     WrongType {
         expected: String,
         got: Expr

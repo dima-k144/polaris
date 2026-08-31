@@ -1759,3 +1759,83 @@ pub fn eval_apply_udf(
 
     Ok(new_polars_expr(mapped))
 }
+
+// (unique df) or (unique df $col1 $col2 ...)
+// (unique df ($col1 $col2) :last) -> :first, :last, :any, :none
+pub fn unique_(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args[0].clone().expect_lazy_frame()?;
+    
+    if args.len() == 1 {
+        return Ok(new_lazy_frame(lf.unique(None, UniqueKeepStrategy::Any)));
+    }
+
+    let mut subset_cols: Vec<String> = Vec::new();
+    let mut keep_strategy = UniqueKeepStrategy::Any;
+
+    for arg in args.iter().skip(1) {
+        match &arg.value {
+            ExprValue::Symbol(s) if s.starts_with(':') => {
+                keep_strategy = match s.as_str() {
+                    ":first" => UniqueKeepStrategy::First,
+                    ":last" => UniqueKeepStrategy::Last,
+                    ":none" => UniqueKeepStrategy::None,
+                    _ => UniqueKeepStrategy::Any,
+                };
+            }
+            ExprValue::List(_) => {
+                let cols = extract_col_names(arg)?;
+                subset_cols.extend(cols);
+            }
+            _ => {
+                subset_cols.push(extract_col_name(arg)?);
+            }
+        }
+    }
+
+    let subset = if subset_cols.is_empty() {
+        None
+    } else {
+        Some(cols(subset_cols).into())
+    };
+
+    Ok(new_lazy_frame(lf.unique(subset, keep_strategy)))
+}
+
+// (drop df $col1 $col2 ...) or (drop df ($col1 $col2))
+pub fn drop_(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args[0].clone().expect_lazy_frame()?;
+    let mut to_drop = Vec::new();
+
+    for arg in args.iter().skip(1) {
+        match &arg.value {
+            ExprValue::List(_) => {
+                to_drop.extend(extract_col_names(arg)?);
+            }
+            _ => {
+                to_drop.push(extract_col_name(arg)?);
+            }
+        }
+    }
+
+    // Polars LazyFrame drop expects cols(...)
+    Ok(new_lazy_frame(lf.drop(cols(to_drop))))
+}
+
+// (rename df $old_col $new_col)
+// (rename df ($old1 $old2) ($new1 $new2))
+// (rename df "old_col" "new_col")
+pub fn rename_(args: Vec<Expr>) -> Result<Expr, Error> {
+    let lf = args[0].clone().expect_lazy_frame()?;
+    let existing = extract_col_names(&args[1])?;
+    let new_names = extract_col_names(&args[2])?;
+
+    if existing.len() != new_names.len() {
+        return Err(Error::Custom(format!(
+            "Number of source columns ({}) does not match new names ({})",
+            existing.len(),
+            new_names.len()
+        )));
+    }
+
+    Ok(new_lazy_frame(lf.rename(existing, new_names, true)))
+}
