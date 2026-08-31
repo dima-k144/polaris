@@ -1486,7 +1486,10 @@ pub fn scalar(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let df = lf.collect().map_err(Error::PolarsError)?;
     if df.shape() != (1, 1) { return Err(Error::ScalarShapeError { shape: df.shape() }) }
-    let row = df.get(0).unwrap();
+    let row = match df.get(0) {
+        Some(val) => val,
+        None => return Err(Error::Custom("empty row in scalar".to_string())),
+    };
     match row[0].clone() {
         AnyValue::Null => Ok(nil()),
         AnyValue::Boolean(b) => Ok(new_bool(b)),

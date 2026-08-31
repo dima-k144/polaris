@@ -148,7 +148,7 @@ pub fn shell(args: Vec<Expr>) -> Result<Expr, Error> {
 
     let output = Command::new(command)
         .args(command_args)
-        .output().unwrap();
+        .output().map_err(|e| Error::Custom(e.to_string()))?;
     
     if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
