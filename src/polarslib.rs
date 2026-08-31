@@ -1,12 +1,10 @@
-use std::{collections::HashMap, f32::consts::E};
 use std::fs::File;
 use polars::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
-use crate::types::{Env, Error, Expr, ExprValue::{self, PolarsExpr}};
-use crate::plotlarslib;
-use crate::interpreter::{eval_string, State, expect_args_count, define, invoke_function};
+use crate::types::{Env, Error, Expr, ExprValue::{self}};
+use crate::interpreter::{State, expect_args_count, invoke_function};
 use polars::prelude::RollingOptionsFixedWindow;
 use crate::corelib::*;
 use polars::prelude::QuantileMethod;
@@ -281,7 +279,7 @@ pub fn slice(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (schema (read-csv "data.csv"))
 pub fn schema(args: Vec<Expr>) -> Result<Expr, Error> {
     let mut lf = args[0].clone().expect_lazy_frame()?; 
-    let schema = lf.collect_schema().map_err(|e| Error::PolarsError(e))?;
+    let schema = lf.collect_schema().map_err(Error::PolarsError)?;
     let mut result = Vec::<Expr>::new();
     let mut fields = Vec::<Expr>::new();
     for field in schema.iter_fields() {
@@ -296,8 +294,8 @@ pub fn schema(args: Vec<Expr>) -> Result<Expr, Error> {
 // Examples in Lisp:
 //   (shape df) -> (rows cols)
 pub fn shape(args: Vec<Expr>) -> Result<Expr, Error> {
-    let mut lf = args[0].clone().expect_lazy_frame()?;  
-    let shape = lf.collect().map_err(|e| Error::PolarsError(e))?.shape();
+    let lf = args[0].clone().expect_lazy_frame()?;  
+    let shape = lf.collect().map_err(Error::PolarsError)?.shape();
     Ok(new_list(vec![new_int(shape.0 as i64), new_int(shape.1 as i64)]))
 }
 
@@ -653,7 +651,7 @@ pub fn filter(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 pub fn with_column(args: Vec<Expr>) -> Result<Expr, Error> {
-    if args.len() < 3 || (args.len() - 1) % 2 != 0 {
+    if args.len() < 3 || !(args.len() - 1).is_multiple_of(2) {
         return Err(Error::WrongNumberOfArguments {
             expected_min: 3,
             expected_max: u8::MAX,
@@ -670,7 +668,7 @@ pub fn with_column(args: Vec<Expr>) -> Result<Expr, Error> {
 
         let alias = match alias_expr {
             polars::prelude::Expr::Column(name) => name.to_string(),
-            other => {
+            _other => {
                 return Err(Error::WrongType {
                     expected: "column alias (e.g. $col_name)".into(),
                     got: pair[0].clone(),
@@ -898,7 +896,7 @@ pub fn drop_nulls(args: Vec<Expr>) -> Result<Expr, Error> {
                         got: expr.clone(),
                     }),
                 },
-                other => Err(Error::WrongType {
+                _other => Err(Error::WrongType {
                     expected: String::from("column name or $col"),
                     got: expr.clone(),
                 }),
@@ -916,7 +914,7 @@ pub fn drop_nulls(args: Vec<Expr>) -> Result<Expr, Error> {
             }
         }
 
-        Ok(new_lazy_frame(lf.drop_nulls(Some(cols(col_names).into()))))
+        Ok(new_lazy_frame(lf.drop_nulls(Some(cols(col_names)))))
     }
 }
 
@@ -937,14 +935,12 @@ pub fn when(args: Vec<Expr>) -> Result<Expr, Error> {
     let mut default_expr = polars::prelude::lit(polars::prelude::NULL);
     let mut pairs_slice = &args[..];
 
-    if args.len() >= 2 {
-        if let Ok(sym) = args[args.len() - 2].clone().expect_symbol() {
-            if sym == ":default" || sym == ":else" {
+    if args.len() >= 2
+        && let Ok(sym) = args[args.len() - 2].clone().expect_symbol()
+            && (sym == ":default" || sym == ":else") {
                 default_expr = args[args.len() - 1].clone().expect_polars_expr()?;
                 pairs_slice = &args[..args.len() - 2];
             }
-        }
-    }
 
     if pairs_slice.is_empty() {
         return Err(Error::WrongNumberOfArguments {
@@ -955,7 +951,7 @@ pub fn when(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 
     // 2. Fallback check: 3-argument ternary (when condition on_true on_false)
-    if pairs_slice.len() % 2 != 0 {
+    if !pairs_slice.len().is_multiple_of(2) {
         if pairs_slice.len() == 3 {
             default_expr = pairs_slice[2].clone().expect_polars_expr()?;
             pairs_slice = &pairs_slice[..2];
@@ -1046,7 +1042,7 @@ pub fn over(args: Vec<Expr>) -> Result<Expr, Error> {
 // (shift $col 1) or (shift $col -1)
 pub fn shift(args: Vec<Expr>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
-    let offset = args[1].clone().expect_int()? as i64;
+    let offset = args[1].clone().expect_int()?;
     Ok(new_polars_expr(expr.shift(lit(offset))))
 }
 
@@ -1287,7 +1283,7 @@ pub fn melt_(args: Vec<Expr>) -> Result<Expr, Error> {
     };
 
     let unpivot_args = UnpivotArgsDSL {
-        index: cols(id_vars).into(),
+        index: cols(id_vars),
         on: cols(value_vars).into(),
         variable_name: var_name,
         value_name: val_name,
@@ -1317,13 +1313,11 @@ pub fn concat_(args: Vec<Expr>) -> Result<Expr, Error> {
         }
     }
 
-    if args.len() > 1 && how_str.is_none() {
-        if let Ok(sym) = args.last().unwrap().clone().expect_symbol() {
-            if sym.starts_with(':') {
+    if args.len() > 1 && how_str.is_none()
+        && let Ok(sym) = args.last().unwrap().clone().expect_symbol()
+            && sym.starts_with(':') {
                 how_str = Some(sym);
             }
-        }
-    }
 
     let concatted = match how_str.as_deref() {
         Some(":horizontal") | Some(":horiz") => {
@@ -1502,33 +1496,33 @@ pub fn scalar(args: Vec<Expr>) -> Result<Expr, Error> {
         AnyValue::Int8(i) => Ok(new_int(i as i64)),
         AnyValue::Int16(i) => Ok(new_int(i as i64)),
         AnyValue::Int32(i) => Ok(new_int(i as i64)),
-        AnyValue::Int64(i) => Ok(new_int(i as i64)),
+        AnyValue::Int64(i) => Ok(new_int(i)),
         AnyValue::Int128(i) => Ok(new_int(i as i64)),
         AnyValue::Float16(f) => Ok(new_float(f.into())),
         AnyValue::Float32(f) => Ok(new_float(f.into())),
-        AnyValue::Float64(f) => Ok(new_float(f.into())),
+        AnyValue::Float64(f) => Ok(new_float(f)),
         AnyValue::Date(_) => Err(Error::ScalarUnsupportedError { name: "Date".to_string() }),
-        AnyValue::Datetime(_, time_unit, time_zone) => Err(Error::ScalarUnsupportedError { name: "DateTime".to_string() }),
-        AnyValue::DatetimeOwned(_, time_unit, time_zone) => Err(Error::ScalarUnsupportedError { name: "DatetimeOwned".to_string() }),
-        AnyValue::Duration(_, time_unit) => Err(Error::ScalarUnsupportedError { name: "Duration".to_string() }),
+        AnyValue::Datetime(_, _time_unit, _time_zone) => Err(Error::ScalarUnsupportedError { name: "DateTime".to_string() }),
+        AnyValue::DatetimeOwned(_, _time_unit, _time_zone) => Err(Error::ScalarUnsupportedError { name: "DatetimeOwned".to_string() }),
+        AnyValue::Duration(_, _time_unit) => Err(Error::ScalarUnsupportedError { name: "Duration".to_string() }),
         AnyValue::Time(_) => Err(Error::ScalarUnsupportedError { name: "Time".to_string() }),
-        AnyValue::Categorical(_, categorical_mapping) => Err(Error::ScalarUnsupportedError { name: "Categorical".to_string() }),
-        AnyValue::CategoricalOwned(_, categorical_mapping) => Err(Error::ScalarUnsupportedError { name: "CategoricalOwned".to_string() }),
-        AnyValue::Enum(_, categorical_mapping) => Err(Error::ScalarUnsupportedError { name: "Enum".to_string() }),
-        AnyValue::EnumOwned(_, categorical_mapping) => Err(Error::ScalarUnsupportedError { name: "EnumOwned".to_string() }),
-        AnyValue::List(series) => Err(Error::ScalarUnsupportedError { name: "List".to_string() }),
-        AnyValue::Struct(_, struct_array, fields) => Err(Error::ScalarUnsupportedError { name: "Struct".to_string() }),
+        AnyValue::Categorical(_, _categorical_mapping) => Err(Error::ScalarUnsupportedError { name: "Categorical".to_string() }),
+        AnyValue::CategoricalOwned(_, _categorical_mapping) => Err(Error::ScalarUnsupportedError { name: "CategoricalOwned".to_string() }),
+        AnyValue::Enum(_, _categorical_mapping) => Err(Error::ScalarUnsupportedError { name: "Enum".to_string() }),
+        AnyValue::EnumOwned(_, _categorical_mapping) => Err(Error::ScalarUnsupportedError { name: "EnumOwned".to_string() }),
+        AnyValue::List(_series) => Err(Error::ScalarUnsupportedError { name: "List".to_string() }),
+        AnyValue::Struct(_, _struct_array, _fields) => Err(Error::ScalarUnsupportedError { name: "Struct".to_string() }),
         AnyValue::StructOwned(_) => Err(Error::ScalarUnsupportedError { name: "StructOwned".to_string() }),
         AnyValue::StringOwned(pl_small_str) => Ok(new_string(pl_small_str.to_string())),
-        AnyValue::Binary(items) => Err(Error::ScalarUnsupportedError { name: "Binary".to_string() }),
-        AnyValue::BinaryOwned(items) => Err(Error::ScalarUnsupportedError { name: "BinaryOwned".to_string() }),
+        AnyValue::Binary(_items) => Err(Error::ScalarUnsupportedError { name: "Binary".to_string() }),
+        AnyValue::BinaryOwned(_items) => Err(Error::ScalarUnsupportedError { name: "BinaryOwned".to_string() }),
         _ => Err(Error::ScalarUnsupportedError { name: "Unknown".to_string() })
     }
 }
 
 pub fn collect_(args: Vec<Expr>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
-    lf.collect_with_engine(polars::prelude::Engine::Streaming).map_err(|e| Error::PolarsError(e))?;
+    lf.collect_with_engine(polars::prelude::Engine::Streaming).map_err(Error::PolarsError)?;
     Ok(nil())
 }
 
@@ -1597,18 +1591,18 @@ pub fn describe(args: Vec<Expr>) -> Result<Expr, Error> {
         let c = col(name.clone());
 
         if field.dtype().is_numeric() {
-            stats_exprs.push(c.clone().count().cast(DataType::Float64).alias(&format!("{}_count", name)));
-            stats_exprs.push(c.clone().null_count().cast(DataType::Float64).alias(&format!("{}_null_count", name)));
-            stats_exprs.push(c.clone().mean().alias(&format!("{}_mean", name)));
-            stats_exprs.push(c.clone().std(1).alias(&format!("{}_std", name)));
-            stats_exprs.push(c.clone().min().cast(DataType::Float64).alias(&format!("{}_min", name)));
-            stats_exprs.push(c.clone().quantile(lit(0.25), QuantileMethod::Linear).cast(DataType::Float64).alias(&format!("{}_25%", name)));
-            stats_exprs.push(c.clone().median().cast(DataType::Float64).alias(&format!("{}_50%", name)));
-            stats_exprs.push(c.clone().quantile(lit(0.75), QuantileMethod::Linear).cast(DataType::Float64).alias(&format!("{}_75%", name)));
-            stats_exprs.push(c.clone().max().cast(DataType::Float64).alias(&format!("{}_max", name)));
+            stats_exprs.push(c.clone().count().cast(DataType::Float64).alias(format!("{}_count", name)));
+            stats_exprs.push(c.clone().null_count().cast(DataType::Float64).alias(format!("{}_null_count", name)));
+            stats_exprs.push(c.clone().mean().alias(format!("{}_mean", name)));
+            stats_exprs.push(c.clone().std(1).alias(format!("{}_std", name)));
+            stats_exprs.push(c.clone().min().cast(DataType::Float64).alias(format!("{}_min", name)));
+            stats_exprs.push(c.clone().quantile(lit(0.25), QuantileMethod::Linear).cast(DataType::Float64).alias(format!("{}_25%", name)));
+            stats_exprs.push(c.clone().median().cast(DataType::Float64).alias(format!("{}_50%", name)));
+            stats_exprs.push(c.clone().quantile(lit(0.75), QuantileMethod::Linear).cast(DataType::Float64).alias(format!("{}_75%", name)));
+            stats_exprs.push(c.clone().max().cast(DataType::Float64).alias(format!("{}_max", name)));
         } else {
-            stats_exprs.push(c.clone().count().cast(DataType::Float64).alias(&format!("{}_count", name)));
-            stats_exprs.push(c.clone().null_count().cast(DataType::Float64).alias(&format!("{}_null_count", name)));
+            stats_exprs.push(c.clone().count().cast(DataType::Float64).alias(format!("{}_count", name)));
+            stats_exprs.push(c.clone().null_count().cast(DataType::Float64).alias(format!("{}_null_count", name)));
         }
     }
 
@@ -1799,7 +1793,7 @@ pub fn unique_(args: Vec<Expr>) -> Result<Expr, Error> {
     let subset = if subset_cols.is_empty() {
         None
     } else {
-        Some(cols(subset_cols).into())
+        Some(cols(subset_cols))
     };
 
     Ok(new_lazy_frame(lf.unique(subset, keep_strategy)))

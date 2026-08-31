@@ -1,10 +1,8 @@
-use std::{collections::HashMap, ops::Deref};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::types::Error::EmptyListEval;
 use crate::{corelib, polarslib};
-use crate::types::{Env, Expr, ExprValue, Error, UserFunctionData, NativeFunctionData};
+use crate::types::{Env, Expr, ExprValue, Error, UserFunctionData};
 
 pub struct State {
     pub line: usize,
@@ -80,10 +78,7 @@ pub fn expect_args_count(got: usize, min: usize, max: usize) -> Result<(), Error
 }
 
 pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Expr, Error> {
-    match expr.line {
-        Some(line) => state.line = line,
-        None => {},
-    }
+    if let Some(line) = expr.line { state.line = line }
 
     match expr.value.clone() {
         ExprValue::Symbol(symbol) => {
@@ -202,9 +197,9 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     let on_true = list[2].clone();
                     let on_false = list[3].clone();
                     if eval(test, env, state)?.expect_bool()? {
-                        return Ok(eval(on_true, env, state)?);
+                        return eval(on_true, env, state);
                     } else {
-                        return Ok(eval(on_false, env, state)?);
+                        return eval(on_false, env, state);
                     }
                 },
                 "for" => {
@@ -303,7 +298,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                         let val = eval(arg.clone(), env, state)?;
                         if matches!(val.value, ExprValue::PolarsExpr(_)) {
                             // If Polars expression appears later in the args
-                            let mut polars_args = vec![corelib::new_bool(true), val];
+                            let polars_args = vec![corelib::new_bool(true), val];
                             return polarslib::and_polars(polars_args);
                         }
                         if !val.expect_bool()? {
@@ -335,7 +330,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     for arg in &args[1..] {
                         let val = eval(arg.clone(), env, state)?;
                         if matches!(val.value, ExprValue::PolarsExpr(_)) {
-                            let mut polars_args = vec![corelib::new_bool(false), val];
+                            let polars_args = vec![corelib::new_bool(false), val];
                             return polarslib::or_polars(polars_args);
                         }
                         if val.expect_bool()? {
@@ -382,10 +377,10 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                 ExprValue::NativeFunction(data) => {
                     expect_args_count(list.len() - 1, data.min_args as usize, data.max_args as usize)?;
                     
-                    return (data.body)(args);
+                    (data.body)(args)
                 },
                 ExprValue::UserFunction(data) => {
-                    expect_args_count(list.len() - 1, data.params.len() as usize, usize::MAX)?;
+                    expect_args_count(list.len() - 1, data.params.len(), usize::MAX)?;
 
                     let child_env = Rc::new(RefCell::new(Env::with_parent(Rc::clone(env))));
 
@@ -397,7 +392,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                     for expr in data.body {
                         result = eval(expr, &child_env, state)?;
                     }
-                    return Ok(result);
+                    Ok(result)
                 },
                 _ => Err(Error::WrongType { expected: String::from("callable"), got: func })
             }

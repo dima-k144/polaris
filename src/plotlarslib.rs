@@ -1,16 +1,14 @@
 use plotlars::{Plot, ScatterPlot, BarPlot, PieChart, Histogram, BoxPlot, TimeSeriesPlot, LinePlot};
 use crate::types::{Expr, ExprValue, Error};
-use crate::stdlib;
 use polars::prelude::*;
 use crate::corelib::*;
 
 fn kw(args: &[Expr], name: &str) -> Option<Expr> {
     for (i, arg) in args.iter().enumerate() {
-        if let ExprValue::Symbol(symbol) = arg.value.clone() {
-            if symbol == name {
+        if let ExprValue::Symbol(symbol) = arg.value.clone()
+            && symbol == name {
                 return args.get(i + 1).cloned();
             }
-        }
     }
     None
 }
@@ -245,12 +243,11 @@ pub fn time_series_plot(args: Vec<Expr>) -> Result<Expr, Error> {
     let y = require_kw(&args, ":y")?.expect_string()?;
 
     // Cast Date / Datetime to ISO-8601 String for Plotly rendering
-    if let Ok(col) = df.column(&x) {
-        if matches!(col.dtype(), DataType::Date | DataType::Datetime(_, _)) {
+    if let Ok(col) = df.column(&x)
+        && matches!(col.dtype(), DataType::Date | DataType::Datetime(_, _)) {
             let str_col = col.cast(&DataType::String).map_err(Error::PolarsError)?;
             df.with_column(str_col).map_err(Error::PolarsError)?;
         }
-    }
 
     // Optional arguments
     let title = kw(&args, ":title").map(|k| k.expect_string()).transpose()?;
@@ -277,7 +274,7 @@ pub fn time_series_plot(args: Vec<Expr>) -> Result<Expr, Error> {
                 Some(series_vec)
             }
             ExprValue::String(s) => Some(vec![s]),
-            other => return Err(Error::WrongType { expected: "list or string".into(), got: some.clone() }),
+            _other => return Err(Error::WrongType { expected: "list or string".into(), got: some.clone() }),
         },
         None => None,
     };
@@ -342,7 +339,7 @@ pub fn line_plot(args: Vec<Expr>) -> Result<Expr, Error> {
                 Some(lines_vec)
             }
             ExprValue::String(s) => Some(vec![s]),
-            other => return Err(Error::WrongType { expected: "list or string".into(), got: some }),
+            _other => return Err(Error::WrongType { expected: "list or string".into(), got: some }),
         },
         None => None,
     };

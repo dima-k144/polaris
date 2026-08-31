@@ -69,11 +69,7 @@ pub fn is_dot_list(info: &Expr) -> bool {
             if list.is_empty() { return false; }
             match &list[0].value {
                 ExprValue::Symbol(symbol) => {
-                    if symbol == "." {
-                        true
-                    } else {
-                        false
-                    }
+                    symbol == "."
                 },
                 _ => false
             }
@@ -146,10 +142,7 @@ pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Result<Expr, Error> {
     } else if token.0 == "$" {
         let first = Expr { value: ExprValue::Symbol(String::from("col")), line: Some(line) };
         let mut second = parse1(tokens)?;
-        match second.value {
-            ExprValue::Symbol(symbol) => { second.value = ExprValue::String(symbol) }
-            _ => {}
-        }
+        if let ExprValue::Symbol(symbol) = second.value { second.value = ExprValue::String(symbol) }
         Ok(Expr { value: ExprValue::List(vec![first, second]), line: Some(line) })
     } else if token.0 == "'" {
         let first = Expr { value: ExprValue::Symbol(String::from("quote")), line: Some(line) };
@@ -157,7 +150,7 @@ pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Result<Expr, Error> {
         Ok(Expr { value: ExprValue::List(vec![first, second]), line: Some(line) })
     } else if token.0 == "#" {
         let first = Expr { value: ExprValue::Symbol(String::from("lookup")), line: Some(line) };
-        let mut second = parse1(tokens)?;
+        let second = parse1(tokens)?;
         Ok(Expr { value: ExprValue::List(vec![first, second]), line: Some(line) })
     } else if token.0 == ")" {
         Err(Error::UnexpectedClosedParen)

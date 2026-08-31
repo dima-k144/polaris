@@ -1,7 +1,4 @@
-use std::io::{self, Write};
 use std::fs;
-use std::cell::RefCell;
-use std::rc::Rc;
 use crate::types::Error;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
@@ -73,10 +70,10 @@ fn is_complete_input(input: &str) -> bool {
 
 pub fn format_error_message(error: &Error) -> String {
     match error {
-        Error::UnclosedString => format!("Error: unclosed string"),
-        Error::UnclosedListExpr => format!("Error: unclosed list expression"),
+        Error::UnclosedString => "Error: unclosed string".to_string(),
+        Error::UnclosedListExpr => "Error: unclosed list expression".to_string(),
         Error::FailedToParseNumber { number } => format!("Error: failed to parse number '{number}'"),
-        Error::UnexpectedClosedParen => format!("Error: unexpected ')'"),
+        Error::UnexpectedClosedParen => "Error: unexpected ')'".to_string(),
         Error::WrongType { expected, got } => format!("Error: expected {0}, got {1}", expected, got.clone().type_to_str()),
         Error::LookupNotFound { symbol } => format!("Error: symbol '{symbol}' is not defined"),
         Error::WrongNumberOfArguments { 
@@ -90,11 +87,11 @@ pub fn format_error_message(error: &Error) -> String {
         Error::MixedWithinLine(line) => format!("Error: both tabs and spaces on the same line, on line {}", line),
         Error::MixedAcrossFile(line) => format!("Error: inconsistent style compared to previous lines, on line {}", line),
         Error::AmbiguousSpaces(line) => format!("Error: spaces found, but not a multiple of 2 or 4, on line {}", line),
-        Error::EmptyListEval => format!("Error: attempted to evaluate empty list")
+        Error::EmptyListEval => "Error: attempted to evaluate empty list".to_string()
     }
 }
 
-pub fn format_error_line_info(error: &Error, state: &interpreter::State) -> Option<String> {
+pub fn format_error_line_info(_error: &Error, state: &interpreter::State) -> Option<String> {
     match state.file.clone() {
         Some(file) => {
             let contents = fs::read_to_string(file).ok()?;
@@ -215,7 +212,7 @@ fn main() {
             let mut state = interpreter::State { line: 0, file: Some(arg.to_string()) };
             let contents = match fs::read_to_string(arg).map_err(|e| Error::Custom(e.to_string())) {
                 Ok(text) => text,
-                Err(err) => { handle_error(&Error::Custom(format!("Failed to open {}", arg).to_string()), &state); continue; },
+                Err(_err) => { handle_error(&Error::Custom(format!("Failed to open {}", arg).to_string()), &state); continue; },
             };
             match eval_string(contents.clone(), &env, &mut state) {
                 Ok(val) => {

@@ -160,8 +160,8 @@ impl Expr {
             ExprValue::List(_) => "list",
             ExprValue::Bool(_) => "bool",
             ExprValue::Nil => "nil",
-            ExprValue::NativeFunction(data) => "native function",
-            ExprValue::UserFunction(data) => "user function",
+            ExprValue::NativeFunction(_data) => "native function",
+            ExprValue::UserFunction(_data) => "user function",
             ExprValue::LazyFrame(_) => "lazy frame",
             ExprValue::PolarsExpr(_) => "polars expr",
         }
@@ -227,14 +227,14 @@ impl fmt::Display for ExprValue {
             ExprValue::Nil => {
                 write!(f, "nil")
             },
-            ExprValue::NativeFunction(data) => write!(f, "<NativeFunction>"),
+            ExprValue::NativeFunction(_data) => write!(f, "<NativeFunction>"),
             ExprValue::UserFunction(data) => {
                 match data.name.clone() {
                     Some(name) => write!(f, "<{name}>"),
                     None => write!(f, "<lambda>"),
                 }
             }
-            ExprValue::LazyFrame(lf) => write!(f, "<LazyFrame>"),
+            ExprValue::LazyFrame(_lf) => write!(f, "<LazyFrame>"),
             ExprValue::PolarsExpr(pe) => write!(f, "{}", pe),
         }
     }
@@ -259,8 +259,8 @@ impl fmt::Debug for ExprValue {
             ExprValue::List(items) => f.debug_tuple("List").field(items).finish(),
             ExprValue::Bool(b) => f.debug_tuple("Bool").field(b).finish(),
             ExprValue::Nil => f.write_str("Nil"),
-            ExprValue::NativeFunction(data) => { f.write_str("NativeFunction") },
-            ExprValue::UserFunction(data) => { f.write_str("UserFunction") },
+            ExprValue::NativeFunction(_data) => { f.write_str("NativeFunction") },
+            ExprValue::UserFunction(_data) => { f.write_str("UserFunction") },
             ExprValue::LazyFrame(_) => { f.write_str("LazyFrame") },
             ExprValue::PolarsExpr(_) => { f.write_str("PolarsExpr") },
         }

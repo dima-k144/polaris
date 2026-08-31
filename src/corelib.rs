@@ -1,11 +1,11 @@
 use crate::types::*;
 use std::process::Command;
 
-pub fn nil() -> Expr { return Expr{ value: ExprValue::Nil, line: None } }
+pub fn nil() -> Expr { Expr{ value: ExprValue::Nil, line: None } }
 
-pub fn true_() -> Expr { return Expr { value: ExprValue::Bool(true), line: None } }
+pub fn true_() -> Expr { Expr { value: ExprValue::Bool(true), line: None } }
 
-pub fn false_() -> Expr { return Expr { value: ExprValue::Bool(false), line: None } }
+pub fn false_() -> Expr { Expr { value: ExprValue::Bool(false), line: None } }
 
 pub fn new_int(value: i64) -> Expr {
     Expr { value: ExprValue::Int(value), line: None }
