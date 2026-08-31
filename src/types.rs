@@ -142,6 +142,8 @@ impl Expr {
             ExprValue::Int(i) => Ok(polars::prelude::lit(i)),
             ExprValue::Float(f) => Ok(polars::prelude::lit(f)),
             ExprValue::String(str) => Ok(polars::prelude::lit(str)),
+            ExprValue::Bool(b) => Ok(polars::prelude::lit(b)),
+            ExprValue::Nil => Ok(polars::prelude::lit(polars::prelude::NULL)),
             other => Err(Error::WrongType {
                 expected: String::from("polars expr"),
                 got: Expr { value: other, line },
