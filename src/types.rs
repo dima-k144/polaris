@@ -20,7 +20,7 @@ pub struct UserFunctionData {
 
 #[derive(Clone)]
 pub struct NativeFunctionData {
-    pub body: fn(Vec<Expr>) -> Result<Expr, Error>,
+    pub body: fn(Vec<Expr>, &Rc<RefCell<Env>>) -> Result<Expr, Error>,
     pub min_args: u8,
     pub max_args: u8,
 }

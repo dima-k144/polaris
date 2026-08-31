@@ -32,7 +32,7 @@ pub fn new_lazy_frame(value: LazyFrame) -> Expr {
 //   (+ 1 2 3)
 //   (+ $age 5)
 //   (+ $base_salary $bonus)
-pub fn plus(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn plus(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let has_polars_expr_arg = args
         .iter()
         .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)));
@@ -66,7 +66,7 @@ pub fn plus(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (- 20 5 3)
 //   (- $age 2)
 //   (- $gross_income $tax)
-pub fn minus(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn minus(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let has_polars_expr_arg = args
         .iter()
         .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)));
@@ -100,7 +100,7 @@ pub fn minus(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (* 2 3 4)
 //   (* $price $quantity)
 //   (* $age 2)
-pub fn mult(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn mult(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let has_polars_expr_arg = args
         .iter()
         .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)));
@@ -134,7 +134,7 @@ pub fn mult(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (/ 100 2 5)
 //   (/ $total_cost $quantity)
 //   (/ $age 2)
-pub fn divide(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn divide(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let has_polars_expr_arg = args
         .iter()
         .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)));
@@ -163,7 +163,7 @@ pub fn divide(args: Vec<Expr>) -> Result<Expr, Error> {
 // Examples in Lisp:
 //   (read-csv "data.csv")
 //   (filter (read-csv "users.csv") (= $country "US"))
-pub fn read_csv(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn read_csv(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let path = args[0].clone().expect_string()?;
     match LazyCsvReader::new(path.as_str().into())
         .with_has_header(true)
@@ -178,7 +178,7 @@ pub fn read_csv(args: Vec<Expr>) -> Result<Expr, Error> {
 // Examples in Lisp:
 //   (write-csv df "output.csv")
 //   (write-csv (filter df (> $age 30)) "filtered.csv")
-pub fn write_csv(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn write_csv(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let path = args[1].clone().expect_string()?;
 
@@ -198,7 +198,7 @@ pub fn write_csv(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (sink df "path/to/output.parquet") or (sink df "path/to/output.csv")
-pub fn sink(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn sink(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let path = args[1].clone().expect_string()?;
 
@@ -235,7 +235,7 @@ pub fn sink(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (read-parquet "path/to/data.parquet") -> LazyFrame
-pub fn read_parquet(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn read_parquet(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let path = args[0].clone().expect_string()?;
     match LazyFrame::scan_parquet(path.as_str().into(), ScanArgsParquet::default()) {
         Ok(lf) => Ok(new_lazy_frame(lf)),
@@ -244,7 +244,7 @@ pub fn read_parquet(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (write-parquet df "path/to/output.parquet") -> nil
-pub fn write_parquet(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn write_parquet(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let path = args[1].clone().expect_string()?;
 
@@ -266,7 +266,7 @@ pub fn write_parquet(args: Vec<Expr>) -> Result<Expr, Error> {
 // Examples in Lisp:
 //   (head df)
 //   (head (sort df $salary :desc))
-pub fn head(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn head(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     Ok(new_lazy_frame(lf.limit(10)))
 }
@@ -275,7 +275,7 @@ pub fn head(args: Vec<Expr>) -> Result<Expr, Error> {
 // Examples in Lisp:
 //   (tail df)
 //   (tail (read-csv "logs.csv"))
-pub fn tail(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn tail(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     Ok(new_lazy_frame(lf.slice(-10, 10)))
 }
@@ -284,7 +284,7 @@ pub fn tail(args: Vec<Expr>) -> Result<Expr, Error> {
 // Examples in Lisp:
 //   (slice df 0 5)   ; offset 0, length 5
 //   (slice df 10 20) ; skip 10, take 20
-pub fn slice(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn slice(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let offset = args[1].clone().expect_int()?;
     let len = args[2].clone().expect_int()?;
@@ -295,7 +295,7 @@ pub fn slice(args: Vec<Expr>) -> Result<Expr, Error> {
 // Examples in Lisp:
 //   (schema df)
 //   (schema (read-csv "data.csv"))
-pub fn schema(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn schema(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let mut lf = args[0].clone().expect_lazy_frame()?;
     let schema = lf.collect_schema().map_err(Error::PolarsError)?;
     let mut result = Vec::<Expr>::new();
@@ -313,7 +313,7 @@ pub fn schema(args: Vec<Expr>) -> Result<Expr, Error> {
 // --- Inspect Shape ---
 // Examples in Lisp:
 //   (shape df) -> (rows cols)
-pub fn shape(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn shape(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let shape = lf.collect().map_err(Error::PolarsError)?.shape();
     Ok(new_list(vec![
@@ -326,7 +326,7 @@ pub fn shape(args: Vec<Expr>) -> Result<Expr, Error> {
 // Examples in Lisp:
 //   $age
 //   (col "age")
-pub fn col_(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn col_(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     Ok(new_polars_expr(col(args[0].clone().expect_string()?)))
 }
 
@@ -335,7 +335,7 @@ pub fn col_(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (lit 42)
 //   (lit "Alice")
 //   (lit 3.14)
-pub fn lit_(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn lit_(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     match args[0].value.clone() {
         ExprValue::Int(num) => Ok(new_polars_expr(lit(num))),
         ExprValue::Float(num) => Ok(new_polars_expr(lit(num))),
@@ -347,7 +347,7 @@ pub fn lit_(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
-pub fn eq_core(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn eq_core(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if args[0] == args[1] {
         Ok(new_bool(true))
     } else {
@@ -355,7 +355,7 @@ pub fn eq_core(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
-pub fn eq_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn eq_polars(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let lit = args[1].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.eq(lit)))
@@ -366,24 +366,24 @@ pub fn eq_polars(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (= 1 1)
 //   (= $city "London")
 //   (filter df (= $id 10))
-pub fn eq(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn eq(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if args
         .iter()
         .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)))
     {
-        eq_polars(args)
+        eq_polars(args, env)
     } else {
-        eq_core(args)
+        eq_core(args, env)
     }
 }
 
-pub fn neq_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn neq_polars(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let lit = args[1].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.neq(lit)))
 }
 
-pub fn neq_core(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn neq_core(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if args[0] != args[1] {
         Ok(new_bool(true))
     } else {
@@ -396,14 +396,14 @@ pub fn neq_core(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (!= 1 2)
 //   (!= $status "inactive")
 //   (filter df (!= $age 30))
-pub fn neq(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn neq(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if args
         .iter()
         .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)))
     {
-        neq_polars(args)
+        neq_polars(args, env)
     } else {
-        neq_core(args)
+        neq_core(args, env)
     }
 }
 
@@ -424,13 +424,13 @@ pub fn cmp_numbers(a: &Expr, b: &Expr) -> Result<std::cmp::Ordering, Error> {
 }
 
 // Greater than (>)
-pub fn gt_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn gt_polars(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let lit = args[1].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.gt(lit)))
 }
 
-pub fn gt_core(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn gt_core(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let ord = cmp_numbers(&args[0], &args[1])?;
     Ok(new_bool(ord == std::cmp::Ordering::Greater))
 }
@@ -440,25 +440,25 @@ pub fn gt_core(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (> 5 3)
 //   (> $age 25)
 //   (filter df (> $salary 80000))
-pub fn gt(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn gt(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if args
         .iter()
         .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)))
     {
-        gt_polars(args)
+        gt_polars(args, env)
     } else {
-        gt_core(args)
+        gt_core(args, env)
     }
 }
 
 // Less than (<)
-pub fn lt_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn lt_polars(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let lit = args[1].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.lt(lit)))
 }
 
-pub fn lt_core(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn lt_core(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let ord = cmp_numbers(&args[0], &args[1])?;
     Ok(new_bool(ord == std::cmp::Ordering::Less))
 }
@@ -468,25 +468,25 @@ pub fn lt_core(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (< 2 8)
 //   (< $age 30)
 //   (filter df (< $price 50.0))
-pub fn lt(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn lt(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if args
         .iter()
         .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)))
     {
-        lt_polars(args)
+        lt_polars(args, env)
     } else {
-        lt_core(args)
+        lt_core(args, env)
     }
 }
 
 // Greater than or equal (>=)
-pub fn gt_eq_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn gt_eq_polars(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let lit = args[1].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.gt_eq(lit)))
 }
 
-pub fn gt_eq_core(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn gt_eq_core(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let ord = cmp_numbers(&args[0], &args[1])?;
     Ok(new_bool(
         ord == std::cmp::Ordering::Greater || ord == std::cmp::Ordering::Equal,
@@ -498,25 +498,25 @@ pub fn gt_eq_core(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (>= 10 10)
 //   (>= $age 18)
 //   (filter df (>= $score 75))
-pub fn gt_eq(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn gt_eq(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if args
         .iter()
         .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)))
     {
-        gt_eq_polars(args)
+        gt_eq_polars(args, env)
     } else {
-        gt_eq_core(args)
+        gt_eq_core(args, env)
     }
 }
 
 // Less than or equal (<=)
-pub fn lt_eq_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn lt_eq_polars(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let lit = args[1].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.lt_eq(lit)))
 }
 
-pub fn lt_eq_core(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn lt_eq_core(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let ord = cmp_numbers(&args[0], &args[1])?;
     Ok(new_bool(
         ord == std::cmp::Ordering::Less || ord == std::cmp::Ordering::Equal,
@@ -528,18 +528,18 @@ pub fn lt_eq_core(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (<= 5 5)
 //   (<= $age 65)
 //   (filter df (<= $rank 3))
-pub fn lt_eq(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn lt_eq(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if args
         .iter()
         .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)))
     {
-        lt_eq_polars(args)
+        lt_eq_polars(args, env)
     } else {
-        lt_eq_core(args)
+        lt_eq_core(args, env)
     }
 }
 
-pub fn not_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn not_polars(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let mut combined = args[0].clone().expect_polars_expr()?;
     for arg in args.iter().skip(1) {
         let next_expr = arg.clone().expect_polars_expr()?;
@@ -548,7 +548,7 @@ pub fn not_polars(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(combined.not()))
 }
 
-pub fn not_core(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn not_core(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let mut combined = true;
     for arg in args {
         combined = combined && arg.expect_bool()?;
@@ -563,18 +563,18 @@ pub fn not_core(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (not (> $age 25))
 //   (not (> $age 25) (= $city "Paris")) ; negates the AND of all conditions
 //   (filter df (not (= $city "London") (> $age 30)))
-pub fn not(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn not(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if args
         .iter()
         .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)))
     {
-        not_polars(args)
+        not_polars(args, env)
     } else {
-        not_core(args)
+        not_core(args, env)
     }
 }
 
-pub fn and_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn and_polars(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let mut combined = args[0].clone().expect_polars_expr()?;
     for arg in args.iter().skip(1) {
         let next_expr = arg.clone().expect_polars_expr()?;
@@ -583,7 +583,7 @@ pub fn and_polars(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(combined))
 }
 
-pub fn and_core(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn and_core(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let mut result = true;
     for arg in args {
         result = result && arg.expect_bool()?;
@@ -594,7 +594,7 @@ pub fn and_core(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_bool(result))
 }
 
-pub fn or_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn or_polars(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let mut combined = args[0].clone().expect_polars_expr()?;
     for arg in args.iter().skip(1) {
         let next_expr = arg.clone().expect_polars_expr()?;
@@ -603,22 +603,22 @@ pub fn or_polars(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(combined))
 }
 
-pub fn sum(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn sum(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.sum()))
 }
 
-pub fn mean(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn mean(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.mean()))
 }
 
-pub fn median(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn median(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.median()))
 }
 
-pub fn count(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn count(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if args.is_empty() {
         // (count) without arguments returns the total number of rows
         Ok(new_polars_expr(polars::prelude::len()))
@@ -629,22 +629,22 @@ pub fn count(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
-pub fn min(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn min(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.min()))
 }
 
-pub fn max(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn max(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.max()))
 }
 
-pub fn n_unique(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn n_unique(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.n_unique()))
 }
 
-pub fn std_dev(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn std_dev(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     // Default to sample standard deviation (ddof = 1); allow overriding via second argument
     let ddof = if args.len() > 1 {
@@ -655,7 +655,7 @@ pub fn std_dev(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(expr.std(ddof)))
 }
 
-pub fn select(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn select(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let mut exprs = Vec::<polars::prelude::Expr>::new();
     for arg in args.iter().skip(1) {
@@ -671,7 +671,7 @@ pub fn select(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_lazy_frame(lf.select(exprs)))
 }
 
-pub fn filter(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn filter(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if args.len() < 2 {
         return Err(Error::WrongNumberOfArguments {
             expected_min: 2,
@@ -700,7 +700,7 @@ pub fn filter(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_lazy_frame(lf.filter(combined_expr)))
 }
 
-pub fn with_column(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn with_column(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if args.len() < 3 || !(args.len() - 1).is_multiple_of(2) {
         return Err(Error::WrongNumberOfArguments {
             expected_min: 3,
@@ -744,7 +744,7 @@ pub fn with_column(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (sort df $a :desc)
 //   (sort df ($a $b) (:desc :asc))
 //   (sort df ($a $b) :desc) ; sets descending for all
-pub fn sort(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn sort(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
 
     // 1. Extract by expressions
@@ -793,7 +793,7 @@ pub fn sort(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (slice-expr $col offset length)
-pub fn expr_slice(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn expr_slice(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let offset = args[1].clone().expect_int()?;
     let length = args[2].clone().expect_int()?;
@@ -803,7 +803,7 @@ pub fn expr_slice(args: Vec<Expr>) -> Result<Expr, Error> {
 
 // (get $col 0) -> first element
 // (get $col -1) -> last element
-pub fn expr_get(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn expr_get(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let index = args[1].clone().expect_int()?;
 
@@ -811,7 +811,7 @@ pub fn expr_get(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(expr.get(lit(index), true)))
 }
 
-pub fn group_by(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn group_by(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
 
     // Support either a single grouping column or a list of grouping columns
@@ -835,13 +835,13 @@ pub fn group_by(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_lazy_frame(lf.group_by(group_keys).agg(agg_exprs)))
 }
 
-pub fn alias(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn alias(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let name = args[1].clone().expect_string()?;
     Ok(new_polars_expr(expr.alias(&name)))
 }
 
-pub fn agg(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn agg(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let mut exprs = Vec::<polars::prelude::Expr>::new();
 
@@ -854,7 +854,7 @@ pub fn agg(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_lazy_frame(lf.select(exprs)))
 }
 
-pub fn join(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn join(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let left_lf = args[0].clone().expect_lazy_frame()?;
     let right_lf = args[1].clone().expect_lazy_frame()?;
 
@@ -901,23 +901,23 @@ pub fn join(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_lazy_frame(joined))
 }
 
-pub fn is_null_(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn is_null_(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let col = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(is_null(col)))
 }
 
-pub fn is_not_null_(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn is_not_null_(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let col = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(is_not_null(col)))
 }
 
-pub fn fill_null_(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn fill_null_(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let col = args[0].clone().expect_polars_expr()?;
     let value = args[1].clone().expect_polars_expr()?;
     Ok(new_polars_expr(col.fill_null(value)))
 }
 
-pub fn drop_nulls(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn drop_nulls(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     if args.len() == 1 {
         Ok(new_lazy_frame(lf.drop_nulls(None)))
@@ -967,7 +967,7 @@ pub fn drop_nulls(args: Vec<Expr>) -> Result<Expr, Error> {
 //   (when (> $age 18) "adult" "minor")
 //   (when (> $score 90) "A" (> $score 80) "B" (> $score 70) "C" :default "F")
 //   (when (= $status 1) "Active" (= $status 2) "Pending") ; defaults to NULL
-pub fn when(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn when(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if args.is_empty() {
         return Err(Error::WrongNumberOfArguments {
             expected_min: 2,
@@ -1025,7 +1025,7 @@ pub fn when(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (str-contains $name "^A.*")
-pub fn str_contains(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn str_contains(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if args.len() < 2 {
         return Err(Error::WrongType {
             expected: "2 arguments (column, pattern)".into(),
@@ -1040,7 +1040,7 @@ pub fn str_contains(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (str-replace $city "^Lon" "New-Lon")
-pub fn str_replace(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn str_replace(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let pat_expr = args[1].clone().expect_polars_expr()?;
     let rep_expr = args[2].clone().expect_polars_expr()?;
@@ -1052,7 +1052,7 @@ pub fn str_replace(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (str-extract $code "([A-Z]+)-(\\d+)" 1)
-pub fn str_extract(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn str_extract(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let pat_expr = args[1].clone().expect_polars_expr()?;
     let group_idx = args[2].clone().expect_int()? as usize;
@@ -1061,7 +1061,7 @@ pub fn str_extract(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (over <expr> <partition_col1> ...) or (over <expr> (<col1> <col2>))
-pub fn over(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn over(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
 
     let partition_by = match &args[1].value {
@@ -1088,14 +1088,14 @@ pub fn over(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (shift $col 1) or (shift $col -1)
-pub fn shift(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn shift(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let offset = args[1].clone().expect_int()?;
     Ok(new_polars_expr(expr.shift(lit(offset))))
 }
 
 // (cum-sum $col)
-pub fn cum_sum(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn cum_sum(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let reverse = if args.len() > 1 {
         matches!(
@@ -1110,7 +1110,7 @@ pub fn cum_sum(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (cum-min $col)
-pub fn cum_min(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn cum_min(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let reverse = if args.len() > 1 {
         matches!(
@@ -1124,7 +1124,7 @@ pub fn cum_min(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (cum-max $col)
-pub fn cum_max(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn cum_max(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let reverse = if args.len() > 1 {
         matches!(
@@ -1138,7 +1138,7 @@ pub fn cum_max(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (cum-count $col)
-pub fn cum_count(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn cum_count(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let reverse = if args.len() > 1 {
         matches!(
@@ -1152,7 +1152,7 @@ pub fn cum_count(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (rank $col) or (rank $col :dense)
-pub fn rank(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn rank(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let method = if args.len() > 1 {
         match args[1].clone().expect_symbol()?.as_str() {
@@ -1176,7 +1176,7 @@ pub fn rank(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (to-date $col "%Y-%m-%d") or (to-date $col) -> ISO-8601 default
-pub fn to_date(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn to_date(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let format = if args.len() > 1 {
         Some(args[1].clone().expect_string()?)
@@ -1195,7 +1195,7 @@ pub fn to_date(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (to-datetime $col "%Y-%m-%d %H:%M:%S")
-pub fn to_datetime(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn to_datetime(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let format = if args.len() > 1 {
         Some(args[1].clone().expect_string()?)
@@ -1220,31 +1220,31 @@ pub fn to_datetime(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (dt-year $date_col)
-pub fn dt_year(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn dt_year(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(col_expr.dt().year()))
 }
 
 // (dt-month $date_col)
-pub fn dt_month(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn dt_month(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(col_expr.dt().month()))
 }
 
 // (dt-day $date_col)
-pub fn dt_day(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn dt_day(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(col_expr.dt().day()))
 }
 
 // (dt-hour $datetime_col)
-pub fn dt_hour(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn dt_hour(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(col_expr.dt().hour()))
 }
 
 // (dt-format $date_col "%B %d, %Y")
-pub fn dt_format(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn dt_format(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let format = args[1].clone().expect_string()?;
     Ok(new_polars_expr(col_expr.dt().to_string(&format)))
@@ -1276,7 +1276,7 @@ pub fn extract_col_names(arg: &Expr) -> Result<Vec<String>, Error> {
     }
 }
 
-pub fn pivot_(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn pivot_(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let on_cols = extract_col_names(&args[1])?;
     let index_cols = extract_col_names(&args[2])?;
@@ -1325,7 +1325,7 @@ pub fn pivot_(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_lazy_frame(pivoted))
 }
 
-pub fn melt_(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn melt_(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let id_vars = extract_col_names(&args[1])?;
     let value_vars = extract_col_names(&args[2])?;
@@ -1352,7 +1352,7 @@ pub fn melt_(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_lazy_frame(lf.unpivot(unpivot_args)))
 }
 
-pub fn concat_(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn concat_(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let mut frames = Vec::<LazyFrame>::new();
     let mut how_str: Option<String> = None;
 
@@ -1399,7 +1399,7 @@ pub fn concat_(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_lazy_frame(concatted))
 }
 
-pub fn cast_(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn cast_(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let target_type = match args[1].clone().expect_symbol()?.as_str() {
         ":str" | ":string" => DataType::String,
@@ -1447,50 +1447,50 @@ pub fn parse_rolling_options(
 }
 
 // (rolling-mean $col 5) or (rolling-mean $col 5 1 :center)
-pub fn rolling_mean(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn rolling_mean(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let (expr, opts) = parse_rolling_options(&args)?;
     Ok(new_polars_expr(expr.rolling_mean(opts)))
 }
 
 // (rolling-sum $col 5)
-pub fn rolling_sum(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn rolling_sum(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let (expr, opts) = parse_rolling_options(&args)?;
     Ok(new_polars_expr(expr.rolling_sum(opts)))
 }
 
 // (rolling-min $col 5)
-pub fn rolling_min(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn rolling_min(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let (expr, opts) = parse_rolling_options(&args)?;
     Ok(new_polars_expr(expr.rolling_min(opts)))
 }
 
 // (rolling-max $col 5)
-pub fn rolling_max(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn rolling_max(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let (expr, opts) = parse_rolling_options(&args)?;
     Ok(new_polars_expr(expr.rolling_max(opts)))
 }
 
 // (rolling-std $col 5)
-pub fn rolling_std(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn rolling_std(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let (expr, opts) = parse_rolling_options(&args)?;
     Ok(new_polars_expr(expr.rolling_std(opts)))
 }
 
 // (rolling-median $col 5)
-pub fn rolling_median(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn rolling_median(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let (expr, opts) = parse_rolling_options(&args)?;
     Ok(new_polars_expr(expr.rolling_median(opts)))
 }
 
 // (str-split $col ",")
-pub fn str_split(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn str_split(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let pat_expr = args[1].clone().expect_polars_expr()?;
     Ok(new_polars_expr(col_expr.str().split(pat_expr)))
 }
 
 // (str-strip $col [chars])
-pub fn str_strip(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn str_strip(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let expr = if args.len() > 1 {
         args[1].clone().expect_polars_expr()?
@@ -1501,7 +1501,7 @@ pub fn str_strip(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (str-strip-start $col [chars])
-pub fn str_strip_start(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn str_strip_start(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let expr = if args.len() > 1 {
         args[1].clone().expect_polars_expr()?
@@ -1512,7 +1512,7 @@ pub fn str_strip_start(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (str-strip-end $col [chars])
-pub fn str_strip_end(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn str_strip_end(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let expr = if args.len() > 1 {
         args[1].clone().expect_polars_expr()?
@@ -1523,7 +1523,7 @@ pub fn str_strip_end(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (str-slice $col offset length)
-pub fn str_slice(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn str_slice(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let offset = args[1].clone().expect_int()?;
     let length = args[2].clone().expect_int()?;
@@ -1533,7 +1533,7 @@ pub fn str_slice(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (str-extract-groups $col "([A-Z]+)-(\\d+)")
-pub fn str_extract_groups(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn str_extract_groups(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let col_expr = args[0].clone().expect_polars_expr()?;
     let pat = args[1].clone().expect_string()?;
 
@@ -1545,7 +1545,7 @@ pub fn str_extract_groups(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (scalar expr) — materialize a 1x1 result into a Lisp scalar
-pub fn scalar(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn scalar(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let df = lf.collect().map_err(Error::PolarsError)?;
     if df.shape() != (1, 1) {
@@ -1621,7 +1621,7 @@ pub fn scalar(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
-pub fn collect_(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn collect_(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     lf.collect_with_engine(polars::prelude::Engine::Streaming)
         .map_err(Error::PolarsError)?;
@@ -1629,7 +1629,7 @@ pub fn collect_(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (var $col) or (var $col 1)
-pub fn variance(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn variance(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let ddof = if args.len() > 1 {
         args[1].clone().expect_int()? as u8
@@ -1640,7 +1640,7 @@ pub fn variance(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (quantile $col 0.5) or (quantile $col 0.5 :linear)
-pub fn quantile(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn quantile(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let q = args[1].clone().expect_number()?.to_float();
 
@@ -1662,7 +1662,7 @@ pub fn quantile(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (cov $col_a $col_b) or (cov $col_a $col_b 1)
-pub fn cov_(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn cov_(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let a = args[0].clone().expect_polars_expr()?;
     let b = args[1].clone().expect_polars_expr()?;
     let ddof = if args.len() > 2 {
@@ -1675,7 +1675,7 @@ pub fn cov_(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (corr $col_a $col_b)
-pub fn corr(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn corr(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let a = args[0].clone().expect_polars_expr()?;
     let b = args[1].clone().expect_polars_expr()?;
 
@@ -1683,7 +1683,7 @@ pub fn corr(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (describe df)
-pub fn describe(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn describe(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let schema = lf.clone().collect_schema().map_err(Error::PolarsError)?;
 
@@ -1921,7 +1921,7 @@ pub fn eval_apply_udf(
 
 // (unique df) or (unique df $col1 $col2 ...)
 // (unique df ($col1 $col2) :last) -> :first, :last, :any, :none
-pub fn unique_(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn unique_(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
 
     if args.len() == 1 {
@@ -1961,7 +1961,7 @@ pub fn unique_(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (drop df $col1 $col2 ...) or (drop df ($col1 $col2))
-pub fn drop_(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn drop_(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let mut to_drop = Vec::new();
 
@@ -1983,7 +1983,7 @@ pub fn drop_(args: Vec<Expr>) -> Result<Expr, Error> {
 // (rename df $old_col $new_col)
 // (rename df ($old1 $old2) ($new1 $new2))
 // (rename df "old_col" "new_col")
-pub fn rename_(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn rename_(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
     let existing = extract_col_names(&args[1])?;
     let new_names = extract_col_names(&args[2])?;
@@ -2000,22 +2000,22 @@ pub fn rename_(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // Unary Math Operations
-pub fn abs_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn abs_polars(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.abs()))
 }
 
-pub fn sqrt_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn sqrt_polars(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.sqrt()))
 }
 
-pub fn exp_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn exp_polars(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.exp()))
 }
 
-pub fn log_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn log_polars(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     if args.len() > 1 {
         let base = args[1].clone().expect_number()?.to_float();
@@ -2026,18 +2026,18 @@ pub fn log_polars(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
-pub fn log10_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn log10_polars(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.log(lit(10.0))))
 }
 
-pub fn pow_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn pow_polars(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let base = args[0].clone().expect_polars_expr()?;
     let exponent = args[1].clone().expect_polars_expr()?;
     Ok(new_polars_expr(base.pow(exponent)))
 }
 
-pub fn round_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn round_polars(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     let decimals = if args.len() > 1 {
         args[1].clone().expect_int()? as u32
@@ -2047,27 +2047,27 @@ pub fn round_polars(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(new_polars_expr(expr.round(decimals, Default::default())))
 }
 
-pub fn floor_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn floor_polars(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.floor()))
 }
 
-pub fn ceil_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn ceil_polars(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.ceil()))
 }
 
-pub fn sin_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn sin_polars(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.sin()))
 }
 
-pub fn cos_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn cos_polars(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.cos()))
 }
 
-pub fn tan_polars(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn tan_polars(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let expr = args[0].clone().expect_polars_expr()?;
     Ok(new_polars_expr(expr.tan()))
 }

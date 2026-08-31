@@ -18,7 +18,7 @@ pub fn invoke_function(
     match &func.value {
         ExprValue::NativeFunction(data) => {
             expect_args_count(args.len(), data.min_args as usize, data.max_args as usize)?;
-            (data.body)(args)
+            (data.body)(args, env)
         }
         ExprValue::UserFunction(data) => {
             expect_args_count(args.len(), data.params.len(), usize::MAX)?;
@@ -312,7 +312,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                         for arg in &args[1..] {
                             polars_args.push(eval(arg.clone(), env, state)?);
                         }
-                        return polarslib::and_polars(polars_args);
+                        return polarslib::and_polars(polars_args, env);
                     }
 
                     // 2. Standard Lisp Short-Circuiting
@@ -325,7 +325,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                         if matches!(val.value, ExprValue::PolarsExpr(_)) {
                             // If Polars expression appears later in the args
                             let polars_args = vec![corelib::new_bool(true), val];
-                            return polarslib::and_polars(polars_args);
+                            return polarslib::and_polars(polars_args, env);
                         }
                         if !val.expect_bool()? {
                             return Ok(corelib::false_());
@@ -346,7 +346,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                         for arg in &args[1..] {
                             polars_args.push(eval(arg.clone(), env, state)?);
                         }
-                        return polarslib::or_polars(polars_args);
+                        return polarslib::or_polars(polars_args, env);
                     }
 
                     if first_val.expect_bool()? {
@@ -357,7 +357,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                         let val = eval(arg.clone(), env, state)?;
                         if matches!(val.value, ExprValue::PolarsExpr(_)) {
                             let polars_args = vec![corelib::new_bool(false), val];
-                            return polarslib::or_polars(polars_args);
+                            return polarslib::or_polars(polars_args, env);
                         }
                         if val.expect_bool()? {
                             return Ok(corelib::true_());
@@ -407,7 +407,7 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                         data.max_args as usize,
                     )?;
 
-                    (data.body)(args)
+                    (data.body)(args, env)
                 }
                 ExprValue::UserFunction(data) => {
                     expect_args_count(list.len() - 1, data.params.len(), usize::MAX)?;

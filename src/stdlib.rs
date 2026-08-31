@@ -10,7 +10,7 @@ use std::rc::Rc;
 pub fn insert_native_function(
     defines: &mut HashMap<String, Expr>,
     name: &str,
-    body: fn(Vec<Expr>) -> Result<Expr, Error>,
+    body: fn(Vec<Expr>, &Rc<RefCell<Env>>) -> Result<Expr, Error>,
     min_args: u8,
     max_args: u8,
 ) {

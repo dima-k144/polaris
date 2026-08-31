@@ -1,9 +1,11 @@
 use crate::corelib::*;
-use crate::types::{Error, Expr, ExprValue};
+use crate::types::{Error, Expr, ExprValue, Env};
 use plotlars::{
     BarPlot, BoxPlot, Histogram, LinePlot, PieChart, Plot, ScatterPlot, TimeSeriesPlot,
 };
 use polars::prelude::*;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 fn kw(args: &[Expr], name: &str) -> Option<Expr> {
     for (i, arg) in args.iter().enumerate() {
@@ -30,7 +32,7 @@ fn has_flag(args: &[Expr], name: &str) -> bool {
         .any(|arg| matches!(arg.value.clone(), ExprValue::Symbol(s) if s == name))
 }
 
-pub fn scatter_plot(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn scatter_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args
         .first()
         .ok_or_else(|| Error::MissingRequiredKWArg {
@@ -83,7 +85,7 @@ pub fn scatter_plot(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(nil())
 }
 
-pub fn bar_plot(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn bar_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args
         .first()
         .ok_or_else(|| Error::MissingRequiredKWArg {
@@ -136,7 +138,7 @@ pub fn bar_plot(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(nil())
 }
 
-pub fn pie_plot(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn pie_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args
         .first()
         .ok_or_else(|| Error::MissingRequiredKWArg {
@@ -174,7 +176,7 @@ pub fn pie_plot(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(nil())
 }
 
-pub fn histogram(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn histogram(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args
         .first()
         .ok_or_else(|| Error::MissingRequiredKWArg {
@@ -218,7 +220,7 @@ pub fn histogram(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(nil())
 }
 
-pub fn box_plot(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn box_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args
         .first()
         .ok_or_else(|| Error::MissingRequiredKWArg {
@@ -287,7 +289,7 @@ pub fn box_plot(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(nil())
 }
 
-pub fn time_series_plot(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn time_series_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args
         .first()
         .ok_or_else(|| Error::MissingRequiredKWArg {
@@ -376,7 +378,7 @@ pub fn time_series_plot(args: Vec<Expr>) -> Result<Expr, Error> {
     Ok(nil())
 }
 
-pub fn line_plot(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn line_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args
         .first()
         .ok_or_else(|| Error::MissingRequiredKWArg {

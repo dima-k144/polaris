@@ -1,5 +1,7 @@
 use crate::types::*;
 use std::process::Command;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 pub fn nil() -> Expr {
     Expr {
@@ -64,14 +66,14 @@ pub fn new_symbol(value: String) -> Expr {
     }
 }
 
-pub fn print(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn print(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     for arg in args {
         println!("{}", arg.to_string()?);
     }
     Ok(nil())
 }
 
-pub fn list(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn list(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     Ok(new_list(args))
 }
 
@@ -90,9 +92,9 @@ fn has_polars_arg(args: &[Expr]) -> bool {
         .any(|arg| matches!(arg.value, ExprValue::PolarsExpr(_)))
 }
 
-pub fn abs(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn abs(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if has_polars_arg(&args) {
-        return crate::polarslib::abs_polars(args);
+        return crate::polarslib::abs_polars(args, env);
     }
     match args[0].clone().expect_number()? {
         Number::Int(i) => Ok(new_int(i.abs())),
@@ -100,23 +102,23 @@ pub fn abs(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
-pub fn sqrt(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn sqrt(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if has_polars_arg(&args) {
-        return crate::polarslib::sqrt_polars(args);
+        return crate::polarslib::sqrt_polars(args, env);
     }
     apply_unary_math(args, |f| f.sqrt())
 }
 
-pub fn exp(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn exp(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if has_polars_arg(&args) {
-        return crate::polarslib::exp_polars(args);
+        return crate::polarslib::exp_polars(args, env);
     }
     apply_unary_math(args, |f| f.exp())
 }
 
-pub fn log(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn log(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if has_polars_arg(&args) {
-        return crate::polarslib::log_polars(args);
+        return crate::polarslib::log_polars(args, env);
     }
     let val = args[0].clone().expect_number()?.to_float();
     if args.len() > 1 {
@@ -127,16 +129,16 @@ pub fn log(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
-pub fn log10(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn log10(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if has_polars_arg(&args) {
-        return crate::polarslib::log10_polars(args);
+        return crate::polarslib::log10_polars(args, env);
     }
     apply_unary_math(args, |f| f.log10())
 }
 
-pub fn pow(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn pow(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if has_polars_arg(&args) {
-        return crate::polarslib::pow_polars(args);
+        return crate::polarslib::pow_polars(args, env);
     }
     let base = args[0].clone().expect_number()?;
     let exponent = args[1].clone().expect_number()?;
@@ -149,9 +151,9 @@ pub fn pow(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
-pub fn round(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn round(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if has_polars_arg(&args) {
-        return crate::polarslib::round_polars(args);
+        return crate::polarslib::round_polars(args, env);
     }
     let val = args[0].clone().expect_number()?.to_float();
     let decimals = if args.len() > 1 {
@@ -170,9 +172,9 @@ pub fn round(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
-pub fn floor(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn floor(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if has_polars_arg(&args) {
-        return crate::polarslib::floor_polars(args);
+        return crate::polarslib::floor_polars(args, env);
     }
     let val = args[0].clone().expect_number()?;
     match val {
@@ -181,9 +183,9 @@ pub fn floor(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
-pub fn ceil(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn ceil(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if has_polars_arg(&args) {
-        return crate::polarslib::ceil_polars(args);
+        return crate::polarslib::ceil_polars(args, env);
     }
     let val = args[0].clone().expect_number()?;
     match val {
@@ -192,28 +194,28 @@ pub fn ceil(args: Vec<Expr>) -> Result<Expr, Error> {
     }
 }
 
-pub fn sin(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn sin(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if has_polars_arg(&args) {
-        return crate::polarslib::sin_polars(args);
+        return crate::polarslib::sin_polars(args, env);
     }
     apply_unary_math(args, |f| f.sin())
 }
 
-pub fn cos(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn cos(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if has_polars_arg(&args) {
-        return crate::polarslib::cos_polars(args);
+        return crate::polarslib::cos_polars(args, env);
     }
     apply_unary_math(args, |f| f.cos())
 }
 
-pub fn tan(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn tan(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if has_polars_arg(&args) {
-        return crate::polarslib::tan_polars(args);
+        return crate::polarslib::tan_polars(args, env);
     }
     apply_unary_math(args, |f| f.tan())
 }
 
-pub fn shell(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn shell(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let command = args[0].clone().expect_string()?;
     let command_args: Vec<String> = args[1..]
         .iter()
@@ -235,7 +237,7 @@ pub fn shell(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (car list) or (first list) -> returns first element
-pub fn car(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn car(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let list = args[0].clone().expect_list()?;
     if list.is_empty() {
         Ok(nil())
@@ -245,7 +247,7 @@ pub fn car(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (cdr list) or (rest list) -> returns elements after the first
-pub fn cdr(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn cdr(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let list = args[0].clone().expect_list()?;
     if list.is_empty() {
         Ok(new_list(vec![]))
@@ -255,7 +257,7 @@ pub fn cdr(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (cons elem list) -> prepends elem to list
-pub fn cons(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn cons(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let elem = args[0].clone();
     let mut list = args[1].clone().expect_list()?;
     list.insert(0, elem);
@@ -263,13 +265,13 @@ pub fn cons(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (length list) -> returns number of elements
-pub fn length(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn length(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let list = args[0].clone().expect_list()?;
     Ok(new_int(list.len() as i64))
 }
 
 // (nth list idx) -> returns item at 0-based index
-pub fn nth(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn nth(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let list = args[0].clone().expect_list()?;
     let idx = args[1].clone().expect_int()?;
 
@@ -285,7 +287,7 @@ pub fn nth(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (append list1 list2 ...) -> concatenates lists
-pub fn append(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn append(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let mut combined = Vec::new();
     for arg in args {
         let items = arg.expect_list()?;
@@ -295,20 +297,20 @@ pub fn append(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (reverse list) -> reverses list
-pub fn reverse(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn reverse(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let mut list = args[0].clone().expect_list()?;
     list.reverse();
     Ok(new_list(list))
 }
 
 // (empty? list) -> returns boolean
-pub fn is_empty(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn is_empty(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let list = args[0].clone().expect_list()?;
     Ok(new_bool(list.is_empty()))
 }
 
 // (to-str val) -> converts number, symbol, bool, nil, or list to String
-pub fn to_str(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn to_str(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let arg = &args[0];
     let s = match &arg.value {
         ExprValue::String(s) => s.clone(),
@@ -329,7 +331,7 @@ pub fn to_str(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (to-int val) -> converts float, int, or parseable string/bool to Int
-pub fn to_int(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn to_int(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let arg = &args[0];
     match &arg.value {
         ExprValue::Int(i) => Ok(new_int(*i)),
@@ -347,7 +349,7 @@ pub fn to_int(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (to-float val) -> converts int, float, or parseable string to Float
-pub fn to_float(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn to_float(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let arg = &args[0];
     match &arg.value {
         ExprValue::Float(f) => Ok(new_float(*f)),
@@ -365,7 +367,7 @@ pub fn to_float(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (to-symbol val) -> converts string or symbol to Symbol
-pub fn to_symbol(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn to_symbol(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let arg = &args[0];
     match &arg.value {
         ExprValue::Symbol(s) | ExprValue::String(s) => Ok(new_symbol(s.clone())),
@@ -377,7 +379,7 @@ pub fn to_symbol(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (to-bool val) -> converts value to Bool (nil & false -> false; 0 -> false; others -> true)
-pub fn to_bool(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn to_bool(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let arg = &args[0];
     match &arg.value {
         ExprValue::Bool(b) => Ok(new_bool(*b)),
@@ -391,7 +393,7 @@ pub fn to_bool(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (to-list val) -> converts a string (into chars) or wraps a single element in a list
-pub fn to_list(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn to_list(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let arg = &args[0];
     match &arg.value {
         ExprValue::List(_) => Ok(arg.clone()),
@@ -408,27 +410,27 @@ pub fn to_list(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (type-of val) -> returns the type name as a string (e.g., "int", "float", "string", "symbol", "list", "bool", "nil")
-pub fn type_of(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn type_of(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let type_name = args[0].clone().type_to_str();
     Ok(new_string(type_name.to_string()))
 }
 
 // (str-concat "a" "b" "c") -> "abc"
-pub fn str_concat(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn str_concat(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let mut out = String::new();
     for arg in args {
         match arg.value {
             ExprValue::String(s) | ExprValue::Symbol(s) => out.push_str(&s),
             ExprValue::Int(i) => out.push_str(&i.to_string()),
             ExprValue::Float(f) => out.push_str(&f.to_string()),
-            _ => out.push_str(&to_str(vec![arg])?.expect_string()?),
+            _ => out.push_str(&to_str(vec![arg], env)?.expect_string()?),
         }
     }
     Ok(new_string(out))
 }
 
 // Helper to execute any callable Expr (NativeFunction or UserFunction)
-pub fn invoke_callable(func: &Expr, args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn invoke_callable(func: &Expr, args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     match &func.value {
         ExprValue::NativeFunction(data) => {
             crate::interpreter::expect_args_count(
@@ -436,7 +438,7 @@ pub fn invoke_callable(func: &Expr, args: Vec<Expr>) -> Result<Expr, Error> {
                 data.min_args as usize,
                 data.max_args as usize,
             )?;
-            (data.body)(args)
+            (data.body)(args, env)
         }
         ExprValue::UserFunction(data) => {
             crate::interpreter::expect_args_count(
@@ -445,10 +447,8 @@ pub fn invoke_callable(func: &Expr, args: Vec<Expr>) -> Result<Expr, Error> {
                 data.params.len(),
             )?;
 
-            // Re-use std_env as base so standard functions/macros are visible inside closures
-            let env = crate::stdlib::std_env();
             let child_env =
-                std::rc::Rc::new(std::cell::RefCell::new(crate::types::Env::with_parent(env)));
+                std::rc::Rc::new(std::cell::RefCell::new(crate::types::Env::with_parent(env.clone())));
 
             for (param, arg) in data.params.iter().zip(args) {
                 crate::interpreter::define(param, arg, &child_env);
@@ -473,7 +473,7 @@ pub fn invoke_callable(func: &Expr, args: Vec<Expr>) -> Result<Expr, Error> {
 
 // (range end)
 // (range start end [step])
-pub fn range(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn range(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let (start, end, step) = match args.len() {
         1 => (0, args[0].clone().expect_int()?, 1),
         2 => (
@@ -520,7 +520,7 @@ pub fn range(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (apply func [arg1 arg2 ...] list)
-pub fn apply(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn apply(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if args.len() < 2 {
         return Err(Error::WrongNumberOfArguments {
             expected_min: 2,
@@ -539,25 +539,25 @@ pub fn apply(args: Vec<Expr>) -> Result<Expr, Error> {
     let final_list = args.last().unwrap().clone().expect_list()?;
     call_args.extend(final_list);
 
-    invoke_callable(func, call_args)
+    invoke_callable(func, call_args, env)
 }
 
 // (map func list)
-pub fn map(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn map(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let func = &args[0];
     let items = args[1].clone().expect_list()?;
 
     let mut out = Vec::with_capacity(items.len());
     for item in items {
-        out.push(invoke_callable(func, vec![item])?);
+        out.push(invoke_callable(func, vec![item], env)?);
     }
     Ok(new_list(out))
 }
 
 // (filter predicate list) - with Polars DataFrame fallback
-pub fn filter_core(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn filter_core(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     if matches!(args[0].value, ExprValue::LazyFrame(_)) {
-        return crate::polarslib::filter(args);
+        return crate::polarslib::filter(args, env);
     }
 
     if args.len() != 2 {
@@ -573,7 +573,7 @@ pub fn filter_core(args: Vec<Expr>) -> Result<Expr, Error> {
 
     let mut out = Vec::new();
     for item in items {
-        let keep = invoke_callable(func, vec![item.clone()])?.expect_bool()?;
+        let keep = invoke_callable(func, vec![item.clone()], env)?.expect_bool()?;
         if keep {
             out.push(item);
         }
@@ -582,7 +582,7 @@ pub fn filter_core(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (reduce func list) OR (reduce func init list)
-pub fn reduce(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn reduce(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let func = &args[0];
 
     if args.len() == 2 {
@@ -594,14 +594,14 @@ pub fn reduce(args: Vec<Expr>) -> Result<Expr, Error> {
         }
         let mut acc = items[0].clone();
         for item in &items[1..] {
-            acc = invoke_callable(func, vec![acc, item.clone()])?;
+            acc = invoke_callable(func, vec![acc, item.clone()], env)?;
         }
         Ok(acc)
     } else if args.len() == 3 {
         let mut acc = args[1].clone();
         let items = args[2].clone().expect_list()?;
         for item in items {
-            acc = invoke_callable(func, vec![acc, item])?;
+            acc = invoke_callable(func, vec![acc, item], env)?;
         }
         Ok(acc)
     } else {
@@ -614,14 +614,14 @@ pub fn reduce(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (str-len "hello") -> 5
-pub fn str_len(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn str_len(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let s = args[0].clone().expect_string()?;
     Ok(new_int(s.chars().count() as i64))
 }
 
 // (substring "hello" 1 3) -> "el" (start index, length)
 // (substring "hello" 1)   -> "ello" (to the end)
-pub fn substring(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn substring(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let s = args[0].clone().expect_string()?;
     let start = args[1].clone().expect_int()?;
 
@@ -652,7 +652,7 @@ pub fn substring(args: Vec<Expr>) -> Result<Expr, Error> {
 }
 
 // (split "a,b,c" ",") -> '("a" "b" "c")
-pub fn split(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn split(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let s = args[0].clone().expect_string()?;
     let delim = args[1].clone().expect_string()?;
 
@@ -666,7 +666,7 @@ pub fn split(args: Vec<Expr>) -> Result<Expr, Error> {
 
 // (str-join '("a" "b" "c") ", ") -> "a, b, c"
 // (str-join '("a" "b" "c"))      -> "abc" (default empty delimiter)
-pub fn str_join(args: Vec<Expr>) -> Result<Expr, Error> {
+pub fn str_join(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let items = args[0].clone().expect_list()?;
     let delim = if args.len() > 1 {
         args[1].clone().expect_string()?
@@ -676,7 +676,7 @@ pub fn str_join(args: Vec<Expr>) -> Result<Expr, Error> {
 
     let mut string_parts = Vec::with_capacity(items.len());
     for item in items {
-        string_parts.push(to_str(vec![item])?.expect_string()?);
+        string_parts.push(to_str(vec![item], env)?.expect_string()?);
     }
 
     Ok(new_string(string_parts.join(&delim)))
