@@ -1,7 +1,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::types::{Env, Error, Expr, ExprValue, UserFunctionData};
+use crate::stdlib::NATIVE_FUNC_TABLE;
+use crate::types::{Env, Error, Expr, ExprValue, NativeFunctionData, UserFunctionData};
 use crate::{corelib, polarslib};
 
 pub struct State {
@@ -41,12 +42,24 @@ pub fn invoke_function(
     }
 }
 
+pub fn get_native(name: &str) -> Option<&'static NativeFunctionData> {
+    NATIVE_FUNC_TABLE
+        .iter()
+        .find(|(k, _)| *k == name)
+        .map(|(_, data)| data)
+}
+
 pub fn lookup(symbol: &str, env: &Rc<RefCell<Env>>) -> Option<Expr> {
     let env_borrow = env.borrow();
     if let Some(val) = env_borrow.defines.get(symbol) {
         Some(val.clone())
     } else if let Some(outer) = &env_borrow.outer {
         lookup(symbol, outer)
+    } else if let Some(native) = get_native(symbol) {
+        Some(Expr {
+            value: ExprValue::NativeFunction(Box::new(native.clone())),
+            line: None,
+        })
     } else {
         None
     }

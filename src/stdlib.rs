@@ -7,27 +7,194 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-pub fn insert_native_function(
-    defines: &mut HashMap<String, Expr>,
-    name: &str,
-    body: fn(Vec<Expr>, &Rc<RefCell<Env>>) -> Result<Expr, Error>,
-    min_args: u8,
-    max_args: u8,
-) {
-    let func_data = NativeFunctionData {
-        body,
-        min_args,
-        max_args,
-    };
+pub static NATIVE_FUNC_TABLE: &[(&str, NativeFunctionData)] = &[
+     // Native Functions: (defines, name, function_pointer, min_args, max_args)
+    ("print", NativeFunctionData { body: print, min_args: 0, max_args: u8::MAX }),
+    ("shell", NativeFunctionData { body: shell, min_args: 1, max_args: u8::MAX }),
+    ("type-of", NativeFunctionData { body: crate::corelib::type_of, min_args: 1, max_args: 1 }),
 
-    defines.insert(
-        name.to_string(),
-        Expr {
-            value: ExprValue::NativeFunction(Box::new(func_data)),
-            line: None,
-        },
-    );
-}
+    // Native List Functions
+    ("list", NativeFunctionData { body: list, min_args: 0, max_args: u8::MAX }),
+    ("car", NativeFunctionData { body: crate::corelib::car, min_args: 1, max_args: 1 }),
+    ("first", NativeFunctionData { body: crate::corelib::car, min_args: 1, max_args: 1 }),
+    ("cdr", NativeFunctionData { body: crate::corelib::cdr, min_args: 1, max_args: 1 }),
+    ("rest", NativeFunctionData { body: crate::corelib::cdr, min_args: 1, max_args: 1 }),
+    ("cons", NativeFunctionData { body: crate::corelib::cons, min_args: 2, max_args: 2 }),
+    ("len", NativeFunctionData { body: crate::corelib::length, min_args: 1, max_args: 1 }),
+    ("nth", NativeFunctionData { body: crate::corelib::nth, min_args: 2, max_args: 2 }),
+    ("append", NativeFunctionData { body: crate::corelib::append, min_args: 1, max_args: u8::MAX }),
+    ("reverse", NativeFunctionData { body: crate::corelib::reverse, min_args: 1, max_args: 1 }),
+    ("empty?", NativeFunctionData { body: crate::corelib::is_empty, min_args: 1, max_args: 1 }),
+
+    // Native String Functions
+    ("str-concat", NativeFunctionData { body: crate::corelib::str_concat, min_args: 1, max_args: u8::MAX }),
+    ("str-len", NativeFunctionData { body: crate::corelib::str_len, min_args: 1, max_args: 1 }),
+    ("substring", NativeFunctionData { body: crate::corelib::substring, min_args: 2, max_args: 3 }),
+    ("split", NativeFunctionData { body: crate::corelib::split, min_args: 2, max_args: 2 }),
+    ("str-join", NativeFunctionData { body: crate::corelib::str_join, min_args: 1, max_args: 2 }),
+
+    // Native Conversion Functions
+    ("to-str", NativeFunctionData { body: crate::corelib::to_str, min_args: 1, max_args: 1 }),
+    ("to-string", NativeFunctionData { body: crate::corelib::to_str, min_args: 1, max_args: 1 }),
+    ("to-int", NativeFunctionData { body: crate::corelib::to_int, min_args: 1, max_args: 1 }),
+    ("to-float", NativeFunctionData { body: crate::corelib::to_float, min_args: 1, max_args: 1 }),
+    ("to-symbol", NativeFunctionData { body: crate::corelib::to_symbol, min_args: 1, max_args: 1 }),
+    ("to-bool", NativeFunctionData { body: crate::corelib::to_bool, min_args: 1, max_args: 1 }),
+    ("to-list", NativeFunctionData { body: crate::corelib::to_list, min_args: 1, max_args: 1 }),
+
+    // Native Higher Order Functions
+    ("range", NativeFunctionData { body: crate::corelib::range, min_args: 1, max_args: 3 }),
+    ("apply", NativeFunctionData { body: crate::corelib::apply, min_args: 2, max_args: u8::MAX }),
+    ("map", NativeFunctionData { body: crate::corelib::map, min_args: 2, max_args: 2 }),
+    ("reduce", NativeFunctionData { body: crate::corelib::reduce, min_args: 2, max_args: 3 }),
+
+    // Arithmetic
+    ("+", NativeFunctionData { body: plus, min_args: 1, max_args: u8::MAX }),
+    ("-", NativeFunctionData { body: minus, min_args: 1, max_args: u8::MAX }),
+    ("*", NativeFunctionData { body: mult, min_args: 1, max_args: u8::MAX }),
+    ("/", NativeFunctionData { body: divide, min_args: 1, max_args: u8::MAX }),
+
+    // Math Functions
+    ("abs", NativeFunctionData { body: crate::corelib::abs, min_args: 1, max_args: 1 }),
+    ("sqrt", NativeFunctionData { body: sqrt, min_args: 1, max_args: 1 }),
+    ("exp", NativeFunctionData { body: exp, min_args: 1, max_args: 1 }),
+    ("log", NativeFunctionData { body: log, min_args: 1, max_args: 2 }),
+    ("log10", NativeFunctionData { body: log10, min_args: 1, max_args: 1 }),
+    ("pow", NativeFunctionData { body: pow, min_args: 2, max_args: 2 }),
+    ("round", NativeFunctionData { body: round, min_args: 1, max_args: 2 }),
+    ("floor", NativeFunctionData { body: floor, min_args: 1, max_args: 1 }),
+    ("ceil", NativeFunctionData { body: ceil, min_args: 1, max_args: 1 }),
+    ("sin", NativeFunctionData { body: sin, min_args: 1, max_args: 1 }),
+    ("cos", NativeFunctionData { body: cos, min_args: 1, max_args: 1 }),
+    ("tan", NativeFunctionData { body: tan, min_args: 1, max_args: 1 }),
+
+    // IO
+    ("read-csv", NativeFunctionData { body: read_csv, min_args: 1, max_args: 1 }),
+    ("write-csv", NativeFunctionData { body: write_csv, min_args: 2, max_args: 2 }),
+    ("sink", NativeFunctionData { body: sink, min_args: 2, max_args: 2 }),
+    ("read-parquet", NativeFunctionData { body: read_parquet, min_args: 1, max_args: 1 }),
+    ("write-parquet", NativeFunctionData { body: write_parquet, min_args: 2, max_args: 2 }),
+
+    // Collect
+    ("collect", NativeFunctionData { body: collect_, min_args: 1, max_args: 1 }),
+
+    // Inspection
+    ("head", NativeFunctionData { body: head, min_args: 1, max_args: 1 }),
+    ("tail", NativeFunctionData { body: tail, min_args: 1, max_args: 1 }),
+    ("slice", NativeFunctionData { body: slice, min_args: 3, max_args: 3 }),
+    ("schema", NativeFunctionData { body: schema, min_args: 1, max_args: 1 }),
+    ("shape", NativeFunctionData { body: shape, min_args: 1, max_args: 1 }),
+    ("describe", NativeFunctionData { body: crate::polarslib::describe, min_args: 1, max_args: 1 }),
+
+    // Expressions & Literals
+    ("col", NativeFunctionData { body: col_, min_args: 1, max_args: 1 }),
+    ("lit", NativeFunctionData { body: lit_, min_args: 1, max_args: 1 }),
+
+    // Comparison & Logical
+    ("=", NativeFunctionData { body: eq, min_args: 2, max_args: 2 }),
+    ("!=", NativeFunctionData { body: neq, min_args: 2, max_args: 2 }),
+    (">", NativeFunctionData { body: gt, min_args: 2, max_args: 2 }),
+    ("<", NativeFunctionData { body: lt, min_args: 2, max_args: 2 }),
+    (">=", NativeFunctionData { body: gt_eq, min_args: 2, max_args: 2 }),
+    ("<=", NativeFunctionData { body: lt_eq, min_args: 2, max_args: 2 }),
+    ("not", NativeFunctionData { body: crate::polarslib::not, min_args: 1, max_args: u8::MAX }),
+
+    // Aggregations
+    ("sum", NativeFunctionData { body: crate::polarslib::sum, min_args: 1, max_args: 1 }),
+    ("mean", NativeFunctionData { body: crate::polarslib::mean, min_args: 1, max_args: 1 }),
+    ("median", NativeFunctionData { body: crate::polarslib::median, min_args: 1, max_args: 1 }),
+    ("count", NativeFunctionData { body: count, min_args: 0, max_args: 1 }),
+    ("min", NativeFunctionData { body: crate::polarslib::min, min_args: 1, max_args: 1 }),
+    ("max", NativeFunctionData { body: crate::polarslib::max, min_args: 1, max_args: 1 }),
+    ("n-unique", NativeFunctionData { body: crate::polarslib::n_unique, min_args: 1, max_args: 1 }),
+    ("std", NativeFunctionData { body: crate::polarslib::std_dev, min_args: 1, max_args: 2 }),
+    ("var", NativeFunctionData { body: crate::polarslib::variance, min_args: 1, max_args: 2 }),
+    ("quantile", NativeFunctionData { body: crate::polarslib::quantile, min_args: 2, max_args: 3 }),
+    ("cov", NativeFunctionData { body: crate::polarslib::cov_, min_args: 2, max_args: 3 }),
+    ("corr", NativeFunctionData { body: crate::polarslib::corr, min_args: 2, max_args: 2 }),
+
+    // Register Series slicing and indexing
+    ("slice-expr", NativeFunctionData { body: expr_slice, min_args: 3, max_args: 3 }),
+    ("get", NativeFunctionData { body: expr_get, min_args: 2, max_args: 2 }),
+
+    // LazyFrame Operations
+    ("select", NativeFunctionData { body: select, min_args: 1, max_args: u8::MAX }),
+    ("filter", NativeFunctionData { body: filter_core, min_args: 2, max_args: u8::MAX }),
+    ("with-column", NativeFunctionData { body: with_column, min_args: 3, max_args: u8::MAX }),
+    ("sort", NativeFunctionData { body: sort, min_args: 2, max_args: 3 }),
+    ("group-by", NativeFunctionData { body: group_by, min_args: 2, max_args: u8::MAX }),
+    ("alias", NativeFunctionData { body: alias, min_args: 2, max_args: 2 }),
+    ("agg", NativeFunctionData { body: agg, min_args: 1, max_args: u8::MAX }),
+    ("join", NativeFunctionData { body: join, min_args: 4, max_args: 5 }),
+    ("unique", NativeFunctionData { body: unique_, min_args: 1, max_args: u8::MAX }),
+    ("drop", NativeFunctionData { body: drop_, min_args: 2, max_args: u8::MAX }),
+    ("rename", NativeFunctionData { body: rename_, min_args: 3, max_args: 3 }),
+
+    // Null Handling & Conditionals
+    ("null?", NativeFunctionData { body: is_null_, min_args: 1, max_args: 1 }),
+    ("not-null?", NativeFunctionData { body: is_not_null_, min_args: 1, max_args: 1 }),
+    ("fill-null", NativeFunctionData { body: fill_null_, min_args: 2, max_args: 2 }),
+    ("drop-nulls", NativeFunctionData { body: drop_nulls, min_args: 1, max_args: u8::MAX }),
+    ("when", NativeFunctionData { body: crate::polarslib::when, min_args: 2, max_args: u8::MAX }),
+
+    // String
+    ("str-contains", NativeFunctionData { body: str_contains, min_args: 2, max_args: 2 }),
+    ("str-replace", NativeFunctionData { body: str_replace, min_args: 3, max_args: 3 }),
+    ("str-extract", NativeFunctionData { body: str_extract, min_args: 3, max_args: 3 }),
+    ("str-split", NativeFunctionData { body: str_split, min_args: 2, max_args: 2 }),
+    ("str-strip", NativeFunctionData { body: str_strip, min_args: 1, max_args: 2 }),
+    ("str-strip-start", NativeFunctionData { body: str_strip_start, min_args: 1, max_args: 2 }),
+    ("str-strip-end", NativeFunctionData { body: str_strip_end, min_args: 1, max_args: 2 }),
+    ("str-slice", NativeFunctionData { body: str_slice, min_args: 3, max_args: 3 }),
+    ("str-extract-groups", NativeFunctionData { body: str_extract_groups, min_args: 2, max_args: 2 }),
+
+    // Window & Cumulative Functions
+    ("over", NativeFunctionData { body: over, min_args: 2, max_args: u8::MAX }),
+    ("shift", NativeFunctionData { body: shift, min_args: 2, max_args: 2 }),
+    ("cum-sum", NativeFunctionData { body: crate::polarslib::cum_sum, min_args: 1, max_args: 2 }),
+    ("cum-min", NativeFunctionData { body: crate::polarslib::cum_min, min_args: 1, max_args: 2 }),
+    ("cum-max", NativeFunctionData { body: crate::polarslib::cum_max, min_args: 1, max_args: 2 }),
+    ("cum-count", NativeFunctionData { body: crate::polarslib::cum_count, min_args: 1, max_args: 2 }),
+    ("rank", NativeFunctionData { body: rank, min_args: 1, max_args: 2 }),
+
+    // Date and time
+    ("to-date", NativeFunctionData { body: to_date, min_args: 1, max_args: 2 }),
+    ("to-datetime", NativeFunctionData { body: to_datetime, min_args: 1, max_args: 2 }),
+    ("dt-year", NativeFunctionData { body: dt_year, min_args: 1, max_args: 1 }),
+    ("dt-month", NativeFunctionData { body: dt_month, min_args: 1, max_args: 1 }),
+    ("dt-day", NativeFunctionData { body: dt_day, min_args: 1, max_args: 1 }),
+    ("dt-hour", NativeFunctionData { body: dt_hour, min_args: 1, max_args: 1 }),
+    ("dt-format", NativeFunctionData { body: dt_format, min_args: 2, max_args: 2 }),
+
+    // Reshaping & Set Operations
+    ("pivot", NativeFunctionData { body: pivot_, min_args: 4, max_args: 5 }),
+    ("melt", NativeFunctionData { body: melt_, min_args: 3, max_args: 5 }),
+    ("unpivot", NativeFunctionData { body: melt_, min_args: 3, max_args: 5 }),
+    ("concat", NativeFunctionData { body: concat_, min_args: 1, max_args: u8::MAX }),
+
+    // Rolling / Window aggregations
+    ("rolling-mean", NativeFunctionData { body: rolling_mean, min_args: 2, max_args: 4 }),
+    ("rolling-sum", NativeFunctionData { body: rolling_sum, min_args: 2, max_args: 4 }),
+    ("rolling-min", NativeFunctionData { body: rolling_min, min_args: 2, max_args: 4 }),
+    ("rolling-max", NativeFunctionData { body: rolling_max, min_args: 2, max_args: 4 }),
+    ("rolling-median", NativeFunctionData { body: rolling_median, min_args: 2, max_args: 4 }),
+    ("rolling-std", NativeFunctionData { body: rolling_std, min_args: 2, max_args: 5 }),
+
+    // Casting
+    ("cast", NativeFunctionData { body: cast_, min_args: 2, max_args: 2 }),
+
+    // Plotlars
+    ("scatter-plot", NativeFunctionData { body: plotlarslib::scatter_plot, min_args: 1, max_args: u8::MAX }),
+    ("bar-plot", NativeFunctionData { body: plotlarslib::bar_plot, min_args: 1, max_args: u8::MAX }),
+    ("pie-plot", NativeFunctionData { body: plotlarslib::pie_plot, min_args: 1, max_args: u8::MAX }),
+    ("histogram", NativeFunctionData { body: plotlarslib::histogram, min_args: 1, max_args: u8::MAX }),
+    ("box-plot", NativeFunctionData { body: plotlarslib::box_plot, min_args: 1, max_args: u8::MAX }),
+    ("time-series-plot", NativeFunctionData { body: plotlarslib::time_series_plot, min_args: 1, max_args: u8::MAX }),
+    ("line-plot", NativeFunctionData { body: plotlarslib::line_plot, min_args: 1, max_args: u8::MAX }),
+
+    // Polars to lisp
+    ("scalar", NativeFunctionData { body: scalar, min_args: 1, max_args: 1 }),
+];
 
 pub fn std_env() -> Rc<RefCell<Env>> {
     let mut defines = HashMap::new();
@@ -40,217 +207,6 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     // Math Constants
     defines.insert("PI".to_string(), new_float(std::f64::consts::PI));
     defines.insert("E".to_string(), new_float(std::f64::consts::E));
-
-    // Native Functions: (defines, name, function_pointer, min_args, max_args)
-    insert_native_function(&mut defines, "print", print, 0, u8::MAX);
-    insert_native_function(&mut defines, "shell", shell, 1, u8::MAX);
-    insert_native_function(&mut defines, "type-of", crate::corelib::type_of, 1, 1);
-
-    // Native List Functions
-    insert_native_function(&mut defines, "list", list, 0, u8::MAX);
-    insert_native_function(&mut defines, "car", crate::corelib::car, 1, 1);
-    insert_native_function(&mut defines, "first", crate::corelib::car, 1, 1);
-    insert_native_function(&mut defines, "cdr", crate::corelib::cdr, 1, 1);
-    insert_native_function(&mut defines, "rest", crate::corelib::cdr, 1, 1);
-    insert_native_function(&mut defines, "cons", crate::corelib::cons, 2, 2);
-    insert_native_function(&mut defines, "len", crate::corelib::length, 1, 1);
-    insert_native_function(&mut defines, "nth", crate::corelib::nth, 2, 2);
-    insert_native_function(&mut defines, "append", crate::corelib::append, 1, u8::MAX);
-    insert_native_function(&mut defines, "reverse", crate::corelib::reverse, 1, 1);
-    insert_native_function(&mut defines, "empty?", crate::corelib::is_empty, 1, 1);
-
-    // Native String Functions
-    insert_native_function(&mut defines, "str-concat", crate::corelib::str_concat, 1, u8::MAX);
-    insert_native_function(&mut defines, "str-len", crate::corelib::str_len, 1, 1);
-    insert_native_function(&mut defines, "substring", crate::corelib::substring, 2, 3);
-    insert_native_function(&mut defines, "split", crate::corelib::split, 2, 2);
-    insert_native_function(&mut defines, "str-join", crate::corelib::str_join, 1, 2);
-
-    // Native Conversion Functions
-    insert_native_function(&mut defines, "to-str", crate::corelib::to_str, 1, 1);
-    insert_native_function(&mut defines, "to-string", crate::corelib::to_str, 1, 1);
-    insert_native_function(&mut defines, "to-int", crate::corelib::to_int, 1, 1);
-    insert_native_function(&mut defines, "to-float", crate::corelib::to_float, 1, 1);
-    insert_native_function(&mut defines, "to-symbol", crate::corelib::to_symbol, 1, 1);
-    insert_native_function(&mut defines, "to-bool", crate::corelib::to_bool, 1, 1);
-    insert_native_function(&mut defines, "to-list", crate::corelib::to_list, 1, 1);
-
-    // Native Higher Order Functions
-    insert_native_function(&mut defines, "range", crate::corelib::range, 1, 3);
-    insert_native_function(&mut defines, "apply", crate::corelib::apply, 2, u8::MAX);
-    insert_native_function(&mut defines, "map", crate::corelib::map, 2, 2);
-    insert_native_function(&mut defines, "reduce", crate::corelib::reduce, 2, 3);
-
-    // Arithmetic
-    insert_native_function(&mut defines, "+", plus, 1, u8::MAX);
-    insert_native_function(&mut defines, "-", minus, 1, u8::MAX);
-    insert_native_function(&mut defines, "*", mult, 1, u8::MAX);
-    insert_native_function(&mut defines, "/", divide, 1, u8::MAX);
-
-    // Math Functions
-    insert_native_function(&mut defines, "abs", crate::corelib::abs, 1, 1);
-    insert_native_function(&mut defines, "sqrt", sqrt, 1, 1);
-    insert_native_function(&mut defines, "exp", exp, 1, 1);
-    insert_native_function(&mut defines, "log", log, 1, 2);
-    insert_native_function(&mut defines, "log10", log10, 1, 1);
-    insert_native_function(&mut defines, "pow", pow, 2, 2);
-    insert_native_function(&mut defines, "round", round, 1, 2);
-    insert_native_function(&mut defines, "floor", floor, 1, 1);
-    insert_native_function(&mut defines, "ceil", ceil, 1, 1);
-    insert_native_function(&mut defines, "sin", sin, 1, 1);
-    insert_native_function(&mut defines, "cos", cos, 1, 1);
-    insert_native_function(&mut defines, "tan", tan, 1, 1);
-
-    // IO
-    insert_native_function(&mut defines, "read-csv", read_csv, 1, 1);
-    insert_native_function(&mut defines, "write-csv", write_csv, 2, 2);
-    insert_native_function(&mut defines, "sink", sink, 2, 2);
-    insert_native_function(&mut defines, "read-parquet", read_parquet, 1, 1);
-    insert_native_function(&mut defines, "write-parquet", write_parquet, 2, 2);
-
-    // Collect
-    insert_native_function(&mut defines, "collect", collect_, 1, 1);
-
-    // Inspection
-    insert_native_function(&mut defines, "head", head, 1, 1);
-    insert_native_function(&mut defines, "tail", tail, 1, 1);
-    insert_native_function(&mut defines, "slice", slice, 3, 3);
-    insert_native_function(&mut defines, "schema", schema, 1, 1);
-    insert_native_function(&mut defines, "shape", shape, 1, 1);
-    insert_native_function(&mut defines, "describe", crate::polarslib::describe, 1, 1);
-
-    // Expressions & Literals
-    insert_native_function(&mut defines, "col", col_, 1, 1);
-    insert_native_function(&mut defines, "lit", lit_, 1, 1);
-
-    // Comparison & Logical
-    insert_native_function(&mut defines, "=", eq, 2, 2);
-    insert_native_function(&mut defines, "!=", neq, 2, 2);
-    insert_native_function(&mut defines, ">", gt, 2, 2);
-    insert_native_function(&mut defines, "<", lt, 2, 2);
-    insert_native_function(&mut defines, ">=", gt_eq, 2, 2);
-    insert_native_function(&mut defines, "<=", lt_eq, 2, 2);
-    insert_native_function(&mut defines, "not", crate::polarslib::not, 1, u8::MAX);
-
-    // Aggregations
-    insert_native_function(&mut defines, "sum", crate::polarslib::sum, 1, 1);
-    insert_native_function(&mut defines, "mean", crate::polarslib::mean, 1, 1);
-    insert_native_function(&mut defines, "median", crate::polarslib::median, 1, 1);
-    insert_native_function(&mut defines, "count", count, 0, 1);
-    insert_native_function(&mut defines, "min", crate::polarslib::min, 1, 1);
-    insert_native_function(&mut defines, "max", crate::polarslib::max, 1, 1);
-    insert_native_function(&mut defines, "n-unique", crate::polarslib::n_unique, 1, 1);
-    insert_native_function(&mut defines, "std", crate::polarslib::std_dev, 1, 2);
-    insert_native_function(&mut defines, "var", crate::polarslib::variance, 1, 2);
-    insert_native_function(&mut defines, "quantile", crate::polarslib::quantile, 2, 3);
-    insert_native_function(&mut defines, "cov", crate::polarslib::cov_, 2, 3);
-    insert_native_function(&mut defines, "corr", crate::polarslib::corr, 2, 2);
-
-    // Register Series slicing and indexing
-    insert_native_function(&mut defines, "slice-expr", expr_slice, 3, 3);
-    insert_native_function(&mut defines, "get", expr_get, 2, 2);
-
-    // LazyFrame Operations
-    insert_native_function(&mut defines, "select", select, 1, u8::MAX);
-    insert_native_function(&mut defines, "filter", filter_core, 2, u8::MAX);
-    insert_native_function(&mut defines, "with-column", with_column, 3, u8::MAX);
-    insert_native_function(&mut defines, "sort", sort, 2, 3);
-    insert_native_function(&mut defines, "group-by", group_by, 2, u8::MAX);
-    insert_native_function(&mut defines, "alias", alias, 2, 2);
-    insert_native_function(&mut defines, "agg", agg, 1, u8::MAX);
-    insert_native_function(&mut defines, "join", join, 4, 5);
-    insert_native_function(&mut defines, "unique", unique_, 1, u8::MAX);
-    insert_native_function(&mut defines, "drop", drop_, 2, u8::MAX);
-    insert_native_function(&mut defines, "rename", rename_, 3, 3);
-
-    // Null Handling & Conditionals
-    insert_native_function(&mut defines, "null?", is_null_, 1, 1);
-    insert_native_function(&mut defines, "not-null?", is_not_null_, 1, 1);
-    insert_native_function(&mut defines, "fill-null", fill_null_, 2, 2);
-    insert_native_function(&mut defines, "drop-nulls", drop_nulls, 1, u8::MAX);
-    insert_native_function(&mut defines, "when", crate::polarslib::when, 2, u8::MAX);
-
-    // String
-    insert_native_function(&mut defines, "str-contains", str_contains, 2, 2);
-    insert_native_function(&mut defines, "str-replace", str_replace, 3, 3);
-    insert_native_function(&mut defines, "str-extract", str_extract, 3, 3);
-    insert_native_function(&mut defines, "str-split", str_split, 2, 2);
-    insert_native_function(&mut defines, "str-strip", str_strip, 1, 2);
-    insert_native_function(&mut defines, "str-strip-start", str_strip_start, 1, 2);
-    insert_native_function(&mut defines, "str-strip-end", str_strip_end, 1, 2);
-    insert_native_function(&mut defines, "str-slice", str_slice, 3, 3);
-    insert_native_function(&mut defines, "str-extract-groups", str_extract_groups, 2, 2);
-
-    // Window & Cumulative Functions
-    insert_native_function(&mut defines, "over", over, 2, u8::MAX);
-    insert_native_function(&mut defines, "shift", shift, 2, 2);
-    insert_native_function(&mut defines, "cum-sum", crate::polarslib::cum_sum, 1, 2);
-    insert_native_function(&mut defines, "cum-min", crate::polarslib::cum_min, 1, 2);
-    insert_native_function(&mut defines, "cum-max", crate::polarslib::cum_max, 1, 2);
-    insert_native_function(&mut defines, "cum-count", crate::polarslib::cum_count, 1, 2);
-    insert_native_function(&mut defines, "rank", rank, 1, 2);
-
-    // Date and time
-    insert_native_function(&mut defines, "to-date", to_date, 1, 2);
-    insert_native_function(&mut defines, "to-datetime", to_datetime, 1, 2);
-    insert_native_function(&mut defines, "dt-year", dt_year, 1, 1);
-    insert_native_function(&mut defines, "dt-month", dt_month, 1, 1);
-    insert_native_function(&mut defines, "dt-day", dt_day, 1, 1);
-    insert_native_function(&mut defines, "dt-hour", dt_hour, 1, 1);
-    insert_native_function(&mut defines, "dt-format", dt_format, 2, 2);
-
-    // Reshaping & Set Operations
-    insert_native_function(&mut defines, "pivot", pivot_, 4, 5);
-    insert_native_function(&mut defines, "melt", melt_, 3, 5);
-    insert_native_function(&mut defines, "unpivot", melt_, 3, 5);
-    insert_native_function(&mut defines, "concat", concat_, 1, u8::MAX);
-
-    // Rolling / Window aggregations
-    insert_native_function(&mut defines, "rolling-mean", rolling_mean, 2, 4);
-    insert_native_function(&mut defines, "rolling-sum", rolling_sum, 2, 4);
-    insert_native_function(&mut defines, "rolling-min", rolling_min, 2, 4);
-    insert_native_function(&mut defines, "rolling-max", rolling_max, 2, 4);
-    insert_native_function(&mut defines, "rolling-median", rolling_median, 2, 4);
-    insert_native_function(&mut defines, "rolling-std", rolling_std, 2, 5);
-
-    // Casting
-    insert_native_function(&mut defines, "cast", cast_, 2, 2);
-
-    // Plotlars
-    insert_native_function(
-        &mut defines,
-        "scatter-plot",
-        plotlarslib::scatter_plot,
-        1,
-        u8::MAX,
-    );
-    insert_native_function(&mut defines, "bar-plot", plotlarslib::bar_plot, 1, u8::MAX);
-    insert_native_function(&mut defines, "pie-plot", plotlarslib::pie_plot, 1, u8::MAX);
-    insert_native_function(
-        &mut defines,
-        "histogram",
-        plotlarslib::histogram,
-        1,
-        u8::MAX,
-    );
-    insert_native_function(&mut defines, "box-plot", plotlarslib::box_plot, 1, u8::MAX);
-    insert_native_function(
-        &mut defines,
-        "time-series-plot",
-        plotlarslib::time_series_plot,
-        1,
-        u8::MAX,
-    );
-    insert_native_function(
-        &mut defines,
-        "line-plot",
-        plotlarslib::line_plot,
-        1,
-        u8::MAX,
-    );
-
-    // Polars to lisp
-    insert_native_function(&mut defines, "scalar", scalar, 1, 1);
 
     Rc::new(RefCell::new(Env {
         defines,
