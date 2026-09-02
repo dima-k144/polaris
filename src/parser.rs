@@ -8,39 +8,19 @@ fn transform_infix(items: Vec<Expr>) -> Result<Expr, Error> {
     }
 
     let default_line = items.first().and_then(|e| e.line);
-
-    if items.len() == 3 {
-        let mut iter = items.into_iter();
-        let left = iter.next().unwrap();
-        let op = iter.next().unwrap();
-        let right = iter.next().unwrap();
-        let line = op.line.or(left.line).or(default_line);
-
-        return Ok(Expr {
-            value: ExprValue::List(vec![op, left, right]),
-            line,
-        });
-    }
-
     let mut iter = items.into_iter();
-    let mut result = {
-        let left = iter.next().unwrap();
-        let op = iter.next().unwrap();
-        let right = iter.next().unwrap();
-        let line = op.line.or(left.line).or(default_line);
 
-        Expr {
-            value: ExprValue::List(vec![op, left, right]),
-            line,
-        }
+    let left = iter.next().unwrap();
+    let op = iter.next().unwrap();
+    let right = iter.next().unwrap();
+    let line = op.line.or(left.line).or(default_line);
+
+    let mut result = Expr {
+        value: ExprValue::List(vec![op, left, right]),
+        line,
     };
 
-    loop {
-        let op = match iter.next() {
-            Some(op) => op,
-            None => break,
-        };
-
+    while let Some(op) = iter.next() {
         let right = match iter.next() {
             Some(right) => right,
             None => {
@@ -60,60 +40,60 @@ fn transform_infix(items: Vec<Expr>) -> Result<Expr, Error> {
     Ok(result)
 }
 
+#[inline]
 pub fn is_dot_list(info: &Expr) -> bool {
-    match info.value.clone() {
+    match &info.value {
         ExprValue::List(list) => {
-            if list.is_empty() {
-                return false;
-            }
-            match &list[0].value {
-                ExprValue::Symbol(symbol) => symbol == ".",
-                _ => false,
-            }
+            matches!(list.first(), Some(Expr { value: ExprValue::Symbol(s), .. }) if s == ".")
         }
         _ => false,
     }
 }
 
-pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Result<Expr, Error> {
-    if tokens.is_empty() {
+pub fn parse1(tokens: &[(String, usize)], cursor: &mut usize) -> Result<Expr, Error> {
+    if *cursor >= tokens.len() {
         return Err(Error::Custom("Unexpected end of input".to_string()));
     }
 
-    let token = tokens.remove(0);
-    let mut chars = token.0.chars();
+    let (token_str, line) = &tokens[*cursor];
+    *cursor += 1;
+
+    let mut chars = token_str.chars();
     let first_char = match chars.next() {
         Some(c) => c,
         None => return Err(Error::Custom("Empty token".to_string())),
     };
-    let line = token.1;
+    let line = *line;
 
     if first_char.is_ascii_digit()
-        || (token.0.len() > 1
+        || (token_str.len() > 1
             && first_char == '-'
-            && token.0.chars().nth(1).unwrap().is_ascii_digit())
+            && token_str.as_bytes()[1].is_ascii_digit())
     {
-        if token.0.contains('.') {
-            match token.0.parse::<f64>() {
+        if token_str.contains('.') {
+            match token_str.parse::<f64>() {
                 Ok(value) => Ok(Expr {
                     value: ExprValue::Float(value),
                     line: Some(line),
                 }),
-                Err(_) => Err(Error::FailedToParseNumber { number: token.0 }),
+                Err(_) => Err(Error::FailedToParseNumber {
+                    number: token_str.clone(),
+                }),
             }
         } else {
-            match token.0.parse::<i64>() {
+            match token_str.parse::<i64>() {
                 Ok(value) => Ok(Expr {
                     value: ExprValue::Int(value),
                     line: Some(line),
                 }),
-                Err(_) => Err(Error::FailedToParseNumber { number: token.0 }),
+                Err(_) => Err(Error::FailedToParseNumber {
+                    number: token_str.clone(),
+                }),
             }
         }
-    } else if token.0 == "(" || token.0 == "[" || token.0 == "{" {
-        let is_infix = token.0 == "{";
-
-        let closing = match token.0.as_str() {
+    } else if token_str == "(" || token_str == "[" || token_str == "{" {
+        let is_infix = token_str == "{";
+        let closing = match token_str.as_str() {
             "(" => ")",
             "[" => "]",
             "{" => "}",
@@ -121,22 +101,23 @@ pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Result<Expr, Error> {
         };
 
         let mut items = Vec::<Expr>::new();
-        while !tokens.is_empty() && tokens[0].0 != closing {
-            let item = parse1(tokens)?;
+        while *cursor < tokens.len() && tokens[*cursor].0 != closing {
+            let item = parse1(tokens, cursor)?;
             if is_dot_list(&item) {
-                for x in item.expect_list()?.iter().skip(1) {
-                    items.push(x.clone());
+                if let ExprValue::List(mut list) = item.value {
+                    // Drain and move elements without cloning
+                    items.extend(list.drain(1..));
                 }
             } else {
                 items.push(item);
             }
         }
 
-        if tokens.is_empty() {
+        if *cursor >= tokens.len() {
             return Err(Error::UnclosedListExpr);
         }
 
-        tokens.remove(0); // consume closing paren/bracket/brace
+        *cursor += 1; // Consume closing delimiter
 
         if is_infix {
             return transform_infix(items);
@@ -147,17 +128,17 @@ pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Result<Expr, Error> {
             line: Some(line),
         })
     } else if first_char == '"' {
-        let inner = &token.0[1..token.0.len().saturating_sub(1)];
+        let inner = &token_str[1..token_str.len().saturating_sub(1)];
         Ok(Expr {
             value: ExprValue::String(inner.to_string()),
             line: Some(line),
         })
-    } else if token.0 == "$" {
+    } else if token_str == "$" {
         let first = Expr {
             value: ExprValue::Symbol(String::from("col")),
             line: Some(line),
         };
-        let mut second = parse1(tokens)?;
+        let mut second = parse1(tokens, cursor)?;
         if let ExprValue::Symbol(symbol) = second.value {
             second.value = ExprValue::String(symbol);
             if second.line.is_none() {
@@ -166,44 +147,45 @@ pub fn parse1(tokens: &mut Vec<(String, usize)>) -> Result<Expr, Error> {
         }
         Ok(Expr {
             value: ExprValue::List(vec![first, second]),
-            line: Some(line), // <-- propagate line
+            line: Some(line),
         })
-    } else if token.0 == "'" {
+    } else if token_str == "'" {
         let first = Expr {
             value: ExprValue::Symbol(String::from("quote")),
             line: Some(line),
         };
-        let second = parse1(tokens)?;
+        let second = parse1(tokens, cursor)?;
         let line_val = second.line.or(Some(line));
         Ok(Expr {
             value: ExprValue::List(vec![first, second]),
             line: line_val,
         })
-    } else if token.0 == "#" {
+    } else if token_str == "#" {
         let first = Expr {
             value: ExprValue::Symbol(String::from("lookup")),
             line: Some(line),
         };
-        let second = parse1(tokens)?;
+        let second = parse1(tokens, cursor)?;
         let line_val = second.line.or(Some(line));
         Ok(Expr {
             value: ExprValue::List(vec![first, second]),
             line: line_val,
         })
-    } else if token.0 == ")" {
+    } else if token_str == ")" {
         Err(Error::UnexpectedClosedParen)
     } else {
         Ok(Expr {
-            value: ExprValue::Symbol(token.0),
+            value: ExprValue::Symbol(token_str.clone()),
             line: Some(line),
         })
     }
 }
 
-pub fn parse(tokens: &mut Vec<(String, usize)>) -> Result<Vec<Expr>, Error> {
+pub fn parse(tokens: &[(String, usize)]) -> Result<Vec<Expr>, Error> {
+    let mut cursor = 0;
     let mut exprs = Vec::<Expr>::new();
-    while !tokens.is_empty() {
-        exprs.push(parse1(tokens)?);
+    while cursor < tokens.len() {
+        exprs.push(parse1(tokens, &mut cursor)?);
     }
     Ok(exprs)
 }
