@@ -533,7 +533,7 @@ mod tests {
             1.0
         );
 
-        let ln_e = eval_string("(log E)".to_string(), &env, &mut state)
+        let ln_e = eval_string("(log *E*)".to_string(), &env, &mut state)
             .unwrap()
             .expect_float()
             .unwrap();
@@ -639,7 +639,7 @@ mod tests {
             .unwrap();
         assert!(tan_zero.abs() < 1e-10);
 
-        let sin_half_pi = eval_string("(sin (/ PI 2))".to_string(), &env, &mut state)
+        let sin_half_pi = eval_string("(sin (/ *PI* 2))".to_string(), &env, &mut state)
             .unwrap()
             .expect_float()
             .unwrap();

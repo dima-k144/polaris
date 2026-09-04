@@ -205,8 +205,11 @@ pub fn std_env() -> Rc<RefCell<Env>> {
     defines.insert("false".to_string(), false_());
 
     // Math Constants
-    defines.insert("PI".to_string(), new_float(std::f64::consts::PI));
-    defines.insert("E".to_string(), new_float(std::f64::consts::E));
+    defines.insert("*PI*".to_string(), new_float(std::f64::consts::PI));
+    defines.insert("*E*".to_string(), new_float(std::f64::consts::E));
+
+    let args: Vec<Expr> = std::env::args().map(|arg| new_string(arg)).collect();
+    defines.insert("*args*".to_string(), new_list(args));
 
     Rc::new(RefCell::new(Env {
         defines,
