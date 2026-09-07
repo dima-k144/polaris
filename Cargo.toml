@@ -16,7 +16,7 @@ polars = {
 }
 polars-ops = { version = "0.55.2", features = ["pivot"] }
 plotlars = { version = "0.12.6", features = ["plotly"] }
-tikv-jemallocator = { version = "*" }
+mimalloc = { version = "*" }
 rustyline = "14.0"
 dirs = "5.0"
 either = "1"

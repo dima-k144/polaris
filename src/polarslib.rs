@@ -1623,7 +1623,16 @@ pub fn scalar(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
 
 pub fn collect_(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
     let lf = args[0].clone().expect_lazy_frame()?;
-    lf.collect_with_engine(polars::prelude::Engine::Streaming)
+    let mut engine = polars::prelude::Engine::Auto;
+    if args.len() > 1 {
+        match args[1].clone().expect_symbol()?.clone().as_str() {
+            ":gpu" => { engine = polars::prelude::Engine::Gpu },
+            ":in-memory" => { engine = polars::prelude::Engine::InMemory },
+            ":streaming" => { engine = polars::prelude::Engine::Streaming },
+            _ => {}
+        }
+    }
+    lf.collect_with_engine(engine)
         .map_err(Error::PolarsError)?;
     Ok(nil())
 }

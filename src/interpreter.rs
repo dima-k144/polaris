@@ -4,6 +4,7 @@ use std::rc::Rc;
 use crate::stdlib::NATIVE_FUNC_TABLE;
 use crate::types::{Env, Error, Expr, ExprValue, NativeFunctionData, UserFunctionData};
 use crate::{corelib, polarslib};
+use std::time::Instant;
 
 pub struct State {
     pub line: usize,
@@ -398,6 +399,16 @@ pub fn eval(expr: Expr, env: &Rc<RefCell<Env>>, state: &mut State) -> Result<Exp
                 }
                 "apply-udf" => {
                     return crate::polarslib::eval_apply_udf(&list[1..], env, state);
+                },
+                "time-expr" => {
+                    expect_args_count(list.len() - 1, 1, 1)?;
+                    let start = Instant::now();
+                    let res = eval(list[1].clone(), env, state)?;
+                    let duration_secs = start.elapsed().as_secs_f64();
+                    return Ok(corelib::new_list(vec![
+                        res,
+                        corelib::new_float(duration_secs),
+                    ]));
                 }
                 _ => {}
             }

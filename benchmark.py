@@ -37,23 +37,24 @@ def generate_dataset(num_rows: int):
 
 
 # ---------------------------------------------------------
-# Engine Runners
+# Engine Runners (Return Execution Time in ms)
 # ---------------------------------------------------------
 def get_mlisp_script(data_path: str) -> str:
     return f"""
-(-> (read-parquet "{data_path}")
-    (filter (> (col "col_a") (lit 100.0)))
-    (with-column (col "ratio") (/ (col "col_b") (col "col_c")))
-    (group-by (col "category")
-              (alias (mean (col "col_a")) "avg_a")
-              (alias (sum (col "ratio")) "total_ratio")
-              (alias (count) "n_count"))
-    (sort (col "avg_a") :desc)
-    (collect))
+(nth (time-expr (-> (read-parquet "{data_path}")
+                (filter (> (col "col_a") (lit 100.0)))
+                (with-column (col "ratio") (/ (col "col_b") (col "col_c")))
+                (group-by (col "category")
+                        (alias (mean (col "col_a")) "avg_a")
+                        (alias (sum (col "ratio")) "total_ratio")
+                        (alias (count) "n_count"))
+                (sort (col "avg_a") :desc)
+                (collect :streaming)))
+    1)
 """
 
 
-def run_mlisp():
+def run_mlisp() -> float:
     proc = subprocess.run(
         ["./target/release/mlisp", QUERY_FILE],
         stdout=subprocess.PIPE,
@@ -61,15 +62,23 @@ def run_mlisp():
         text=True,
     )
     if proc.returncode != 0:
-        raise RuntimeError(f"MLisp execution failed:\n{proc.stderr}")
-    return proc.stdout
+        err_msg = proc.stderr.strip() or proc.stdout.strip()
+        raise RuntimeError(f"MLisp execution failed:\n{err_msg}")
+
+    output = proc.stdout.strip().splitlines()
+    elapsed_secs = float(output[-1])
+    return elapsed_secs * 1000.0
 
 
-def run_python_polars():
+def run_python_polars() -> float:
+    start = time.perf_counter()
+
     q = (
         pl.scan_parquet(DATA_FILE)
         .filter(pl.col("col_a") > 100.0)
-        .with_columns((pl.col("col_b") / pl.col("col_c")).alias("ratio"))
+        .with_columns(
+            (pl.col("col_b") / pl.col("col_c")).alias("ratio")
+        )
         .group_by("category")
         .agg(
             pl.col("col_a").mean().alias("avg_a"),
@@ -78,10 +87,12 @@ def run_python_polars():
         )
         .sort("avg_a", descending=True)
     )
-    return q.collect()
+
+    _ = q.collect(engine="streaming")
+    return (time.perf_counter() - start) * 1000.0
 
 
-def run_duckdb():
+def run_duckdb() -> float:
     query = f"""
     SELECT
         category,
@@ -93,10 +104,13 @@ def run_duckdb():
     GROUP BY category
     ORDER BY avg_a DESC
     """
-    return duckdb.sql(query).fetchall()
+    start = time.perf_counter()
+    _ = duckdb.sql(query).fetchall()
+    return (time.perf_counter() - start) * 1000.0
 
 
-def run_pandas():
+def run_pandas() -> float:
+    start = time.perf_counter()
     df = pd.read_parquet(
         DATA_FILE,
         columns=["category", "col_a", "col_b", "col_c"],
@@ -105,7 +119,7 @@ def run_pandas():
     filtered = df[df["col_a"] > 100.0].copy()
     filtered["ratio"] = filtered["col_b"] / filtered["col_c"]
 
-    res = (
+    _ = (
         filtered.groupby("category", as_index=False)
         .agg(
             avg_a=("col_a", "mean"),
@@ -114,7 +128,7 @@ def run_pandas():
         )
         .sort_values(by="avg_a", ascending=False)
     )
-    return res
+    return (time.perf_counter() - start) * 1000.0
 
 
 # ---------------------------------------------------------
@@ -126,15 +140,16 @@ def benchmark_engine(runner_fn):
 
     durations = []
     for _ in range(BENCHMARK_RUNS):
-        start = time.perf_counter()
-        runner_fn()
-        durations.append((time.perf_counter() - start) * 1000)
+        # Collect duration directly from engine runner return value
+        duration_ms = runner_fn()
+        durations.append(duration_ms)
 
     return np.mean(durations)
 
 
 def plot_results(results_df: pd.DataFrame):
-    plt.figure(figsize=(10, 6), dpi=300)
+    # 1x2 side-by-side layout: left = Log scale, right = Linear scale
+    fig, (ax_log, ax_lin) = plt.subplots(1, 2, figsize=(16, 6), dpi=300)
 
     styles = {
         "MLisp": {"color": "#1f77b4", "marker": "o", "linewidth": 2.5},
@@ -147,9 +162,10 @@ def plot_results(results_df: pd.DataFrame):
         },
     }
 
+    # --- Panel 1: Log-Log Scale (Relative Complexity & Small-Scale Detail) ---
     for engine in results_df.columns:
         style = styles.get(engine, {"marker": "o", "linewidth": 2})
-        plt.plot(
+        ax_log.plot(
             results_df.index,
             results_df[engine],
             label=engine,
@@ -158,17 +174,34 @@ def plot_results(results_df: pd.DataFrame):
             color=style.get("color"),
         )
 
-    plt.xscale("log")
-    plt.yscale("log")
-    plt.xlabel("Dataset Size (Number of Rows)", fontsize=11, fontweight="bold")
-    plt.ylabel("Execution Time (ms) - Log Scale", fontsize=11, fontweight="bold")
-    plt.title(
-        "Query Scaling Benchmark: MLisp vs Other Engines",
-        fontsize=13,
-        fontweight="bold",
-    )
-    plt.grid(True, which="both", linestyle="--", alpha=0.5)
-    plt.legend(frameon=True)
+    ax_log.set_xscale("log")
+    ax_log.set_yscale("log")
+    ax_log.set_xlabel("Dataset Size (Number of Rows)", fontsize=11, fontweight="bold")
+    ax_log.set_ylabel("Execution Time (ms) - Log Scale", fontsize=11, fontweight="bold")
+    ax_log.set_title("Scaling Trend (Log-Log Scale)", fontsize=12, fontweight="bold")
+    ax_log.grid(True, which="both", linestyle="--", alpha=0.5)
+    ax_log.legend(frameon=True)
+
+    # --- Panel 2: Linear Time Scale (Absolute Runtime Differences) ---
+    for engine in results_df.columns:
+        style = styles.get(engine, {"marker": "o", "linewidth": 2})
+        ax_lin.plot(
+            results_df.index,
+            results_df[engine],
+            label=engine,
+            marker=style["marker"],
+            linewidth=style["linewidth"],
+            color=style.get("color"),
+        )
+
+    ax_lin.set_xscale("log")  # Keep row counts spaced evenly on the x-axis
+    ax_lin.set_xlabel("Dataset Size (Number of Rows)", fontsize=11, fontweight="bold")
+    ax_lin.set_ylabel("Execution Time (ms) - Linear Scale", fontsize=11, fontweight="bold")
+    ax_lin.set_title("Absolute Runtime (Linear Time Scale)", fontsize=12, fontweight="bold")
+    ax_lin.grid(True, which="both", linestyle="--", alpha=0.5)
+    ax_lin.legend(frameon=True)
+
+    plt.suptitle("Query Scaling Benchmark: MLisp vs Other Engines", fontsize=14, fontweight="bold")
     plt.tight_layout()
 
     plt.savefig(CHART_OUTPUT)
@@ -216,10 +249,10 @@ def main():
         plot_results(results_df)
 
     finally:
-        # Cleanup temporary files
-        for temp_file in [DATA_FILE, QUERY_FILE]:
-            if os.path.exists(temp_file):
-                os.remove(temp_file)
+        pass
+        #for temp_file in [DATA_FILE, QUERY_FILE]:
+        #    if os.path.exists(temp_file):
+        #        os.remove(temp_file)
 
 
 if __name__ == "__main__":

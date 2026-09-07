@@ -76,7 +76,7 @@ pub static NATIVE_FUNC_TABLE: &[(&str, NativeFunctionData)] = &[
     ("write-parquet", NativeFunctionData { body: write_parquet, min_args: 2, max_args: 2 }),
 
     // Collect
-    ("collect", NativeFunctionData { body: collect_, min_args: 1, max_args: 1 }),
+    ("collect", NativeFunctionData { body: collect_, min_args: 1, max_args: 2 }),
 
     // Inspection
     ("head", NativeFunctionData { body: head, min_args: 1, max_args: 1 }),
