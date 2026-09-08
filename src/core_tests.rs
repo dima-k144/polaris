@@ -918,7 +918,7 @@ mod tests {
             (define total 0)
             (for i 1 5
                 (set total (+ total i)))
-            total
+            (lookup total)
         "#
         .to_string();
 
@@ -943,7 +943,7 @@ mod tests {
             (define total 0)
             (for i 0 10 2
                 (set total (+ total i)))
-            total
+            (lookup total)
         "#
         .to_string();
 
@@ -959,7 +959,7 @@ mod tests {
             (define total 0)
             (for i 10 0 -3
                 (set total (+ total i)))
-            total
+            (lookup total)
         "#
         .to_string();
 
@@ -983,7 +983,7 @@ mod tests {
             (define run false)
             (for i 5 5
                 (set run true))
-            run
+            (lookup run)
         "#
         .to_string();
 
@@ -1007,7 +1007,7 @@ mod tests {
             (define i 999)
             (for i 0 3
                 (+ i 1))
-            i
+            (lookup i)
         "#
         .to_string();
 
@@ -1031,7 +1031,7 @@ mod tests {
             (define acc 1)
             (for-each item '(2 3 4)
                 (set acc (* acc item)))
-            acc
+            (lookup acc)
         "#
         .to_string();
 
@@ -1055,7 +1055,7 @@ mod tests {
             (define counter 0)
             (for-each x '()
                 (set counter (+ counter 1)))
-            counter
+            (lookup counter)
         "#
         .to_string();
 

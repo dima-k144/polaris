@@ -1,186 +1,581 @@
 use crate::types::Error;
 
-fn strip_comments(s: &str) -> &str {
-    let mut in_str = false;
-    let mut escape = false;
-    for (i, c) in s.char_indices() {
-        if escape {
-            escape = false;
-            continue;
-        }
-        if c == '\\' {
-            escape = true;
-        } else if c == '"' {
-            in_str = !in_str;
-        } else if c == ';' && !in_str {
-            return &s[..i];
+#[derive(Debug, Clone)]
+struct LogicalLine {
+    line_number: usize,
+    indent: usize,
+    prefix: String,
+    text: String,
+    continuation: bool,
+    traditional: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct DelimiterState {
+    paren: usize,
+    bracket: usize,
+    brace: usize,
+    in_string: bool,
+    escaped: bool,
+}
+
+impl DelimiterState {
+    fn new() -> Self {
+        Self {
+            paren: 0,
+            bracket: 0,
+            brace: 0,
+            in_string: false,
+            escaped: false,
         }
     }
-    s
+
+    fn depth(&self) -> usize {
+        self.paren + self.bracket + self.brace
+    }
+
+    fn balanced(&self) -> bool {
+        self.depth() == 0 && !self.in_string
+    }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Indentation {
-    TwoSpaces,
-    FourSpaces,
-    Tabs,
-}
+/// Remove a semicolon comment while preserving semicolons inside strings.
+fn strip_comment(line: &str) -> &str {
+    let mut in_string = false;
+    let mut escaped = false;
 
-pub fn detect_indentation(source: &str) -> Result<Indentation, Error> {
-    let mut detected: Option<Indentation> = None;
-    let mut saw_odd_2_space_multiple = false; // Tracks if we ever saw 2, 6, 10 spaces
-
-    for (line_idx, line) in source.lines().enumerate() {
-        let line_num = line_idx + 1;
-
-        // Skip completely empty lines or whitespace-only lines
-        if line.trim().is_empty() {
-            continue;
-        }
-
-        let mut space_count = 0;
-        let mut tab_count = 0;
-
-        for ch in line.chars() {
+    for (index, ch) in line.char_indices() {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if ch == '\\' {
+                escaped = true;
+            } else if ch == '"' {
+                in_string = false;
+            }
+        } else {
             match ch {
-                ' ' => space_count += 1,
-                '\t' => tab_count += 1,
-                _ => break, // Hit first non-whitespace character
+                '"' => in_string = true,
+                ';' => return &line[..index],
+                _ => {}
             }
         }
+    }
 
-        // Line is not indented
-        if space_count == 0 && tab_count == 0 {
+    line
+}
+
+/// Count indentation columns.
+///
+/// Spaces count as one column and tabs count as four columns. Wisp levels
+/// are relative, so this does not impose a fixed indentation width.
+fn indentation_width(line: &str) -> usize {
+    let mut width = 0;
+
+    for ch in line.chars() {
+        match ch {
+            ' ' => width += 1,
+            '\t' => width += 4,
+            _ => break,
+        }
+    }
+
+    width
+}
+
+/// Return the original indentation prefix.
+fn leading_whitespace(line: &str) -> String {
+    line.chars()
+        .take_while(|ch| *ch == ' ' || *ch == '\t')
+        .collect()
+}
+
+/// Convert `\:` into a literal colon.
+///
+/// Underscore indentation is intentionally not implemented.
+fn unescape_colons(text: &str) -> String {
+    let mut result = String::new();
+    let mut chars = text.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '\\' && chars.peek() == Some(&':') {
+            chars.next();
+            result.push(':');
+        } else {
+            result.push(ch);
+        }
+    }
+
+    result
+}
+
+/// Scan delimiters in one physical line.
+///
+/// This is used for traditional Scheme expressions so that line breaks
+/// inside `()`, `[]`, `{}`, and strings are not interpreted as Wisp lines.
+fn scan_delimiters(
+    line: &str,
+    state: &mut DelimiterState,
+) -> Result<(), Error> {
+    let mut in_comment = false;
+
+    for ch in line.chars() {
+        if in_comment {
             continue;
         }
 
-        // Error: mixing spaces and tabs on the very same line
-        if space_count > 0 && tab_count > 0 {
-            return Err(Error::MixedWithinLine(line_num));
+        if state.in_string {
+            if state.escaped {
+                state.escaped = false;
+            } else if ch == '\\' {
+                state.escaped = true;
+            } else if ch == '"' {
+                state.in_string = false;
+            }
+
+            continue;
         }
 
-        // 1. Tab indentation branch
-        if tab_count > 0 {
-            match detected {
-                Some(Indentation::Tabs) => continue,
-                Some(_) => return Err(Error::MixedAcrossFile(line_num)),
-                None => detected = Some(Indentation::Tabs),
-            }
-        }
-
-        // 2. Space indentation branch
-        if space_count > 0 {
-            if space_count % 2 != 0 {
-                return Err(Error::AmbiguousSpaces(line_num));
+        match ch {
+            ';' => {
+                in_comment = true;
             }
 
-            match detected {
-                Some(Indentation::Tabs) => {
-                    return Err(Error::MixedAcrossFile(line_num));
-                }
-                Some(Indentation::FourSpaces) => {
-                    if space_count % 4 != 0 {
-                        // A line with 2, 6, 10 spaces conflicts with a confirmed 4-space file
-                        return Err(Error::MixedAcrossFile(line_num));
-                    }
-                }
-                Some(Indentation::TwoSpaces) => {
-                    // Already confirmed 2 spaces, any multiple of 2 is valid
-                    continue;
-                }
-                None => {
-                    // If divisible by 4, it could still be either (e.g. 4 spaces can mean 2 levels of 2-spaces)
-                    if space_count % 4 == 0 {
-                        // Mark tentatively, will be refined if we hit 2 or 6 spaces later
-                        detected = Some(Indentation::FourSpaces);
-                    } else {
-                        // e.g. 2, 6, 10 spaces -> definitely 2-space indentation
-                        detected = Some(Indentation::TwoSpaces);
-                        saw_odd_2_space_multiple = true;
-                    }
-                }
+            '"' => {
+                state.in_string = true;
             }
 
-            // If we tentatively guessed FourSpaces but later hit an odd multiple of 2 (like 2 or 6 spaces)
-            if detected == Some(Indentation::FourSpaces) && space_count % 4 != 0 {
-                detected = Some(Indentation::TwoSpaces);
-                saw_odd_2_space_multiple = true;
+            '(' => {
+                state.paren += 1;
             }
+
+            ')' => {
+                if state.paren == 0 {
+                    return Err(Error::UnexpectedClosedParen);
+                }
+
+                state.paren -= 1;
+            }
+
+            '[' => {
+                state.bracket += 1;
+            }
+
+            ']' => {
+                if state.bracket == 0 {
+                    return Err(Error::Custom(
+                        "unexpected ']' while preprocessing Wisp".into(),
+                    ));
+                }
+
+                state.bracket -= 1;
+            }
+
+            '{' => {
+                state.brace += 1;
+            }
+
+            '}' => {
+                if state.brace == 0 {
+                    return Err(Error::Custom(
+                        "unexpected '}' while preprocessing Wisp".into(),
+                    ));
+                }
+
+                state.brace -= 1;
+            }
+
+            _ => {}
         }
     }
 
-    match detected {
-        Some(value) => Ok(value),
-        None => Ok(Indentation::FourSpaces),
-    }
+    Ok(())
 }
 
-fn indent(line: &str, indent_type: &Indentation) -> usize {
-    if line.trim().is_empty() {
-        0
-    } else {
-        match indent_type {
-            Indentation::TwoSpaces => (line.len() - line.trim_start_matches(' ').len()) / 2,
-            Indentation::FourSpaces => (line.len() - line.trim_start_matches(' ').len()) / 4,
-            Indentation::Tabs => line.len() - line.trim_start_matches('\t').len(),
-        }
-    }
+/// A line beginning with `(`, `[`, or `{` starts traditional Lisp syntax.
+fn starts_traditional_expression(text: &str) -> bool {
+    matches!(
+        text.chars().next(),
+        Some('(') | Some('[') | Some('{')
+    )
 }
 
+/// Replace Wisp inline colons.
+///
+/// Examples:
+///
+/// ```text
+/// a : b
+/// ```
+///
+/// becomes:
+///
+/// ```text
+/// a (b)
+/// ```
+///
+/// Colons inside strings and ordinary parenthesized expressions are ignored.
+fn transform_inline_colons(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+
+    let mut output = String::new();
+    let mut fragment = String::new();
+
+    let mut in_string = false;
+    let mut escaped = false;
+    let mut delimiter_depth = 0usize;
+    let mut inline_colons = 0usize;
+    let mut skip_whitespace_after_colon = false;
+
+    for index in 0..chars.len() {
+        let ch = chars[index];
+
+        if in_string {
+            fragment.push(ch);
+
+            if escaped {
+                escaped = false;
+            } else if ch == '\\' {
+                escaped = true;
+            } else if ch == '"' {
+                in_string = false;
+            }
+
+            continue;
+        }
+
+        /*
+         * Do not preserve the whitespace after an inline colon:
+         *
+         *     a : b
+         *
+         * should become:
+         *
+         *     a (b)
+         */
+        if skip_whitespace_after_colon && ch.is_whitespace() {
+            continue;
+        }
+
+        skip_whitespace_after_colon = false;
+
+        match ch {
+            '"' => {
+                in_string = true;
+                fragment.push(ch);
+            }
+
+            '(' | '[' | '{' => {
+                delimiter_depth += 1;
+                fragment.push(ch);
+            }
+
+            ')' | ']' | '}' => {
+                delimiter_depth = delimiter_depth.saturating_sub(1);
+                fragment.push(ch);
+            }
+
+            ':' if delimiter_depth == 0 => {
+                let before_is_whitespace =
+                    index == 0 || chars[index - 1].is_whitespace();
+
+                let after_is_whitespace =
+                    index + 1 == chars.len() || chars[index + 1].is_whitespace();
+
+                if before_is_whitespace && after_is_whitespace {
+                    /*
+                     * Remove whitespace before the colon.
+                     */
+                    while fragment.ends_with(char::is_whitespace) {
+                        fragment.pop();
+                    }
+
+                    output.push_str(&fragment);
+                    fragment.clear();
+
+                    /*
+                     * Add exactly one separator before the generated list.
+                     *
+                     * This is the part that fixes:
+                     *
+                     *     a(b)
+                     *
+                     * into:
+                     *
+                     *     a (b)
+                     */
+                    if !output.is_empty()
+                        && !output.ends_with(char::is_whitespace)
+                    {
+                        output.push(' ');
+                    }
+
+                    output.push('(');
+                    inline_colons += 1;
+                    skip_whitespace_after_colon = true;
+                } else {
+                    fragment.push(ch);
+                }
+            }
+
+            _ => {
+                fragment.push(ch);
+            }
+        }
+    }
+
+    output.push_str(&fragment);
+
+    for _ in 0..inline_colons {
+        output.push(')');
+    }
+
+    output
+}
+
+/// Parse one non-empty physical line.
+fn parse_line(line_number: usize, raw_line: &str) -> Option<LogicalLine> {
+    let uncommented = strip_comment(raw_line);
+    let trimmed = uncommented.trim();
+
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let indent = indentation_width(uncommented);
+    let prefix = leading_whitespace(uncommented);
+    let text = unescape_colons(trimmed);
+
+    let continuation = text == "." || text.starts_with(". ");
+    let traditional = starts_traditional_expression(&text);
+
+    Some(LogicalLine {
+        line_number,
+        indent,
+        prefix,
+        text,
+        continuation,
+        traditional,
+    })
+}
+
+/// Convert Wisp indentation into parenthesized Lisp.
+///
+/// Traditional S-expressions are copied unchanged, including their internal
+/// indentation. Wisp lines receive generated parentheses while preserving
+/// their source indentation.
 pub fn preprocess_wisp3(input: &str) -> Result<String, Error> {
-    let indent_type = detect_indentation(input)?;
+    let source_lines: Vec<&str> = input.lines().collect();
 
-    let mut lines: Vec<String> = input.lines().map(String::from).collect();
-    lines.push("".to_string());
-    let mut i = 0;
+    /*
+     * First create logical lines. Traditional parenthesized expressions are
+     * collected as complete blocks so that their internal lines are never
+     * interpreted as Wisp syntax.
+     */
+    let mut logical_lines = Vec::<LogicalLine>::new();
+    let mut source_index = 0usize;
 
-    for i in 0..lines.len() {
-        lines[i] = strip_comments(&lines[i]).to_string()
-    }
+    while source_index < source_lines.len() {
+        let raw_line = source_lines[source_index];
 
-    while i != lines.len() {
-        // empty line
-        if lines[i].trim().is_empty() {
-            i += 1;
+        let Some(parsed) = parse_line(source_index + 1, raw_line) else {
+            source_index += 1;
             continue;
-        }
-
-        // traditional s exp
-        if lines[i].trim().starts_with('(') || lines[i].trim().starts_with("{") {
-            while !lines[i].trim().is_empty() {
-                i += 1;
-            }
-            continue;
-        }
-
-        // add (
-        let cur_indent = indent(&lines[i], &indent_type);
-        match indent_type {
-            Indentation::TwoSpaces => lines[i].insert(cur_indent * 2, '('),
-            Indentation::FourSpaces => lines[i].insert(cur_indent * 4, '('),
-            Indentation::Tabs => lines[i].insert(cur_indent, '('),
         };
 
-        // handle :
-        if lines[i].contains(" : ") {
-            for _ in 0..lines[i].matches(" : ").count() {
-                lines[i].push(')');
+        if parsed.traditional {
+            let start_line_number = parsed.line_number;
+            let mut block = String::new();
+            let mut delimiter_state = DelimiterState::new();
+
+            loop {
+                if source_index >= source_lines.len() {
+                    return Err(Error::UnclosedListExpr);
+                }
+
+                let block_line = source_lines[source_index];
+
+                if !block.is_empty() {
+                    block.push('\n');
+                }
+
+                block.push_str(block_line);
+
+                scan_delimiters(block_line, &mut delimiter_state)?;
+                source_index += 1;
+
+                if delimiter_state.balanced() {
+                    break;
+                }
             }
-            lines[i] = lines[i].replace(" : ", " (");
+
+            logical_lines.push(LogicalLine {
+                line_number: start_line_number,
+                indent: 0,
+                prefix: String::new(),
+                text: block,
+                continuation: false,
+                traditional: true,
+            });
+
+            continue;
         }
 
-        if indent(&lines[i], &indent_type) == indent(&lines[i + 1], &indent_type) {
-            lines[i].push(')');
-        } else if indent(&lines[i], &indent_type) > indent(&lines[i + 1], &indent_type) {
-            let diff = indent(&lines[i], &indent_type) - indent(&lines[i + 1], &indent_type);
-            lines[i].push(')');
-            for _ in 0..diff {
-                lines[i].push(')');
-            }
-        }
-
-        i += 1;
+        logical_lines.push(parsed);
+        source_index += 1;
     }
 
-    Ok(lines.join("\n"))
+    let mut output_lines: Vec<String> = Vec::new();
+
+    /*
+     * Each entry represents a generated Wisp list that is currently open.
+     * Closing parentheses are appended to the previous output line.
+     */
+    let mut open_indents: Vec<usize> = Vec::new();
+
+    for index in 0..logical_lines.len() {
+        let current = &logical_lines[index];
+
+        let next_indent = logical_lines
+            .get(index + 1)
+            .map(|line| line.indent)
+            .unwrap_or(0);
+
+        /*
+         * Traditional Lisp is emitted byte-for-byte as a logical block.
+         */
+        if current.traditional {
+            output_lines.push(format!(
+                "{}{}",
+                current.prefix, current.text
+            ));
+
+            continue;
+        }
+
+        /*
+         * A Wisp continuation line does not open a generated list.
+         */
+        if current.continuation {
+            let body = current
+                .text
+                .strip_prefix('.')
+                .unwrap_or("")
+                .trim_start();
+
+            if body.is_empty() {
+                return Err(Error::Custom(format!(
+                    "Wisp syntax error on line {}: continuation requires an expression after '.'",
+                    current.line_number
+                )));
+            }
+
+            output_lines.push(format!(
+                "{}(. {})",
+                current.prefix, body
+            ));
+
+            continue;
+        }
+
+        /*
+         * Close generated lists before emitting a line at the same or lower
+         * indentation. Parentheses are attached to the preceding line.
+         */
+        while let Some(open_indent) = open_indents.last().copied() {
+            if current.indent <= open_indent {
+                let Some(previous) = output_lines.last_mut() else {
+                    return Err(Error::Custom(
+                        "internal Wisp error: missing previous output line".into(),
+                    ));
+                };
+
+                previous.push(')');
+                open_indents.pop();
+            } else {
+                break;
+            }
+        }
+
+        /*
+         * A dedent must target an already established indentation level.
+         */
+        if let Some(parent_indent) = open_indents.last().copied() {
+            if current.indent < parent_indent {
+                return Err(Error::Custom(format!(
+                    "Wisp syntax error on line {}: indentation {} does not match an existing indentation level",
+                    current.line_number,
+                    current.indent
+                )));
+            }
+        }
+
+        let transformed = transform_inline_colons(&current.text);
+
+        /*
+         * A lone colon creates an empty grouping list.
+         */
+        if transformed == ":" {
+            output_lines.push(format!("{}(", current.prefix));
+            open_indents.push(current.indent);
+            continue;
+        }
+
+        /*
+         * A normal Wisp line becomes one list.
+         */
+        output_lines.push(format!(
+            "{}({}",
+            current.prefix, transformed
+        ));
+
+        open_indents.push(current.indent);
+
+        /*
+         * If the next logical line is not more indented, this list closes on
+         * the same output line.
+         */
+        if next_indent <= current.indent {
+            let Some(previous) = output_lines.last_mut() else {
+                return Err(Error::Custom(
+                    "internal Wisp error: missing generated line".into(),
+                ));
+            };
+
+            previous.push(')');
+            open_indents.pop();
+        }
+    }
+
+    /*
+     * Close any remaining generated lists at end-of-input.
+     */
+    while open_indents.pop().is_some() {
+        let Some(last) = output_lines.last_mut() else {
+            return Err(Error::Custom(
+                "internal Wisp error: no output line to close".into(),
+            ));
+        };
+
+        last.push(')');
+    }
+
+    /*
+     * Preserve the leading and trailing newline behavior used by the tests.
+     */
+    let mut result = String::new();
+
+    if input.starts_with('\n') {
+        result.push('\n');
+    }
+
+    for (index, line) in output_lines.iter().enumerate() {
+        result.push_str(line);
+
+        if index + 1 < output_lines.len() || input.ends_with('\n') {
+            result.push('\n');
+        }
+    }
+
+    Ok(result)
 }
