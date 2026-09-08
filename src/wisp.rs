@@ -67,8 +67,8 @@ fn strip_comment(line: &str) -> &str {
 
 /// Count indentation columns.
 ///
-/// Spaces count as one column and tabs count as four columns. Wisp levels
-/// are relative, so this does not impose a fixed indentation width.
+/// Spaces count as one column. Tabs count as four columns. Wisp indentation
+/// is relative, so this does not impose a fixed indentation width.
 fn indentation_width(line: &str) -> usize {
     let mut width = 0;
 
@@ -83,36 +83,14 @@ fn indentation_width(line: &str) -> usize {
     width
 }
 
-/// Return the original indentation prefix.
+/// Return the original leading whitespace.
 fn leading_whitespace(line: &str) -> String {
     line.chars()
         .take_while(|ch| *ch == ' ' || *ch == '\t')
         .collect()
 }
 
-/// Convert `\:` into a literal colon.
-///
-/// Underscore indentation is intentionally not implemented.
-fn unescape_colons(text: &str) -> String {
-    let mut result = String::new();
-    let mut chars = text.chars().peekable();
-
-    while let Some(ch) = chars.next() {
-        if ch == '\\' && chars.peek() == Some(&':') {
-            chars.next();
-            result.push(':');
-        } else {
-            result.push(ch);
-        }
-    }
-
-    result
-}
-
-/// Scan delimiters in one physical line.
-///
-/// This is used for traditional Scheme expressions so that line breaks
-/// inside `()`, `[]`, `{}`, and strings are not interpreted as Wisp lines.
+/// Scan parentheses, brackets, braces, and strings in a physical line.
 fn scan_delimiters(
     line: &str,
     state: &mut DelimiterState,
@@ -192,7 +170,7 @@ fn scan_delimiters(
     Ok(())
 }
 
-/// A line beginning with `(`, `[`, or `{` starts traditional Lisp syntax.
+/// A line beginning with a delimiter starts traditional Lisp syntax.
 fn starts_traditional_expression(text: &str) -> bool {
     matches!(
         text.chars().next(),
@@ -200,9 +178,38 @@ fn starts_traditional_expression(text: &str) -> bool {
     )
 }
 
+/// Parse one non-empty physical line.
+///
+/// Escaped colons are deliberately preserved here. They must remain escaped
+/// until `transform_inline_colons` sees them.
+fn parse_line(line_number: usize, raw_line: &str) -> Option<LogicalLine> {
+    let uncommented = strip_comment(raw_line);
+    let trimmed = uncommented.trim();
+
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let indent = indentation_width(uncommented);
+    let prefix = leading_whitespace(uncommented);
+    let text = trimmed.to_string();
+
+    let continuation = text == "." || text.starts_with(". ");
+    let traditional = starts_traditional_expression(&text);
+
+    Some(LogicalLine {
+        line_number,
+        indent,
+        prefix,
+        text,
+        continuation,
+        traditional,
+    })
+}
+
 /// Replace Wisp inline colons.
 ///
-/// Examples:
+/// An unescaped whitespace-surrounded colon opens a list:
 ///
 /// ```text
 /// a : b
@@ -214,7 +221,19 @@ fn starts_traditional_expression(text: &str) -> bool {
 /// a (b)
 /// ```
 ///
-/// Colons inside strings and ordinary parenthesized expressions are ignored.
+/// An escaped colon is literal:
+///
+/// ```text
+/// a \: b
+/// ```
+///
+/// becomes:
+///
+/// ```text
+/// a : b
+/// ```
+///
+/// Colons inside strings and ordinary nested expressions are ignored.
 fn transform_inline_colons(text: &str) -> String {
     let chars: Vec<char> = text.chars().collect();
 
@@ -222,38 +241,49 @@ fn transform_inline_colons(text: &str) -> String {
     let mut fragment = String::new();
 
     let mut in_string = false;
-    let mut escaped = false;
+    let mut escaped_in_string = false;
     let mut delimiter_depth = 0usize;
     let mut inline_colons = 0usize;
     let mut skip_whitespace_after_colon = false;
 
-    for index in 0..chars.len() {
+    let mut index = 0usize;
+
+    while index < chars.len() {
         let ch = chars[index];
 
         if in_string {
             fragment.push(ch);
 
-            if escaped {
-                escaped = false;
+            if escaped_in_string {
+                escaped_in_string = false;
             } else if ch == '\\' {
-                escaped = true;
+                escaped_in_string = true;
             } else if ch == '"' {
                 in_string = false;
             }
 
+            index += 1;
             continue;
         }
 
         /*
-         * Do not preserve the whitespace after an inline colon:
-         *
-         *     a : b
-         *
-         * should become:
-         *
-         *     a (b)
+         * Escaped colon: emit the colon literally and do not treat it as
+         * Wisp syntax.
+         */
+        if ch == '\\'
+            && index + 1 < chars.len()
+            && chars[index + 1] == ':'
+        {
+            fragment.push(':');
+            index += 2;
+            continue;
+        }
+
+        /*
+         * Remove whitespace following an inline Wisp colon.
          */
         if skip_whitespace_after_colon && ch.is_whitespace() {
+            index += 1;
             continue;
         }
 
@@ -286,7 +316,12 @@ fn transform_inline_colons(text: &str) -> String {
                     /*
                      * Remove whitespace before the colon.
                      */
-                    while fragment.ends_with(char::is_whitespace) {
+                    while fragment
+                        .chars()
+                        .last()
+                        .map(|ch| ch.is_whitespace())
+                        .unwrap_or(false)
+                    {
                         fragment.pop();
                     }
 
@@ -294,15 +329,7 @@ fn transform_inline_colons(text: &str) -> String {
                     fragment.clear();
 
                     /*
-                     * Add exactly one separator before the generated list.
-                     *
-                     * This is the part that fixes:
-                     *
-                     *     a(b)
-                     *
-                     * into:
-                     *
-                     *     a (b)
+                     * Keep one separator before the generated list.
                      */
                     if !output.is_empty()
                         && !output.ends_with(char::is_whitespace)
@@ -322,6 +349,8 @@ fn transform_inline_colons(text: &str) -> String {
                 fragment.push(ch);
             }
         }
+
+        index += 1;
     }
 
     output.push_str(&fragment);
@@ -333,44 +362,18 @@ fn transform_inline_colons(text: &str) -> String {
     output
 }
 
-/// Parse one non-empty physical line.
-fn parse_line(line_number: usize, raw_line: &str) -> Option<LogicalLine> {
-    let uncommented = strip_comment(raw_line);
-    let trimmed = uncommented.trim();
-
-    if trimmed.is_empty() {
-        return None;
-    }
-
-    let indent = indentation_width(uncommented);
-    let prefix = leading_whitespace(uncommented);
-    let text = unescape_colons(trimmed);
-
-    let continuation = text == "." || text.starts_with(". ");
-    let traditional = starts_traditional_expression(&text);
-
-    Some(LogicalLine {
-        line_number,
-        indent,
-        prefix,
-        text,
-        continuation,
-        traditional,
-    })
-}
-
-/// Convert Wisp indentation into parenthesized Lisp.
+/// Convert Wisp indentation into ordinary parenthesized Lisp.
 ///
-/// Traditional S-expressions are copied unchanged, including their internal
-/// indentation. Wisp lines receive generated parentheses while preserving
-/// their source indentation.
+/// Traditional parenthesized expressions are preserved as complete blocks.
+/// Wisp lines receive generated parentheses while retaining source
+/// indentation in the output.
 pub fn preprocess_wisp3(input: &str) -> Result<String, Error> {
     let source_lines: Vec<&str> = input.lines().collect();
 
     /*
-     * First create logical lines. Traditional parenthesized expressions are
-     * collected as complete blocks so that their internal lines are never
-     * interpreted as Wisp syntax.
+     * First group physical lines into logical lines. A traditional
+     * parenthesized expression is collected as one complete block so that
+     * its internal lines are never interpreted as Wisp.
      */
     let mut logical_lines = Vec::<LogicalLine>::new();
     let mut source_index = 0usize;
@@ -385,6 +388,9 @@ pub fn preprocess_wisp3(input: &str) -> Result<String, Error> {
 
         if parsed.traditional {
             let start_line_number = parsed.line_number;
+            let original_indent = parsed.indent;
+            let original_prefix = parsed.prefix.clone();
+
             let mut block = String::new();
             let mut delimiter_state = DelimiterState::new();
 
@@ -409,10 +415,15 @@ pub fn preprocess_wisp3(input: &str) -> Result<String, Error> {
                 }
             }
 
+            /*
+             * Preserve the traditional block's original indentation. Its
+             * indentation determines whether it belongs to an open Wisp
+             * expression, but its contents remain untouched.
+             */
             logical_lines.push(LogicalLine {
                 line_number: start_line_number,
-                indent: 0,
-                prefix: String::new(),
+                indent: original_indent,
+                prefix: original_prefix,
                 text: block,
                 continuation: false,
                 traditional: true,
@@ -428,8 +439,7 @@ pub fn preprocess_wisp3(input: &str) -> Result<String, Error> {
     let mut output_lines: Vec<String> = Vec::new();
 
     /*
-     * Each entry represents a generated Wisp list that is currently open.
-     * Closing parentheses are appended to the previous output line.
+     * Each entry represents a generated Wisp list that is still open.
      */
     let mut open_indents: Vec<usize> = Vec::new();
 
@@ -442,19 +452,37 @@ pub fn preprocess_wisp3(input: &str) -> Result<String, Error> {
             .unwrap_or(0);
 
         /*
-         * Traditional Lisp is emitted byte-for-byte as a logical block.
+         * Close generated Wisp lists before processing the current line.
+         * Closing parentheses are appended to the previous output line.
+         */
+        while let Some(open_indent) = open_indents.last().copied() {
+            if current.indent <= open_indent {
+                let Some(previous) = output_lines.last_mut() else {
+                    return Err(Error::Custom(
+                        "internal Wisp error: missing previous output line".into(),
+                    ));
+                };
+
+                previous.push(')');
+                open_indents.pop();
+            } else {
+                break;
+            }
+        }
+
+        /*
+         * A traditional block is already valid Lisp. Emit it unchanged.
+         *
+         * Its indentation was still used above to decide whether the
+         * preceding Wisp expression remains open.
          */
         if current.traditional {
-            output_lines.push(format!(
-                "{}{}",
-                current.prefix, current.text
-            ));
-
+            output_lines.push(current.text.clone());
             continue;
         }
 
         /*
-         * A Wisp continuation line does not open a generated list.
+         * A continuation line does not open a generated Wisp list.
          */
         if current.continuation {
             let body = current
@@ -479,50 +507,18 @@ pub fn preprocess_wisp3(input: &str) -> Result<String, Error> {
         }
 
         /*
-         * Close generated lists before emitting a line at the same or lower
-         * indentation. Parentheses are attached to the preceding line.
-         */
-        while let Some(open_indent) = open_indents.last().copied() {
-            if current.indent <= open_indent {
-                let Some(previous) = output_lines.last_mut() else {
-                    return Err(Error::Custom(
-                        "internal Wisp error: missing previous output line".into(),
-                    ));
-                };
-
-                previous.push(')');
-                open_indents.pop();
-            } else {
-                break;
-            }
-        }
-
-        /*
-         * A dedent must target an already established indentation level.
-         */
-        if let Some(parent_indent) = open_indents.last().copied() {
-            if current.indent < parent_indent {
-                return Err(Error::Custom(format!(
-                    "Wisp syntax error on line {}: indentation {} does not match an existing indentation level",
-                    current.line_number,
-                    current.indent
-                )));
-            }
-        }
-
-        let transformed = transform_inline_colons(&current.text);
-
-        /*
          * A lone colon creates an empty grouping list.
          */
-        if transformed == ":" {
+        if current.text == ":" {
             output_lines.push(format!("{}(", current.prefix));
             open_indents.push(current.indent);
             continue;
         }
 
+        let transformed = transform_inline_colons(&current.text);
+
         /*
-         * A normal Wisp line becomes one list.
+         * Every ordinary Wisp line opens one generated list.
          */
         output_lines.push(format!(
             "{}({}",
@@ -532,13 +528,13 @@ pub fn preprocess_wisp3(input: &str) -> Result<String, Error> {
         open_indents.push(current.indent);
 
         /*
-         * If the next logical line is not more indented, this list closes on
+         * If the next logical line is not more indented, close this list on
          * the same output line.
          */
         if next_indent <= current.indent {
             let Some(previous) = output_lines.last_mut() else {
                 return Err(Error::Custom(
-                    "internal Wisp error: missing generated line".into(),
+                    "internal Wisp error: missing generated output line".into(),
                 ));
             };
 
@@ -548,7 +544,7 @@ pub fn preprocess_wisp3(input: &str) -> Result<String, Error> {
     }
 
     /*
-     * Close any remaining generated lists at end-of-input.
+     * Close lists remaining at end-of-input.
      */
     while open_indents.pop().is_some() {
         let Some(last) = output_lines.last_mut() else {
