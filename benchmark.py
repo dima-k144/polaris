@@ -1,8 +1,11 @@
 import argparse
+import csv
+from datetime import datetime, timezone
 import os
 import subprocess
 import sys
 import time
+import uuid
 import duckdb
 import matplotlib.pyplot as plt
 import numpy as np
@@ -388,20 +391,25 @@ def run_command(cmd: list[str]) -> float:
 # ---------------------------------------------------------
 # Допоміжні функції виконання та побудови графіків
 # ---------------------------------------------------------
-def benchmark_runner(runner_fn, *args):
-    for _ in range(WARMUP_RUNS):
-        runner_fn(*args)
-
+def benchmark_runner(runner_fn, *args, record_run=None):
     durations = []
-    for _ in range(BENCHMARK_RUNS):
-        durations.append(runner_fn(*args))
+    for phase, run_count in [("warmup", WARMUP_RUNS), ("benchmark", BENCHMARK_RUNS)]:
+        for run_number in range(1, run_count + 1):
+            try:
+                elapsed_ms = runner_fn(*args)
+            except Exception as exc:
+                if record_run is not None:
+                    record_run(phase, run_number, "", "error", str(exc))
+                raise
+            if record_run is not None:
+                record_run(phase, run_number, elapsed_ms, "ok", "")
+            if phase == "benchmark":
+                durations.append(elapsed_ms)
 
     return np.mean(durations)
 
 
 def plot_results(results_df: pd.DataFrame, title: str, output_file: str):
-    fig, (ax_log, ax_lin) = plt.subplots(1, 2, figsize=(16, 6), dpi=300)
-
     styles = {
         "MLisp": {"color": "#1f77b4", "marker": "o", "linewidth": 2.5},          # Blue
         "Polars (Python)": {"color": "#ff7f0e", "marker": "s", "linewidth": 2}, # Orange
@@ -411,47 +419,36 @@ def plot_results(results_df: pd.DataFrame, title: str, output_file: str):
         #"Julia (DataFrames)": {"color": "#17becf", "marker": "v", "linewidth": 2}, # Cyan / Teal
     }
 
-    for engine in results_df.columns:
-        style = styles.get(engine, {"marker": "o", "linewidth": 2})
-        ax_log.plot(
-            results_df.index,
-            results_df[engine],
-            label=engine,
-            marker=style["marker"],
-            linewidth=style["linewidth"],
-            color=style.get("color"),
-        )
-        ax_lin.plot(
-            results_df.index,
-            results_df[engine],
-            label=engine,
-            marker=style["marker"],
-            linewidth=style["linewidth"],
-            color=style.get("color"),
-        )
+    output_stem, output_ext = os.path.splitext(output_file)
+    output_ext = output_ext or ".png"
+    figures = []
+    for scale, subtitle, ylabel in [
+        ("log", "Логарифмічний граф часу", "Час виконання (мс) — логарифмічна шкала"),
+        ("linear", "Лінійний граф часу", "Час виконання (мс) — лінійна шкала"),
+    ]:
+        fig, ax = plt.subplots(figsize=(8, 6), dpi=300)
+        for engine in results_df.columns:
+            style = styles.get(engine, {"marker": "o", "linewidth": 2})
+            ax.plot(results_df.index, results_df[engine], label=engine, **style)
 
-    # Лог-лог шкала
-    ax_log.set_xscale("log")
-    ax_log.set_yscale("log")
-    ax_log.set_xlabel("Розмір датасету (кількість рядків)", fontsize=11, fontweight="bold")
-    ax_log.set_ylabel("Час виконання (мс) — логарифмічна шкала", fontsize=11, fontweight="bold")
-    ax_log.set_title("Логарифмічний граф часу", fontsize=12, fontweight="bold")
-    ax_log.grid(True, which="both", linestyle="--", alpha=0.5)
-    ax_log.legend(frameon=True)
+        ax.set_xscale("log")
+        ax.set_yscale(scale)
+        ax.set_xlabel("Розмір датасету (кількість рядків)", fontsize=11, fontweight="bold")
+        ax.set_ylabel(ylabel, fontsize=11, fontweight="bold")
+        ax.set_title(subtitle, fontsize=12, fontweight="bold")
+        ax.grid(True, which="both", linestyle="--", alpha=0.5)
+        ax.legend(frameon=True)
+        fig.suptitle(title, fontsize=14, fontweight="bold")
+        fig.tight_layout()
+        image_path = f"{output_stem}_{scale}{output_ext}"
+        fig.savefig(image_path)
+        figures.append(fig)
+        print(f"\nГрафік успішно збережено до: {image_path}")
 
-    # Лінійна шкала
-    ax_lin.set_xscale("log")
-    ax_lin.set_xlabel("Розмір датасету (кількість рядків)", fontsize=11, fontweight="bold")
-    ax_lin.set_ylabel("Час виконання (мс) — лінійна шкала", fontsize=11, fontweight="bold")
-    ax_lin.set_title("Лінійний граф часу", fontsize=12, fontweight="bold")
-    ax_lin.grid(True, which="both", linestyle="--", alpha=0.5)
-    ax_lin.legend(frameon=True)
-
-    plt.suptitle(title, fontsize=14, fontweight="bold")
-    plt.tight_layout()
-    plt.savefig(output_file)
-    print(f"\nГрафік успішно збережено до: {output_file}")
     plt.show()
+    for fig in figures:
+        plt.close(fig)
+
 
 VERIFY_OUTPUT = "temp_mlisp_verify_result.parquet"
 
@@ -482,10 +479,7 @@ def run_verify():
         process_code = f.read()
 
     verify_process_code = process_code.rstrip()
-    if verify_process_code.endswith("collect"):
-        verify_process_code = verify_process_code[:-7] + f'sink "{VERIFY_OUTPUT}"'
-    else:
-        verify_process_code += f'\n    sink "{VERIFY_OUTPUT}"'
+    verify_process_code = verify_process_code.replace("collect :streaming", f"sink \"{VERIFY_OUTPUT}\"")
 
     with open(MLISP_SCRIPT, "w") as f:
         f.write(verify_process_code)
@@ -518,6 +512,11 @@ def main():
         choices=["in-process", "process", "verify"],
         default="in-process",
         help="Режим бенчмарку: 'in-process' (чистий час запиту) або 'process' (повний запуск процесу CLI).",
+    )
+    parser.add_argument(
+        "--csv-output",
+        default="benchmark_all_runs.csv",
+        help="CSV для всіх запусків; нові сесії додаються до наявного файлу.",
     )
     args = parser.parse_args()
 
@@ -556,7 +555,21 @@ def main():
 
     all_data = {engine_name: [] for engine_name, _ in engines}
 
+    session_id = f"{datetime.now(timezone.utc).isoformat()}_{uuid.uuid4().hex[:8]}"
+    csv_columns = ["session_id", "mode", "rows", "engine", "phase", "run", "elapsed_ms", "status", "error"]
+    csv_file = None
     try:
+        # Append sessions to one CSV, preserving results from previous invocations.
+        if os.path.exists(args.csv_output) and os.path.getsize(args.csv_output) > 0:
+            with open(args.csv_output, newline="", encoding="utf-8") as existing:
+                if next(csv.reader(existing), None) != csv_columns:
+                    raise ValueError(f"Несумісний заголовок CSV: {args.csv_output}")
+        csv_file = open(args.csv_output, "a", newline="", encoding="utf-8")
+        writer = csv.writer(csv_file)
+        if csv_file.tell() == 0:
+            writer.writerow(csv_columns)
+            csv_file.flush()
+
         for rows in ROW_SIZES:
             print(f"\n--- [{args.mode.upper()}] Тестування на датасеті: {rows:,} рядків ---")
             current_data_file = ensure_dataset(rows)
@@ -567,7 +580,14 @@ def main():
             for name, runner_fn in engines:
                 print(f"  Тестування {name}...")
                 try:
-                    mean_ms = benchmark_runner(runner_fn, current_data_file)
+                    def record_run(phase, run_number, elapsed_ms, status, error):
+                        writer.writerow([session_id, args.mode, rows, name, phase,
+                                         run_number, elapsed_ms, status, error])
+                        csv_file.flush()
+
+                    mean_ms = benchmark_runner(
+                        runner_fn, current_data_file, record_run=record_run
+                    )
                     all_data[name].append(mean_ms)
                     print(f"    -> {mean_ms:.2f} мс")
                 except Exception as e:
@@ -582,9 +602,12 @@ def main():
         print("=" * 65)
         print(results_df.to_string())
 
+        print(f"\nРезультати всіх запусків збережено до: {args.csv_output}")
         plot_results(results_df, title, chart_output)
 
     finally:
+        if csv_file is not None:
+            csv_file.close()
         for f in [
             MLISP_SCRIPT,
             POLARS_SCRIPT,
