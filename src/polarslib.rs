@@ -1767,6 +1767,12 @@ pub fn describe(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> 
     Ok(new_lazy_frame(lf.select(stats_exprs)))
 }
 
+pub fn explain(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
+    let lf = args[0].clone().expect_lazy_frame()?;
+    let plan = lf.explain(true).map_err(|e| Error::PolarsError(e))?;
+    Ok(new_string(plan))
+}
+
 pub fn any_value_to_expr(val: AnyValue) -> Expr {
     match val {
         AnyValue::Null => nil(),

@@ -85,6 +85,7 @@ pub static NATIVE_FUNC_TABLE: &[(&str, NativeFunctionData)] = &[
     ("schema", NativeFunctionData { body: schema, min_args: 1, max_args: 1 }),
     ("shape", NativeFunctionData { body: shape, min_args: 1, max_args: 1 }),
     ("describe", NativeFunctionData { body: crate::polarslib::describe, min_args: 1, max_args: 1 }),
+    ("explain", NativeFunctionData { body: crate::polarslib::explain, min_args: 1, max_args: 1 }),
 
     // Expressions & Literals
     ("col", NativeFunctionData { body: col_, min_args: 1, max_args: 1 }),

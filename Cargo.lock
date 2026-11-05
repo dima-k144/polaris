@@ -2012,20 +2012,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mlisp"
-version = "0.1.0"
-dependencies = [
- "dirs",
- "either",
- "mimalloc",
- "plotlars",
- "polars",
- "polars-ops 0.55.2",
- "polars-plan 0.55.2",
- "rustyline",
-]
-
-[[package]]
 name = "moxcms"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2436,6 +2422,20 @@ dependencies = [
  "fdeflate",
  "flate2",
  "miniz_oxide",
+]
+
+[[package]]
+name = "polaris"
+version = "0.1.0"
+dependencies = [
+ "dirs",
+ "either",
+ "mimalloc",
+ "plotlars",
+ "polars",
+ "polars-ops 0.55.2",
+ "polars-plan 0.55.2",
+ "rustyline",
 ]
 
 [[package]]

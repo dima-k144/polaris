@@ -166,14 +166,14 @@ fn repl() {
     };
 
     // Optional: Load history from a persistent file
-    let history_path = dirs::home_dir().map(|p| p.join(".mlisp_history"));
+    let history_path = dirs::home_dir().map(|p| p.join(".polaris_history"));
     if let Some(ref path) = history_path {
         let _ = rl.load_history(path);
     }
 
     loop {
         // Read input with prompt (Up/Down arrows work here)
-        let readline = rl.readline("mlisp > ");
+        let readline = rl.readline("polaris > ");
         match readline {
             Ok(line) => {
                 let mut input = line;
@@ -196,7 +196,7 @@ fn repl() {
                 // Add to active session history
                 let _ = rl.add_history_entry(input.as_str());
 
-                // Evaluate MLisp expression
+                // Evaluate Polaris expression
                 let mut state = interpreter::State {
                     line: 0,
                     file: None,

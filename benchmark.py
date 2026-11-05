@@ -1,6 +1,7 @@
 import argparse
 import csv
 import hashlib
+import inspect
 import json
 import platform
 import random
@@ -12,6 +13,7 @@ import sys
 import time
 import tempfile
 import uuid
+import textwrap
 import pyarrow as pa
 import pyarrow.parquet as pq
 import duckdb
@@ -21,423 +23,337 @@ import pandas as pd
 import polars as pl
 import polars.testing as pl_testing
 
-# ---------------------------------------------------------
-# Загальна конфігурація
-# ---------------------------------------------------------
+# Аналіз прибутковості продажів за місяцем, регіоном і товаром.
+# Запускати з кореня Rust-проєкту, де є target/release/polaris:
+#   python benchmark.py --mode verify
+#   python benchmark.py --mode in-process --rows 1000000 10000000 --runs 10
+# R-пакети: arrow, dplyr, lubridate. Python-залежності: як у вихідному скрипті.
+# Кожне вимірювання виконує ОДИН складний запит; повторювального циклу немає.
+# Кожен запит читає ОБИДВІ таблиці; генерація даних не входить у час.
+SCENARIO = "retail_profitability_v1"
 ROW_SIZES = [1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000]
 WARMUP_RUNS = 1
 BENCHMARK_RUNS = 10
 THREADS = max(1, len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else (os.cpu_count() or 1))
 DATASET_CHUNK_ROWS = 250_000
+PRODUCT_COUNT = 20_000
+REGION_COUNT = 12
+PRODUCT_FILE_NAME = "temp_retail_v1_products.parquet"
+GROUP_KEYS = ["month", "region_id", "product_id", "category_id"]
+MIN_TRANSACTIONS = 2
+VERIFY_COLUMNS = GROUP_KEYS + ["transaction_count", "units_sold", "revenue", "profit", "avg_order_value", "unique_customers"]
+EXACT_COLUMNS = GROUP_KEYS + ["transaction_count", "units_sold", "unique_customers"]
+FLOAT_COLUMNS = ["revenue", "profit", "avg_order_value"]
+SORT_COLUMNS = ["profit"] + GROUP_KEYS
 
-# Файли скриптів
-MLISP_BIN = "./target/release/mlisp"
-MLISP_SCRIPT = "bench_query.lsp"
+POLARIS_BIN = "./target/release/polaris"
+POLARIS_SCRIPT = "bench_query.lsp"
 POLARS_SCRIPT = "bench_polars.py"
 DUCKDB_SCRIPT = "bench_duckdb.py"
 PANDAS_SCRIPT = "bench_pandas.py"
 R_SCRIPT = "bench_r.R"
 R_INPROCESS_SCRIPT = "bench_r_inprocess.R"
-JULIA_SCRIPT = "bench_julia.jl"
-JULIA_INPROCESS_SCRIPT = "bench_julia_inprocess.jl"
 
 
 def get_data_filepath(num_rows: int) -> str:
-    """Генерує назву файлу залежно від кількості рядків."""
-    return f"temp_benchmark_data_{num_rows}.parquet"
+    # New names prevent reuse of the old category/col_a/col_b dataset.
+    return f"temp_retail_v1_transactions_{num_rows}.parquet"
 
 
-# ---------------------------------------------------------
-# Генерація синтетичних даних
-# ---------------------------------------------------------
+def product_path_for(data_file):
+    return str(Path(data_file).resolve().with_name(PRODUCT_FILE_NAME))
+
+
+def ensure_products(data_file):
+    path = Path(product_path_for(data_file))
+    if path.exists():
+        expected = {"product_id", "category_id", "unit_cost"}
+        if set(pq.read_schema(path).names) != expected or pq.ParquetFile(path).metadata.num_rows != PRODUCT_COUNT:
+            raise ValueError(f"Несумісний довідник товарів: {path}")
+        return str(path)
+    ids = np.arange(1, PRODUCT_COUNT + 1, dtype=np.int64)
+    table = pa.table({"product_id": ids, "category_id": (ids - 1) % 100 + 1,
+                      "unit_cost": 5.0 + (ids % 500) / 10.0})
+    temporary = str(path) + ".partial"
+    try:
+        pq.write_table(table, temporary, compression="zstd")
+        os.replace(temporary, path)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
+    return str(path)
+
+
 def ensure_dataset(num_rows: int) -> str:
-    """Генерує файл даних лише за умови, що він ще не існує."""
+    """Reproducible transactional data in bounded batches; no nulls or orphan keys."""
     file_path = get_data_filepath(num_rows)
-
+    ensure_products(file_path)
+    schema = pa.schema([
+        ("sale_date", pa.date32()), ("region_id", pa.int64()),
+        ("product_id", pa.int64()), ("customer_id", pa.int64()),
+        ("quantity", pa.int64()), ("unit_price", pa.float64()), ("discount", pa.float64()),
+    ])
     if os.path.exists(file_path):
+        metadata = pq.ParquetFile(file_path)
+        if not metadata.schema_arrow.equals(schema, check_metadata=False) or metadata.metadata.num_rows != num_rows:
+            raise ValueError(f"Несумісний набір транзакцій: {file_path}")
         print(f"  Файл {file_path} вже існує. Генерацію пропущено.")
         return file_path
-
-    print(f"  Генерація нового датасету: {file_path}...")
-    # Separate generators preserve column values regardless of chunk size.
-    rng_category, rng_a, rng_b, rng_c = [
-        np.random.default_rng(seed) for seed in (42, 43, 44, 45)
-    ]
+    print(f"  Генерація {num_rows:,} транзакцій і довідника з {PRODUCT_COUNT:,} товарів...")
+    # Floating uniform draws, one independent RNG per column: invariant to chunk size.
+    rngs = [np.random.default_rng(seed) for seed in range(42, 49)]
     temporary_path = file_path + ".partial"
+    start_date = np.datetime64("2024-01-01", "D")
     try:
-        with pq.ParquetWriter(
-            temporary_path,
-            pa.schema([("category", pa.string()), ("col_a", pa.float64()),
-                       ("col_b", pa.float64()), ("col_c", pa.float64())]),
-            compression="zstd",
-        ) as writer:
+        with pq.ParquetWriter(temporary_path, schema, compression="zstd") as writer:
             for offset in range(0, num_rows, DATASET_CHUNK_ROWS):
                 size = min(DATASET_CHUNK_ROWS, num_rows - offset)
-                table = pa.table({
-                    "category": rng_category.choice(["A", "B", "C", "D", "E"], size=size),
-                    "col_a": rng_a.uniform(0, 500, size=size),
-                    "col_b": rng_b.uniform(10, 1000, size=size),
-                    "col_c": rng_c.uniform(1, 50, size=size),
-                })
+                day = (rngs[0].random(size) * 731).astype(np.int64)
+                region = (rngs[1].random(size) * REGION_COUNT).astype(np.int64) + 1
+                product = (rngs[2].random(size) * PRODUCT_COUNT).astype(np.int64) + 1
+                customer = (rngs[3].random(size) * 1_000_000).astype(np.int64) + 1
+                quantity = (rngs[4].random(size) * 11).astype(np.int64)  # 0..10
+                price = (rngs[5].random(size) * 20_000).astype(np.int64) / 100.0 + 10.0
+                discount = (rngs[6].random(size) * 41).astype(np.int64) / 100.0  # 0..40%
+                # Small deterministic fixture also makes the 1000-row control nonempty.
+                # Three repeated profitable groups, including two different years.
+                absolute = np.arange(offset, offset + size)
+                fixture = absolute < 24
+                group = absolute[fixture] // 8
+                day[fixture] = np.choose(group, [0, 366, 397])
+                region[fixture] = group + 1
+                product[fixture] = group + 1
+                customer[fixture] = absolute[fixture] % 4 + 1
+                quantity[fixture] = 2
+                price[fixture] = 100.0
+                discount[fixture] = 0.1
+                # Boundary/exclusion cases: quantity=0, discount=0.30, zero/negative profit.
+                for idx, values in {
+                    24: (0, 0.1, 100.0), 25: (2, 0.30, 100.0),
+                    26: (2, 0.1, 1.0), 27: (2, 0.1, 1.0),
+                    28: (2, 0.0, 5.6), 29: (2, 0.0, 5.6),
+                }.items():
+                    if offset <= idx < offset + size:
+                        local = idx - offset
+                        day[local], region[local], product[local], customer[local] = 0, 12, 6, 1
+                        quantity[local], discount[local], price[local] = values
+                dates = start_date + day.astype("timedelta64[D]")
+                table = pa.Table.from_arrays([
+                    pa.array(dates, type=pa.date32()), pa.array(region), pa.array(product),
+                    pa.array(customer), pa.array(quantity), pa.array(price), pa.array(discount),
+                ], schema=schema)
                 writer.write_table(table, row_group_size=DATASET_CHUNK_ROWS)
-                del table
         os.replace(temporary_path, file_path)
     finally:
-        if os.path.exists(temporary_path):
-            os.remove(temporary_path)
+        Path(temporary_path).unlink(missing_ok=True)
     return file_path
 
 
-# ---------------------------------------------------------
-# РЕЖИМ 1: In-Process (Чистий час виконання запиту)
-# ---------------------------------------------------------
-def get_mlisp_inprocess_script(data_path: str) -> str:
-    measured_script = f"""
-define result
-    time-expr
-        -> (read-parquet "{data_path}")
-            filter : > $col_a 100.0
-            with-column $ratio : / $col_b $col_c
-            group-by $category
-                alias (mean $col_a) "avg_a"
-                alias (sum $ratio) "total_ratio"
-                alias (count) "n_count"
-            sort $avg_a :desc
-            collect :streaming
+# Identical logical work in all stacks: filter -> join -> derived columns ->
+# grouped aggregates -> group filter -> deterministic full sort -> materialize.
+def polars_query(data_file):
+    return (
+        pl.scan_parquet(data_file)
+        .filter((pl.col("quantity") > 0) & (pl.col("discount") < 0.30))
+        .join(pl.scan_parquet(product_path_for(data_file)), on="product_id", how="inner")
+        .with_columns(
+            (pl.col("sale_date").dt.year() * 100 + pl.col("sale_date").dt.month()).alias("month"),
+            (pl.col("quantity") * pl.col("unit_price") * (1.0 - pl.col("discount"))).alias("net_revenue"),
+        )
+        .with_columns((pl.col("net_revenue") - pl.col("quantity") * pl.col("unit_cost")).alias("net_profit"))
+        .group_by(GROUP_KEYS)
+        .agg(pl.len().alias("transaction_count"), pl.col("quantity").sum().alias("units_sold"),
+             pl.col("net_revenue").sum().alias("revenue"), pl.col("net_profit").sum().alias("profit"),
+             pl.col("net_revenue").mean().alias("avg_order_value"),
+             pl.col("customer_id").n_unique().alias("unique_customers"))
+        .filter((pl.col("transaction_count") >= MIN_TRANSACTIONS) & (pl.col("profit") > 0.0))
+        .select(VERIFY_COLUMNS)
+        .sort(SORT_COLUMNS, descending=[True] + [False] * len(GROUP_KEYS))
+    )
 
-nth result 1
+
+def pandas_result(data_file):
+    df = pd.read_parquet(data_file, engine="pyarrow", dtype_backend="pyarrow",
+                         filters=[("quantity", ">", 0), ("discount", "<", 0.30)])
+    products = pd.read_parquet(product_path_for(data_file), engine="pyarrow", dtype_backend="pyarrow")
+    df = df.merge(products, on="product_id", how="inner")
+    df["month"] = df["sale_date"].dt.year * 100 + df["sale_date"].dt.month
+    df["net_revenue"] = df["quantity"] * df["unit_price"] * (1.0 - df["discount"])
+    df["net_profit"] = df["net_revenue"] - df["quantity"] * df["unit_cost"]
+    result = df.groupby(GROUP_KEYS, as_index=False).agg(
+        transaction_count=("quantity", "size"), units_sold=("quantity", "sum"),
+        revenue=("net_revenue", "sum"), profit=("net_profit", "sum"),
+        avg_order_value=("net_revenue", "mean"), unique_customers=("customer_id", "nunique"),
+    )
+    result = result[(result["transaction_count"] >= MIN_TRANSACTIONS) & (result["profit"] > 0.0)]
+    return result[VERIFY_COLUMNS].sort_values(SORT_COLUMNS, ascending=[False] + [True] * len(GROUP_KEYS))
+
+
+def duckdb_query(data_file):
+    def sql_string(value):
+        return "'" + str(value).replace("'", "''") + "'"
+    return f"""
+WITH enriched AS (
+    SELECT CAST(year(t.sale_date) * 100 + month(t.sale_date) AS BIGINT) AS month,
+           t.region_id, t.product_id, p.category_id, t.customer_id, t.quantity,
+           t.quantity * t.unit_price * (1.0 - t.discount) AS net_revenue,
+           t.quantity * t.unit_price * (1.0 - t.discount) - t.quantity * p.unit_cost AS net_profit
+    FROM read_parquet({sql_string(data_file)}) t
+    INNER JOIN read_parquet({sql_string(product_path_for(data_file))}) p USING (product_id)
+    WHERE t.quantity > 0 AND t.discount < 0.30
+)
+SELECT month, region_id, product_id, category_id, COUNT(*) AS transaction_count,
+       CAST(SUM(quantity) AS BIGINT) AS units_sold, SUM(net_revenue) AS revenue, SUM(net_profit) AS profit,
+       AVG(net_revenue) AS avg_order_value, COUNT(DISTINCT customer_id) AS unique_customers
+FROM enriched
+GROUP BY month, region_id, product_id, category_id
+HAVING COUNT(*) >= {MIN_TRANSACTIONS} AND SUM(net_profit) > 0.0
+ORDER BY profit DESC, month, region_id, product_id, category_id
 """
 
-    warmup_query = measured_script.split("        ->", 1)[1].split("\nnth result", 1)[0]
-    warmup_query = "->" + warmup_query
-    # The first line starts at column zero; the remaining lines keep relative indentation.
-    warmup_query = "\n".join(
-        line[8:] if line.startswith("        ") else line
-        for line in warmup_query.splitlines()
-    )
-    return (warmup_query.strip() + "\n\n") * WARMUP_RUNS + measured_script
+
+def polaris_query(data_file, terminal="collect :streaming"):
+    path = json.dumps(str(Path(data_file).resolve()), ensure_ascii=False)
+    products = json.dumps(product_path_for(data_file), ensure_ascii=False)
+    return f"""-> (read-parquet {path})
+    filter (> $quantity 0) (< $discount 0.30)
+    join (read-parquet {products}) $product_id $product_id :inner
+    with-column $month (+ (* (dt-year $sale_date) 100) (dt-month $sale_date))
+    with-column $net_revenue (* $quantity $unit_price (- 1.0 $discount))
+    with-column $net_profit (- $net_revenue (* $quantity $unit_cost))
+    group-by (list $month $region_id $product_id $category_id)
+        alias (count) "transaction_count"
+        alias (sum $quantity) "units_sold"
+        alias (sum $net_revenue) "revenue"
+        alias (sum $net_profit) "profit"
+        alias (mean $net_revenue) "avg_order_value"
+        alias (n-unique $customer_id) "unique_customers"
+    filter (>= $transaction_count {MIN_TRANSACTIONS}) (> $profit 0.0)
+    select $month $region_id $product_id $category_id $transaction_count $units_sold $revenue $profit $avg_order_value $unique_customers
+    sort (list $profit $month $region_id $product_id $category_id) (list :desc :asc :asc :asc :asc)
+    {terminal}
+"""
+
+
+def r_pipeline(data_file):
+    path = json.dumps(str(Path(data_file).resolve()), ensure_ascii=False)
+    products = json.dumps(product_path_for(data_file), ensure_ascii=False)
+    return f"""ds <- open_dataset({path}, format = "parquet")
+products <- open_dataset({products}, format = "parquet")
+res <- ds |>
+    filter(quantity > 0, discount < 0.30) |>
+    inner_join(products, by = "product_id") |>
+    mutate(month = lubridate::year(sale_date) * 100 + lubridate::month(sale_date),
+           net_revenue = quantity * unit_price * (1.0 - discount)) |>
+    mutate(net_profit = net_revenue - quantity * unit_cost) |>
+    group_by(month, region_id, product_id, category_id) |>
+    summarise(transaction_count = n(), units_sold = sum(quantity),
+              revenue = sum(net_revenue), profit = sum(net_profit),
+              avg_order_value = mean(net_revenue), unique_customers = n_distinct(customer_id),
+              .groups = "drop") |>
+    filter(transaction_count >= {MIN_TRANSACTIONS}, profit > 0.0) |>
+    select(month, region_id, product_id, category_id, transaction_count, units_sold,
+           revenue, profit, avg_order_value, unique_customers) |>
+    arrange(desc(profit), month, region_id, product_id, category_id) |>
+    collect()
+"""
+
+
+def r_header():
+    return ('suppressPackageStartupMessages({library(arrow); library(dplyr); library(lubridate)})\n'
+            f'arrow::set_cpu_count({THREADS})\n')
+
+
+# ---------------------------------------------------------
+# РЕЖИМ 1: In-process: побудова і виконання запиту після прогріву
+# ---------------------------------------------------------
+def get_polaris_inprocess_script(data_path: str) -> str:
+    query = polaris_query(data_path)
+    return ((query + "\n") * WARMUP_RUNS + "define result\n    time-expr\n"
+            + textwrap.indent(query, "        ") + "\nnth result 1\n")
 
 
 def write_r_inprocess_script(data_path: str):
-    """Створює R-скрипт, який використовує Acero/Arrow Dataset замість конвертації в data.table."""
-    r_code = f"""
-suppressPackageStartupMessages({{
-    library(arrow)
-    library(dplyr)
-}})
-
-arrow::set_cpu_count({THREADS})
-
-run_pipeline <- function() {{
-    ds <- open_dataset("{data_path}", format = "parquet")
-    res <- ds |>
-        select(category, col_a, col_b, col_c) |>
-        filter(col_a > 100.0) |>
-        mutate(ratio = col_b / col_c) |>
-        group_by(category) |>
-        summarise(
-            avg_a = mean(col_a),
-            total_ratio = sum(ratio),
-            n_count = n()
-        ) |>
-        arrange(desc(avg_a)) |>
-        collect()
-    invisible(res)
-}}
-for (i in seq_len({WARMUP_RUNS})) run_pipeline()
-start <- Sys.time()
-res <- run_pipeline()
-elapsed <- as.numeric(difftime(Sys.time(), start, units = "secs"))
-
-cat(sprintf("%.6f\\n", elapsed))
-"""
-    with open(R_INPROCESS_SCRIPT, "w") as f:
-        f.write(r_code.strip())
+    code = (r_header() + "run_pipeline <- function() {\n" + textwrap.indent(r_pipeline(data_path), "    ")
+            + "    invisible(res)\n}\n"
+            + f"for (i in seq_len({WARMUP_RUNS})) run_pipeline()\n"
+            + 'start <- proc.time()[["elapsed"]]\nres <- run_pipeline()\n'
+            + 'elapsed <- proc.time()[["elapsed"]] - start\ncat(sprintf("%.9f\\n", elapsed))\n')
+    Path(R_INPROCESS_SCRIPT).write_text(code, encoding="utf-8")
 
 
-def run_inprocess_mlisp(data_file: str) -> float:
-    with open(MLISP_SCRIPT, "w") as f:
-        f.write(get_mlisp_inprocess_script(data_file))
+def run_internal_script(command):
+    proc = subprocess.run(command, capture_output=True, text=True, env=worker_environment())
+    if proc.returncode or "Error:" in proc.stdout:
+        raise RuntimeError(proc.stderr.strip() or proc.stdout.strip())
+    return float(proc.stdout.strip().splitlines()[-1]) * 1000.0
 
-    proc = subprocess.run(
-        [MLISP_BIN, MLISP_SCRIPT],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        env=worker_environment(),
-    )
-    if proc.returncode != 0:
-        err_msg = proc.stderr.strip() or proc.stdout.strip()
-        raise RuntimeError(f"Помилка виконання MLisp:\n{err_msg}")
 
-    output = proc.stdout.strip().splitlines()
-    elapsed_secs = float(output[-1])
-    return elapsed_secs * 1000.0
+def run_inprocess_polaris(data_file: str) -> float:
+    Path(POLARIS_SCRIPT).write_text(get_polaris_inprocess_script(data_file), encoding="utf-8")
+    return run_internal_script([POLARIS_BIN, POLARIS_SCRIPT])
+
+
+def run_inprocess_r(data_file: str) -> float:
+    write_r_inprocess_script(data_file)
+    return run_internal_script(["Rscript", "--vanilla", R_INPROCESS_SCRIPT])
 
 
 def run_inprocess_polars(data_file: str) -> float:
     start = time.perf_counter()
-    q = (
-        pl.scan_parquet(data_file)
-        .filter(pl.col("col_a") > 100.0)
-        .with_columns((pl.col("col_b") / pl.col("col_c")).alias("ratio"))
-        .group_by("category")
-        .agg(
-            pl.col("col_a").mean().alias("avg_a"),
-            pl.col("ratio").sum().alias("total_ratio"),
-            pl.len().alias("n_count"),
-        )
-        .sort("avg_a", descending=True)
-    )
-    _ = q.collect(engine="streaming")
+    _ = polars_query(data_file).collect(engine="streaming")
     return (time.perf_counter() - start) * 1000.0
 
 
 def run_inprocess_duckdb(data_file: str) -> float:
-    query = f"""
-    SELECT
-        category,
-        AVG(col_a) AS avg_a,
-        SUM(col_b / col_c) AS total_ratio,
-        COUNT(*) AS n_count
-    FROM read_parquet('{data_file}')
-    WHERE col_a > 100.0
-    GROUP BY category
-    ORDER BY avg_a DESC
-    """
     start = time.perf_counter()
-    _ = duckdb.sql(query).fetchall()
+    _ = duckdb.sql(duckdb_query(data_file)).fetchall()
     return (time.perf_counter() - start) * 1000.0
 
 
 def run_inprocess_pandas(data_file: str) -> float:
     start = time.perf_counter()
-    df = pd.read_parquet(
-        data_file,
-        columns=["category", "col_a", "col_b", "col_c"],
-        filters=[("col_a", ">", 100.0)],
-        engine="pyarrow",
-        dtype_backend="pyarrow",
-    )
-    df["ratio"] = df["col_b"] / df["col_c"]
-
-    _ = (
-        df.groupby("category", as_index=False)
-        .agg(
-            avg_a=("col_a", "mean"),
-            total_ratio=("ratio", "sum"),
-            n_count=("category", "count"),
-        )
-        .sort_values(by="avg_a", ascending=False)
-    )
+    _ = pandas_result(data_file)
     return (time.perf_counter() - start) * 1000.0
 
 
-def run_inprocess_r(data_file: str) -> float:
-    write_r_inprocess_script(data_file)
-    proc = subprocess.run(
-        ["Rscript", "--vanilla", R_INPROCESS_SCRIPT],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        env=worker_environment(),
-    )
-    if proc.returncode != 0:
-        err_msg = proc.stderr.strip() or proc.stdout.strip()
-        raise RuntimeError(f"Помилка виконання R:\n{err_msg}")
-
-    output = proc.stdout.strip().splitlines()
-    elapsed_secs = float(output[-1])
-    return elapsed_secs * 1000.0
-
-def write_julia_inprocess_script(data_path: str):
-    """Writes an optimized Julia script using views and in-place operations."""
-    jl_code = f"""
-using Parquet2
-using DataFrames
-using Statistics
-
-function run_pipeline(path::String)
-    # copycols=false avoids duplicating arrays during construction
-    df = DataFrame(Parquet2.readfile(path); copycols=false)
-
-    # subset with view=true avoids copying filtered rows into a new DataFrame
-    vdf = subset(df, :col_a => ByRow(>(100.0)); view=true)
-
-    # Compute sum(b ./ c) directly without creating an intermediate column
-    res = combine(
-        groupby(vdf, :category),
-        :col_a => mean => :avg_a,
-        [:col_b, :col_c] => ((b, c) -> sum(b ./ c)) => :total_ratio,
-        nrow => :n_count
-    )
-
-    sort!(res, :avg_a, rev=true)
-    return res
-end
-
-# Warm-up pass to compile functions and schema
-_ = run_pipeline("{data_path}")
-
-# Timed execution pass
-t = @elapsed run_pipeline("{data_path}")
-println(t)
-"""
-    with open(JULIA_INPROCESS_SCRIPT, "w") as f:
-        f.write(jl_code.strip())
-
-
-def run_inprocess_julia(data_file: str) -> float:
-    write_julia_inprocess_script(data_file)
-    proc = subprocess.run(
-        ["julia", "--threads=auto", JULIA_INPROCESS_SCRIPT],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        env=worker_environment(),
-    )
-    if proc.returncode != 0:
-        err_msg = proc.stderr.strip() or proc.stdout.strip()
-        raise RuntimeError(f"Помилка виконання Julia:\n{err_msg}")
-
-    output = proc.stdout.strip().splitlines()
-    elapsed_secs = float(output[-1])
-    return elapsed_secs * 1000.0
-
-
 # ---------------------------------------------------------
-# РЕЖИМ 2: Process (Запуск процесу CLI: старт -> завершення)
+# РЕЖИМ 2: повний запуск CLI; ті самі функції запитів
 # ---------------------------------------------------------
+def python_process_script(engine, data_file):
+    imports = {"polars": "import polars as pl", "pandas": "import pandas as pd\nimport pyarrow as pa",
+               "duckdb": "import duckdb"}[engine]
+    code = imports + "\nfrom pathlib import Path\n"
+    for key in ["PRODUCT_FILE_NAME", "GROUP_KEYS", "MIN_TRANSACTIONS", "VERIFY_COLUMNS", "SORT_COLUMNS"]:
+        code += f"{key} = {globals()[key]!r}\n"
+    code += inspect.getsource(product_path_for) + "\n"
+    function, call = {"polars": (polars_query, 'polars_query(DATA_FILE).collect(engine="streaming")'),
+                      "pandas": (pandas_result, "pandas_result(DATA_FILE)"),
+                      "duckdb": (duckdb_query, "duckdb.sql(duckdb_query(DATA_FILE)).fetchall()")}[engine]
+    code += inspect.getsource(function) + "\n"
+    if engine == "duckdb":
+        code += f'duckdb.sql("SET threads = {THREADS}")\n'
+    if engine == "pandas":
+        code += f"pa.set_cpu_count({THREADS})\n"
+    code += f"DATA_FILE = {str(Path(data_file).resolve())!r}\n_ = {call}\n"
+    return code
+
+
 def write_process_scripts(data_file: str, script_directory=None):
-    def script_path(filename):
-        if script_directory is None:
-            return filename
-        return str(Path(script_directory) / Path(filename).name)
-
-    with open(script_path(MLISP_SCRIPT), "w") as f:
-        f.write(f"""
--> (read-parquet "{data_file}")
-    filter : > $col_a 100.0
-    with-column $ratio : / $col_b $col_c
-    group-by $category
-        alias (mean $col_a) "avg_a"
-        alias (sum $ratio) "total_ratio"
-        alias (count) "n_count"
-    sort $avg_a :desc
-    collect :streaming
-""".strip())
-
-    with open(script_path(POLARS_SCRIPT), "w") as f:
-        f.write(f"""
-import polars as pl
-q = (
-    pl.scan_parquet("{data_file}")
-    .filter(pl.col("col_a") > 100.0)
-    .with_columns((pl.col("col_b") / pl.col("col_c")).alias("ratio"))
-    .group_by("category")
-    .agg(
-        pl.col("col_a").mean().alias("avg_a"),
-        pl.col("ratio").sum().alias("total_ratio"),
-        pl.len().alias("n_count"),
-    )
-    .sort("avg_a", descending=True)
-)
-_ = q.collect(engine="streaming")
-""".strip())
-
-    with open(script_path(DUCKDB_SCRIPT), "w") as f:
-        f.write(f"""
-import duckdb
-duckdb.sql("SET threads = {THREADS}")
-query = '''
-SELECT
-    category,
-    AVG(col_a) AS avg_a,
-    SUM(col_b / col_c) AS total_ratio,
-    COUNT(*) AS n_count
-FROM read_parquet('{data_file}')
-WHERE col_a > 100.0
-GROUP BY category
-ORDER BY avg_a DESC
-'''
-_ = duckdb.sql(query).fetchall()
-""".strip())
-
-    with open(script_path(PANDAS_SCRIPT), "w") as f:
-        f.write(f"""
-import pandas as pd
-import pyarrow as pa
-pa.set_cpu_count({THREADS})
-df = pd.read_parquet(
-    "{data_file}",
-    columns=["category", "col_a", "col_b", "col_c"],
-    filters=[("col_a", ">", 100.0)],
-    engine="pyarrow",
-    dtype_backend="pyarrow",
-)
-df["ratio"] = df["col_b"] / df["col_c"]
-_ = (
-    df.groupby("category", as_index=False)
-    .agg(avg_a=("col_a", "mean"), total_ratio=("ratio", "sum"), n_count=("category", "count"))
-    .sort_values(by="avg_a", ascending=False)
-)
-""".strip())
-
-    with open(script_path(R_SCRIPT), "w") as f:
-        f.write(f"""
-suppressPackageStartupMessages({{
-    library(arrow)
-    library(dplyr)
-}})
-arrow::set_cpu_count({THREADS})
-ds <- open_dataset("{data_file}", format = "parquet")
-res <- ds |>
-    select(category, col_a, col_b, col_c) |>
-    filter(col_a > 100.0) |>
-    mutate(ratio = col_b / col_c) |>
-    group_by(category) |>
-    summarise(
-        avg_a = mean(col_a),
-        total_ratio = sum(ratio),
-        n_count = n()
-    ) |>
-    arrange(desc(avg_a)) |>
-    collect()
-""".strip())
-
-    with open(script_path(JULIA_SCRIPT), "w") as f:
-        f.write(f"""
-using Parquet2
-using DataFrames
-using Statistics
-
-df = DataFrame(Parquet2.readfile("{data_file}"); copycols=false)
-vdf = subset(df, :col_a => ByRow(>(100.0)); view=true)
-res = combine(
-    groupby(vdf, :category),
-    :col_a => mean => :avg_a,
-    [:col_b, :col_c] => ((b, c) -> sum(b ./ c)) => :total_ratio,
-    nrow => :n_count
-)
-sort!(res, :avg_a, rev=true)
-""".strip())
+    directory = Path(script_directory or ".")
+    scripts = {POLARIS_SCRIPT: polaris_query(data_file), R_SCRIPT: r_header() + r_pipeline(data_file),
+               POLARS_SCRIPT: python_process_script("polars", data_file),
+               PANDAS_SCRIPT: python_process_script("pandas", data_file),
+               DUCKDB_SCRIPT: python_process_script("duckdb", data_file)}
+    for filename, code in scripts.items():
+        (directory / Path(filename).name).write_text(code, encoding="utf-8")
 
 
 def run_command(cmd: list[str]) -> float:
     start = time.perf_counter()
-    proc = subprocess.run(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        env=worker_environment(),
-    )
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=worker_environment())
     elapsed_ms = (time.perf_counter() - start) * 1000.0
-
-    if proc.returncode != 0:
-        err = proc.stderr.strip() or proc.stdout.strip()
-        raise RuntimeError(f"Помилка виконання команди ({' '.join(cmd)}):\n{err}")
-
+    if proc.returncode or "Error:" in proc.stdout:
+        raise RuntimeError(proc.stderr.strip() or proc.stdout.strip())
     return elapsed_ms
 
 
@@ -510,7 +426,7 @@ def environment_metadata(args):
         ram_bytes = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
     except (ValueError, OSError, AttributeError):
         ram_bytes = None
-    binary = Path(MLISP_BIN)
+    binary = Path(POLARIS_BIN)
     rust_polars = []
     cargo_lock = Path("Cargo.lock")
     if cargo_lock.exists():
@@ -529,6 +445,12 @@ def environment_metadata(args):
                 digest.update(chunk)
             binary_hash = digest.hexdigest()
     return {
+        "scenario": SCENARIO,
+        "query": "Filter transactions; inner join products; compute YYYYMM/revenue/profit; group by month/region/product/category; aggregate count/units/revenue/profit/average/distinct customers; retain count>=2 and profit>0; full sort.",
+        "product_count": PRODUCT_COUNT, "region_count": REGION_COUNT,
+        "date_range": ["2024-01-01", "2025-12-31"],
+        "minimum_transactions_per_group": MIN_TRANSACTIONS,
+        "timed_scope": "Reading both Parquet files, query construction and execution; no result-file writes.",
         "platform": platform.platform(), "cpu_model": cpu_model,
         "logical_cpus": os.cpu_count(), "ram_bytes": ram_bytes,
         "python": sys.version, "python_executable": sys.executable,
@@ -538,9 +460,9 @@ def environment_metadata(args):
         "rust_polars_note": "Cargo.lock describes local source dependencies; it does not prove which version built the binary.",
         "rustc": probe_command(["rustc", "--version"]),
         "r": probe_command(["Rscript", "--vanilla", "-e",
-            'cat(R.version.string, "\\n"); for (p in c("arrow", "dplyr")) cat(p, as.character(packageVersion(p)), "\\n")']),
-        "mlisp_binary": str(binary.resolve()), "mlisp_binary_sha256": binary_hash,
-        "mlisp_build_note": args.mlisp_build_note or "Not supplied; release path alone does not prove build flags.",
+            'cat(R.version.string, "\\n"); for (p in c("arrow", "dplyr", "lubridate")) cat(p, as.character(packageVersion(p)), "\\n")']),
+        "polaris_binary": str(binary.resolve()), "polaris_binary_sha256": binary_hash,
+        "polaris_build_note": args.polaris_build_note or "Not supplied; release path alone does not prove build flags.",
         "threads_requested": THREADS, "worker_thread_environment": {
             k: v for k, v in worker_environment().items() if k in {
                 "POLARS_MAX_THREADS", "OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
@@ -551,15 +473,17 @@ def environment_metadata(args):
         "cache_policy": "Sequential file pre-read before each trial; best-effort warm OS cache, not guaranteed RAM residency.",
         "inprocess_policy": "Fresh process per sample; warm-ups and the measured query share that process; startup excluded.",
         "process_policy": "Fresh CLI process per sample; startup, imports and query included.",
-        "dataset_generation": "Bounded Arrow batches; new files use independent RNG seeds 42/43/44/45 and zstd.",
+        "dataset_generation": "Bounded Arrow batches, independent RNG seeds 42..48, zstd; 24 repeated fixture rows and 6 boundary rows; products cost formula 5+(id%500)/10.",
         "dataset_chunk_rows": DATASET_CHUNK_ROWS,
         "scope": "Specific analytic stacks and one query; not a general language-speed ranking.",
     }
 
 
 def plot_results(results_df: pd.DataFrame, title: str, output_file: str):
+    # CSV stores milliseconds; all chart coordinates use seconds.
+    results_df = results_df / 1000.0
     styles = {
-        "MLisp": {"color": "#1f77b4", "marker": "o", "linewidth": 2.5},          # Blue
+        "Polaris": {"color": "#1f77b4", "marker": "o", "linewidth": 2.5},          # Blue
         "Polars (Python)": {"color": "#ff7f0e", "marker": "s", "linewidth": 2}, # Orange
         "DuckDB": {"color": "#2ca02c", "marker": "^", "linewidth": 2},          # Green
         "Pandas (PyArrow)": {"color": "#d62728", "marker": "x", "linewidth": 2},# Red
@@ -571,13 +495,13 @@ def plot_results(results_df: pd.DataFrame, title: str, output_file: str):
     output_ext = output_ext or ".png"
     figures = []
     for scale, subtitle, ylabel in [
-        ("log", "Логарифмічний граф часу", "Час виконання (мс) — логарифмічна шкала"),
-        ("linear", "Лінійний граф часу", "Час виконання (мс) — лінійна шкала"),
+        ("log", "Логарифмічний граф часу", "Час виконання (с) — логарифмічна шкала"),
+        ("linear", "Лінійний граф часу", "Час виконання (с) — лінійна шкала"),
     ]:
         fig, ax = plt.subplots(figsize=(8, 6), dpi=300)
         for engine in results_df.columns:
             style = styles.get(engine, {"marker": "o", "linewidth": 2})
-            ax.plot(results_df.index, results_df[engine], label=engine, **style)
+            ax.plot(results_df.index, results_df[engine], label="Розроблена мова" if engine == "Polaris" else engine, **style)
 
         ax.set_xscale("log")
         ax.set_yscale(scale)
@@ -601,10 +525,11 @@ def plot_results(results_df: pd.DataFrame, title: str, output_file: str):
 def plot_run_spread(records, engine_names, title, output_file):
     """Show raw measured samples, medians and min–max ranges, excluding warm-ups/errors."""
     colors = {
-        "MLisp": "#1f77b4", "Polars (Python)": "#ff7f0e", "DuckDB": "#2ca02c",
+        "Polaris": "#1f77b4", "Polars (Python)": "#ff7f0e", "DuckDB": "#2ca02c",
         "Pandas (PyArrow)": "#d62728", "R (Arrow)": "#9467bd",
     }
-    labels = [name.replace(" (", "\n(") for name in engine_names]
+    labels = [("Розроблена мова" if name == "Polaris" else name).replace(" (", "\n(")
+              for name in engine_names]
     sizes = list(dict.fromkeys(record["rows"] for record in records if record["phase"] == "benchmark"))
     if not sizes:
         return
@@ -616,7 +541,7 @@ def plot_run_spread(records, engine_names, title, output_file):
         has_samples = False
         for position, engine in enumerate(engine_names, start=1):
             values = np.asarray([
-                float(record["elapsed_ms"]) for record in records
+                float(record["elapsed_ms"]) / 1000.0 for record in records
                 if record["phase"] == "benchmark" and record["status"] == "ok"
                 and record["rows"] == size and record["engine"] == engine
             ])
@@ -639,7 +564,7 @@ def plot_run_spread(records, engine_names, title, output_file):
         else:
             ax.text(0.5, 0.5, "Немає успішних вимірювань", ha="center", va="center", transform=ax.transAxes)
         ax.set_title(f"{size:,} рядків", fontsize=12, fontweight="bold")
-        ax.set_ylabel("Час виконання (мс), логарифмічна шкала", fontsize=10)
+        ax.set_ylabel("Час виконання (с), логарифмічна шкала", fontsize=10)
         ax.set_xticks(range(1, len(engine_names) + 1), labels)
         ax.tick_params(axis="x", labelsize=9)
         ax.set_xlim(0.5, len(engine_names) + 0.5)
@@ -656,58 +581,94 @@ def plot_run_spread(records, engine_names, title, output_file):
 
 
 VERIFY_ROWS = 1000
-VERIFY_COLUMNS = ["category", "avg_a", "total_ratio", "n_count"]
 
 
-def compare_verify_tables(expected, actual, rel_tol=1e-5, abs_tol=1e-5):
-    """Compare integer/category values exactly and floating aggregates with tolerance."""
+
+def scalar_reference(transactions, products):
+    """Independent untimed Python calculation for the small verification fixture."""
+    import math
+    catalog = {row["product_id"]: row for row in products.to_dicts()}
+    groups = {}
+    for row in transactions.to_dicts():
+        if row["quantity"] <= 0 or row["discount"] >= 0.30:
+            continue
+        product = catalog.get(row["product_id"])
+        if product is None:
+            continue
+        date = row["sale_date"]
+        key = (date.year * 100 + date.month, row["region_id"], row["product_id"], product["category_id"])
+        group = groups.setdefault(key, {"units": 0, "revenues": [], "profits": [], "customers": set()})
+        revenue = row["quantity"] * row["unit_price"] * (1.0 - row["discount"])
+        group["units"] += row["quantity"]
+        group["revenues"].append(revenue)
+        group["profits"].append(revenue - row["quantity"] * product["unit_cost"])
+        group["customers"].add(row["customer_id"])
+    output = []
+    for key, group in groups.items():
+        count, profit = len(group["revenues"]), math.fsum(group["profits"])
+        if count < MIN_TRANSACTIONS or profit <= 0.0:
+            continue
+        revenue = math.fsum(group["revenues"])
+        output.append(dict(zip(VERIFY_COLUMNS, [*key, count, group["units"], revenue,
+                                                 profit, revenue / count, len(group["customers"])])))
+    if not output:
+        raise AssertionError("Контрольний набір не дав жодної групи.")
+    return pl.DataFrame(output).select(VERIFY_COLUMNS).sort(
+        SORT_COLUMNS, descending=[True] + [False] * len(GROUP_KEYS))
+
+
+def compare_verify_tables(expected, actual, rel_tol=1e-8, abs_tol=1e-6):
+    """Compare keys/counts exactly, floating aggregates tolerantly; check sorted output."""
     for name, frame in [("reference", expected), ("actual", actual)]:
         if len(frame.columns) != len(VERIFY_COLUMNS) or set(frame.columns) != set(VERIFY_COLUMNS):
             raise AssertionError(f"{name}: unexpected columns {frame.columns}")
-        if frame.height != 5 or frame["category"].n_unique() != 5:
-            raise AssertionError(f"{name}: expected exactly five unique category rows")
-        if frame.null_count().row(0) != (0, 0, 0, 0):
+        if frame.height == 0 or frame.select(GROUP_KEYS).unique().height != frame.height:
+            raise AssertionError(f"{name}: empty result or duplicate group keys")
+        if any(frame.null_count().row(0)):
             raise AssertionError(f"{name}: unexpected null values")
-        for column in ("avg_a", "total_ratio", "n_count"):
-            if not frame[column].dtype.is_numeric():
-                raise AssertionError(f"{name}: {column} must be numeric")
-            if not np.isfinite(frame[column].to_numpy()).all():
-                raise AssertionError(f"{name}: non-finite values in {column}")
-    expected = expected.select(VERIFY_COLUMNS).sort("category")
-    actual = actual.select(VERIFY_COLUMNS).sort("category")
-    for column in ("category", "n_count"):
-        pl_testing.assert_series_equal(actual[column], expected[column],
-                                       check_dtypes=False, check_exact=True)
-    pl_testing.assert_frame_equal(
-        actual.select("avg_a", "total_ratio"), expected.select("avg_a", "total_ratio"),
-        check_dtypes=False, check_exact=False, rel_tol=rel_tol, abs_tol=abs_tol,
-    )
+        for column in VERIFY_COLUMNS:
+            if not frame[column].dtype.is_numeric() or not frame[column].cast(pl.Float64).is_finite().all():
+                raise AssertionError(f"{name}: invalid numeric values in {column}")
+        if frame.filter((pl.col("transaction_count") < MIN_TRANSACTIONS) | (pl.col("profit") <= 0)).height:
+            raise AssertionError(f"{name}: group filter was not applied")
+        # Sorting is part of the workload; verify it before comparing keyed contents.
+        pl_testing.assert_frame_equal(frame, frame.sort(SORT_COLUMNS, descending=[True] + [False] * len(GROUP_KEYS)))
+    expected = expected.select(VERIFY_COLUMNS).sort(GROUP_KEYS)
+    actual = actual.select(VERIFY_COLUMNS).sort(GROUP_KEYS)
+    pl_testing.assert_frame_equal(actual.select(EXACT_COLUMNS), expected.select(EXACT_COLUMNS),
+                                  check_dtypes=False, check_exact=True)
+    pl_testing.assert_frame_equal(actual.select(FLOAT_COLUMNS), expected.select(FLOAT_COLUMNS),
+                                  check_dtypes=False, check_exact=False, rel_tol=rel_tol, abs_tol=abs_tol)
 
 
-def run_verify(output_directory="benchmark_verify_results"):
+def run_verify(output_directory="benchmark_retail_verify_results"):
     # Fixed control sample; independent of --rows used for timing runs.
     data_file = str(Path(ensure_dataset(VERIFY_ROWS)).resolve())
     control = pl.read_parquet(data_file)
-    if control.height != VERIFY_ROWS or set(control["category"].unique().to_list()) != set("ABCDE"):
-        raise ValueError("Контрольний набір має містити 1000 рядків і всі категорії A–E.")
-    filtered_count = control.filter(pl.col("col_a") > 100.0).height
-    if not 0 < filtered_count < VERIFY_ROWS:
-        raise ValueError("Контрольний набір має містити рядки, які проходять і не проходять фільтр.")
-    if control.filter(pl.col("col_a") > 100.0)["category"].n_unique() != 5:
-        raise ValueError("Після фільтрації мають залишитися всі п'ять категорій.")
+    if control.height != VERIFY_ROWS:
+        raise ValueError("Контрольний набір має містити 1000 транзакцій.")
+    products = pl.read_parquet(product_path_for(data_file))
+    if products["product_id"].n_unique() != PRODUCT_COUNT:
+        raise ValueError("Ключі довідника товарів мають бути унікальними.")
+    filtered = control.filter((pl.col("quantity") > 0) & (pl.col("discount") < 0.30))
+    if not 0 < filtered.height < VERIFY_ROWS:
+        raise ValueError("Контрольний набір має перевіряти відкидання транзакцій.")
+    # An independent scalar reference checks the query, not just agreement of engines.
+    expected_control = scalar_reference(control, products)
     output_dir = Path(output_directory).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     engines = [
-        ("MLisp", "mlisp", MLISP_SCRIPT),
+        ("Polaris", "polaris", POLARIS_SCRIPT),
         ("Polars (Python)", "polars", POLARS_SCRIPT),
         ("DuckDB", "duckdb", DUCKDB_SCRIPT),
         ("Pandas (PyArrow)", "pandas", PANDAS_SCRIPT),
         ("R (Arrow)", "r", R_SCRIPT),
     ]
-    report = {"rows": VERIFY_ROWS, "data_file": data_file, "reference": "Polars (Python)",
-              "rel_tol": 1e-5, "abs_tol": 1e-5,
-              "comparison": "Table contents, sorted by category; category/count exact; floating aggregates tolerant.",
-              "mlisp_note": "MLisp collect returns nil; its verification uses sink with the same preceding pipeline.",
+    report = {"rows": VERIFY_ROWS, "data_file": data_file, "reference": "Independent Python scalar calculation",
+              "rel_tol": 1e-8, "abs_tol": 1e-6, "scenario": SCENARIO,
+              "products_file": product_path_for(data_file),
+              "comparison": "Full grouped contents and output sorting; keys/counts exact; floats tolerant; independent scalar reference.",
+              "polaris_note": "Polaris collect returns nil; its verification uses sink with the same preceding pipeline.",
               "results": []}
     print(f"\n--- [VERIFY] Порівняння всіх систем: {VERIFY_ROWS} рядків ---")
     with tempfile.TemporaryDirectory(prefix="benchmark_verify_scripts_") as scripts_dir:
@@ -717,11 +678,11 @@ def run_verify(output_directory="benchmark_verify_results"):
             output_file.unlink(missing_ok=True)  # Never compare stale output after a failed launch.
             script_file = Path(scripts_dir) / Path(filename).name
             code = script_file.read_text()
-            if key == "mlisp":
+            if key == "polaris":
                 if code.count("collect :streaming") != 1:
-                    raise ValueError("Не вдалося знайти завершення MLisp-запиту для перевірки.")
+                    raise ValueError("Не вдалося знайти завершення Polaris-запиту для перевірки.")
                 code = code.replace("collect :streaming", f"sink {json.dumps(output_file.as_posix(), ensure_ascii=False)}")
-                command = [str(Path(MLISP_BIN).resolve()), str(script_file)]
+                command = [str(Path(POLARIS_BIN).resolve()), str(script_file)]
             elif key == "polars":
                 code += f"\n_.write_parquet({str(output_file)!r})\n"
                 command = [sys.executable, str(script_file)]
@@ -740,7 +701,7 @@ def run_verify(output_directory="benchmark_verify_results"):
             result = {"engine": name, "file": str(output_file), "status": "not_compared", "error": ""}
             try:
                 proc = subprocess.run(command, capture_output=True, text=True, env=worker_environment())
-                if proc.returncode:
+                if proc.returncode or "Error:" in proc.stdout:
                     raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or f"Exit code {proc.returncode}")
                 if not output_file.is_file():
                     raise RuntimeError("Система не створила вихідний файл.")
@@ -751,22 +712,17 @@ def run_verify(output_directory="benchmark_verify_results"):
                 print(f"  {name}: помилка запуску — {exc}")
             report["results"].append(result)
 
-    reference_result = next(r for r in report["results"] if r["engine"] == report["reference"])
-    if reference_result["status"] != "execution_error":
-        expected = pl.read_parquet(reference_result["file"])
-        for result in report["results"]:
-            if result["status"] == "execution_error":
-                continue
-            try:
-                compare_verify_tables(expected, pl.read_parquet(result["file"]),
-                                      rel_tol=report["rel_tol"], abs_tol=report["abs_tol"])
-                result["status"] = "ok"
-                print(f"  {result['engine']}: значення збігаються ✅")
-            except Exception as exc:
-                result.update(status="mismatch", error=str(exc))
-                print(f"  {result['engine']}: відмінність даних — {exc}")
-    else:
-        print("  Еталон Polars недоступний: порівняння виконати неможливо.")
+    for result in report["results"]:
+        if result["status"] == "execution_error":
+            continue
+        try:
+            compare_verify_tables(expected_control, pl.read_parquet(result["file"]),
+                                  rel_tol=report["rel_tol"], abs_tol=report["abs_tol"])
+            result["status"] = "ok"
+            print(f"  {result['engine']}: значення збігаються ✅")
+        except Exception as exc:
+            result.update(status="mismatch", error=str(exc))
+            print(f"  {result['engine']}: відмінність даних — {exc}")
     report["all_match"] = all(result["status"] == "ok" for result in report["results"])
     report_file = output_dir / "verify_report.json"
     report_file.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -784,16 +740,18 @@ def main():
     global WARMUP_RUNS, BENCHMARK_RUNS, THREADS, ROW_SIZES, DATASET_CHUNK_ROWS
     parser = argparse.ArgumentParser(description="Бенчмарк конкретного запиту для аналітичних систем.")
     parser.add_argument("--mode", choices=["in-process", "process", "verify"], default="in-process")
-    parser.add_argument("--csv-output", default="benchmark_all_runs.csv",
-                        help="Єдиний CSV запусків; нові сесії додаються до наявного файлу.")
+    parser.add_argument("--results-dir", default="benchmark_results",
+                        help="Батьківський каталог для нової папки кожного запуску.")
+    parser.add_argument("--csv-output", default="benchmark_retail_all_runs.csv",
+                        help="Ім’я CSV або відносний шлях усередині папки поточного запуску.")
     parser.add_argument("--runs", type=int, default=BENCHMARK_RUNS)
     parser.add_argument("--warmup-runs", type=int, default=WARMUP_RUNS)
     parser.add_argument("--threads", type=int, default=THREADS)
     parser.add_argument("--rows", type=int, nargs="+", default=ROW_SIZES)
     parser.add_argument("--chunk-rows", type=int, default=DATASET_CHUNK_ROWS)
-    parser.add_argument("--verify-output-dir", default="benchmark_verify_results", help="Каталог результатів перевірки.")
+    parser.add_argument("--verify-output-dir", default="benchmark_retail_verify_results", help="Відносний підкаталог перевірки всередині папки поточного запуску.")
     parser.add_argument("--seed", type=int, default=42, help="Відтворюване перемішування порядку систем.")
-    parser.add_argument("--mlisp-build-note", default="", help="Версія Rust Polars, команда збірки, RUSTFLAGS тощо.")
+    parser.add_argument("--polaris-build-note", default="", help="Версія Rust Polars, команда збірки, RUSTFLAGS тощо.")
     parser.add_argument("--worker", choices=["polars", "duckdb", "pandas"], help=argparse.SUPPRESS)
     parser.add_argument("--data-file", help=argparse.SUPPRESS)
     args = parser.parse_args()
@@ -816,33 +774,49 @@ def main():
         print(runner(args.data_file))
         return
 
+    # Workers report a single timing to the parent; only the parent creates a folder.
+    for option, value in [("--csv-output", args.csv_output),
+                          ("--verify-output-dir", args.verify_output_dir)]:
+        path = Path(value)
+        if path.is_absolute() or ".." in path.parts:
+            parser.error(f"{option}: потрібен відносний шлях усередині папки запуску; "
+                         "для іншого місця використайте --results-dir.")
+    started_at = datetime.now().astimezone()
+    results_directory = Path(args.results_dir).expanduser().resolve() / started_at.strftime("%Y-%m-%d_%H-%M-%S_%f")
+    results_directory.mkdir(parents=True, exist_ok=False)
+    args.csv_output = str(results_directory / args.csv_output)
+    args.verify_output_dir = str(results_directory / args.verify_output_dir)
+    print(f"Папка результатів: {results_directory}", flush=True)
+
     if args.mode == "verify":
         run_verify(args.verify_output_dir)
         return
 
     if args.mode == "in-process":
-        chart_output = "benchmark_inprocess_results.png"
+        chart_output = "benchmark_retail_inprocess_results.png"
         title = "Час запиту для аналітичних систем після прогріву"
         engines = [
-            ("MLisp", run_inprocess_mlisp),
+            ("Polaris", run_inprocess_polaris),
             ("Polars (Python)", lambda f: run_python_trial("polars", f)),
             ("DuckDB", lambda f: run_python_trial("duckdb", f)),
             ("Pandas (PyArrow)", lambda f: run_python_trial("pandas", f)),
             ("R (Arrow)", run_inprocess_r),
         ]
     else:
-        chart_output = "benchmark_process_scaling_results.png"
+        chart_output = "benchmark_retail_process_results.png"
         title = "Час повного запуску аналітичного скрипту"
         engines = [
-            ("MLisp", lambda _: run_command([MLISP_BIN, MLISP_SCRIPT])),
+            ("Polaris", lambda _: run_command([POLARIS_BIN, POLARIS_SCRIPT])),
             ("Polars (Python)", lambda _: run_command([sys.executable, POLARS_SCRIPT])),
             ("DuckDB", lambda _: run_command([sys.executable, DUCKDB_SCRIPT])),
             ("Pandas (PyArrow)", lambda _: run_command([sys.executable, PANDAS_SCRIPT])),
             ("R (Arrow)", lambda _: run_command(["Rscript", "--vanilla", R_SCRIPT])),
         ]
 
-    session_id = f"{datetime.now(timezone.utc).isoformat()}_{uuid.uuid4().hex[:8]}"
-    csv_columns = ["session_id", "mode", "rows", "engine", "phase", "run", "elapsed_ms", "status", "error"]
+    chart_output = str(results_directory / chart_output)
+
+    session_id = f"{started_at.astimezone(timezone.utc).isoformat()}_{uuid.uuid4().hex[:8]}"
+    csv_columns = ["session_id", "scenario", "mode", "rows", "engine", "phase", "run", "elapsed_ms", "status", "error"]
     output_path = Path(args.csv_output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     session_suffix = session_id.replace(":", "-")
@@ -851,11 +825,13 @@ def main():
     rng = random.Random(args.seed)
     records = []
     metadata = environment_metadata(args)
-    metadata.update(session_id=session_id, mode=args.mode, datasets=[])
+    metadata.update(session_id=session_id, mode=args.mode, datasets=[],
+                    results_directory=str(results_directory), started_at_local=started_at.isoformat())
     metadata_path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8")
+    print("Сценарій: прибутковість товарів за місяцями й регіонами; join та 6 агрегатів.")
     print("Порівнюються конкретні програмні стеки; версії й умови записано в JSON.")
     print("Файловий кеш прогрівається перед кожним запуском; холодне читання не вимірюється.")
-    print("Для MLisp версію Rust Polars і прапорці збірки слід підтвердити через --mlisp-build-note.")
+    print("Для Polaris версію Rust Polars і прапорці збірки слід підтвердити через --polaris-build-note.")
 
     try:
         if output_path.exists() and output_path.stat().st_size:
@@ -873,6 +849,11 @@ def main():
                 file_stat = Path(current_data_file).stat()
                 metadata["datasets"].append({"rows": rows, "path": str(Path(current_data_file).resolve()),
                                              "size_bytes": file_stat.st_size, "mtime_ns": file_stat.st_mtime_ns})
+                product_file = Path(product_path_for(current_data_file))
+                metadata["datasets"][-1]["products"] = {
+                    "path": str(product_file), "rows": PRODUCT_COUNT,
+                    "size_bytes": product_file.stat().st_size, "mtime_ns": product_file.stat().st_mtime_ns,
+                }
                 metadata_path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8")
                 if args.mode == "process":
                     write_process_scripts(current_data_file)
@@ -885,15 +866,16 @@ def main():
                         order = engines.copy()
                         rng.shuffle(order)
                         for name, runner_fn in order:
-                            record = dict(session_id=session_id, mode=args.mode, rows=rows, engine=name,
+                            record = dict(session_id=session_id, scenario=SCENARIO, mode=args.mode, rows=rows, engine=name,
                                           phase=phase, run=run_number, elapsed_ms="", status="ok", error="")
                             try:
                                 warm_file_cache(current_data_file)
+                                warm_file_cache(product_path_for(current_data_file))
                                 elapsed = runner_fn(current_data_file)
                                 if not np.isfinite(elapsed) or elapsed <= 0:
                                     raise ValueError(f"Некоректний час: {elapsed}; можливо, роздільності таймера недостатньо.")
                                 record["elapsed_ms"] = elapsed
-                                print(f"  {name}: {phase} {run_number}/{count} — {elapsed:.3f} мс")
+                                print(f"  {name}: {phase} {run_number}/{count} — {elapsed / 1000.0:.6f} с")
                             except Exception as exc:
                                 record.update(status="error", error=str(exc))
                                 print(f"  {name}: {phase} {run_number}/{count} — Помилка: {exc}")
@@ -913,7 +895,7 @@ def main():
                         f"{output_stem}_spread{output_ext or '.png'}")
         print(f"\nЗапуски: {output_path}\nСтатистика: {summary_path}\nУмови: {metadata_path}")
     finally:
-        for f in [MLISP_SCRIPT, POLARS_SCRIPT, DUCKDB_SCRIPT, PANDAS_SCRIPT, R_SCRIPT, R_INPROCESS_SCRIPT]:
+        for f in [POLARIS_SCRIPT, POLARS_SCRIPT, DUCKDB_SCRIPT, PANDAS_SCRIPT, R_SCRIPT, R_INPROCESS_SCRIPT]:
             if os.path.exists(f):
                 os.remove(f)
 
