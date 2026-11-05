@@ -1,4 +1,5 @@
 use crate::corelib::*;
+use crate::polarslib::new_lazy_frame;
 use crate::types::{Error, Expr, ExprValue, Env};
 use plotlars::{
     BarPlot, BoxPlot, Histogram, LinePlot, PieChart, Plot, ScatterPlot, TimeSeriesPlot,
@@ -41,7 +42,7 @@ pub fn scatter_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Err
         .clone()
         .expect_lazy_frame()?;
 
-    let df = lf.collect().map_err(Error::PolarsError)?;
+    let df = lf.clone().collect().map_err(Error::PolarsError)?;
 
     // Required arguments
     let x = require_kw(&args, ":x")?.expect_string()?;
@@ -82,7 +83,7 @@ pub fn scatter_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Err
 
     plot.plot();
 
-    Ok(nil())
+    Ok(new_lazy_frame(lf))
 }
 
 pub fn bar_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
@@ -94,7 +95,7 @@ pub fn bar_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> 
         .clone()
         .expect_lazy_frame()?;
 
-    let df = lf.collect().map_err(Error::PolarsError)?;
+    let df = lf.clone().collect().map_err(Error::PolarsError)?;
 
     // Required arguments (accepts :labels or alias :x, and :values or alias :y)
     let labels = kw(&args, ":labels")
@@ -135,7 +136,7 @@ pub fn bar_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> 
 
     plot.plot();
 
-    Ok(nil())
+    Ok(new_lazy_frame(lf))
 }
 
 pub fn pie_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
@@ -147,7 +148,7 @@ pub fn pie_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> 
         .clone()
         .expect_lazy_frame()?;
 
-    let df = lf.collect().map_err(Error::PolarsError)?;
+    let df = lf.clone().collect().map_err(Error::PolarsError)?;
 
     // Required arguments
     let labels = require_kw(&args, ":labels")?.expect_string()?;
@@ -173,7 +174,7 @@ pub fn pie_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> 
 
     plot.plot();
 
-    Ok(nil())
+    Ok(new_lazy_frame(lf))
 }
 
 pub fn histogram(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
@@ -185,7 +186,7 @@ pub fn histogram(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error>
         .clone()
         .expect_lazy_frame()?;
 
-    let df = lf.collect().map_err(Error::PolarsError)?;
+    let df = lf.clone().collect().map_err(Error::PolarsError)?;
 
     // Required arguments
     let x = require_kw(&args, ":x")?.expect_string()?;
@@ -217,7 +218,7 @@ pub fn histogram(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error>
 
     plot.plot();
 
-    Ok(nil())
+    Ok(new_lazy_frame(lf))
 }
 
 pub fn box_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
@@ -229,7 +230,7 @@ pub fn box_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> 
         .clone()
         .expect_lazy_frame()?;
 
-    let df = lf.collect().map_err(Error::PolarsError)?;
+    let df = lf.clone().collect().map_err(Error::PolarsError)?;
 
     // Required arguments (accepts :labels / :x, and :values / :y)
     let labels = kw(&args, ":labels")
@@ -286,7 +287,7 @@ pub fn box_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> 
 
     plot.plot();
 
-    Ok(nil())
+    Ok(new_lazy_frame(lf))
 }
 
 pub fn time_series_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
@@ -298,7 +299,7 @@ pub fn time_series_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr,
         .clone()
         .expect_lazy_frame()?;
 
-    let mut df = lf.collect().map_err(Error::PolarsError)?;
+    let mut df = lf.clone().collect().map_err(Error::PolarsError)?;
 
     // Required arguments
     let x = require_kw(&args, ":x")?.expect_string()?;
@@ -375,7 +376,7 @@ pub fn time_series_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr,
 
     plot.plot();
 
-    Ok(nil())
+    Ok(new_lazy_frame(lf))
 }
 
 pub fn line_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
@@ -387,7 +388,7 @@ pub fn line_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error>
         .clone()
         .expect_lazy_frame()?;
 
-    let df = lf.collect().map_err(Error::PolarsError)?;
+    let df = lf.clone().collect().map_err(Error::PolarsError)?;
 
     // Required arguments
     let x = require_kw(&args, ":x")?.expect_string()?;
@@ -456,5 +457,5 @@ pub fn line_plot(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error>
 
     plot.plot();
 
-    Ok(nil())
+    Ok(new_lazy_frame(lf))
 }

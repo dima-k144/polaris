@@ -67,10 +67,15 @@ pub fn new_symbol(value: String) -> Expr {
 }
 
 pub fn print(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
-    for arg in args {
-        println!("{}", arg.to_string()?);
+    for arg in &args {
+        println!("{}", arg.clone().to_string()?);
     }
-    Ok(nil())
+
+    if !args.is_empty() {
+        Ok(args.last().unwrap().clone())
+    } else {
+        Ok(nil())
+    }
 }
 
 pub fn list(args: Vec<Expr>, env: &Rc<RefCell<Env>>) -> Result<Expr, Error> {
