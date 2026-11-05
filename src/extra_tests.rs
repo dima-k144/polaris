@@ -8,7 +8,7 @@ mod tests {
     #[test]
     fn test_wisp_polars_pipeline() {
         let code = r#"
--> (read-csv "data1.csv")
+-> (read-csv "tests/data1.csv")
     filter 
         > $age 24
     select $name $city
@@ -51,7 +51,7 @@ mod tests {
     fn test_wisp_polars_pipeline2() {
         let code = r#"
 define df
-    read-csv "data1.csv"
+    read-csv "tests/data1.csv"
 
 -> df
     filter 
@@ -95,7 +95,7 @@ define df
     #[test]
     fn test_wisp_colon_chaining_and_with_column() {
         let code = r#"
--> (read-csv "data1.csv")
+-> (read-csv "tests/data1.csv")
     with-column $age_months 
         * $age 12
     sort $age_months :desc
@@ -137,8 +137,8 @@ define df
     #[test]
     fn test_wisp_polars_join() {
         let code = r#"
-define d1 (read-csv "data1.csv")
-define d2 (read-csv "data2.csv")
+define d1 (read-csv "tests/data1.csv")
+define d2 (read-csv "tests/data2.csv")
 -> (join d1 d2 $id $id)
     select $name $department $salary
 "#;
@@ -189,7 +189,7 @@ define d2 (read-csv "data2.csv")
     fn test_wisp_polars_group_by_and_aggregation() {
         let code = r#"
 -> 
-    read-csv "data2.csv"
+    read-csv "tests/data2.csv"
     group-by $department
         alias (mean $salary) "avg_salary"
         alias (count) "count"
@@ -243,7 +243,7 @@ define d2 (read-csv "data2.csv")
     #[test]
     fn test_wisp_polars_over_window() {
         let code = r#"
--> (read-csv "data2.csv")
+-> (read-csv "tests/data2.csv")
     with-column $dept_avg 
         over (mean $salary) $department
 "#;
@@ -277,7 +277,7 @@ define d2 (read-csv "data2.csv")
 defun is_senior ()
     when (>= $age 25) "Senior" "Junior"
 
--> (read-csv "data3.csv")
+-> (read-csv "tests/data3.csv")
     with-column $city (fill-null $city "Unknown")
     with-column $is_senior (is_senior)
     "#;
@@ -330,7 +330,7 @@ defun is_senior ()
     #[test]
     fn test_wisp_filter_and_sort_descending() {
         let code = r#"
--> (read-csv "data1.csv")
+-> (read-csv "tests/data1.csv")
     filter : > $age 23
     sort $age :desc
     select $name $age
@@ -373,7 +373,7 @@ defun is_senior ()
     #[test]
     fn test_wisp_with_computed_column() {
         let code = r#"
--> (read-csv "data1.csv")
+-> (read-csv "tests/data1.csv")
     filter : = $city "London"
     with-column $age_next_year : + $age 1
     select $name $age_next_year
@@ -416,7 +416,7 @@ defun is_senior ()
     #[test]
     fn test_wisp_string_manipulation() {
         let code = r#"
--> (read-csv "data1.csv")
+-> (read-csv "tests/data1.csv")
     filter : str-contains $name "^[A-C]"
     with-column $city_mod : str-replace $city "on$" "on-City"
     select $name $city_mod
@@ -461,7 +461,7 @@ defun is_senior ()
     fn test_wisp_aggregation_and_scalar() {
         let code = r#"
 scalar
-    -> (read-csv "data1.csv")
+    -> (read-csv "tests/data1.csv")
         agg : sum $age
 "#;
         let env = std_env();
@@ -482,7 +482,7 @@ scalar
     #[test]
     fn test_wisp_conditional_when() {
         let code = r#"
--> (read-csv "data1.csv")
+-> (read-csv "tests/data1.csv")
     with-column $category
         when (> $age 27) "Senior" "Junior"
     sort $id
@@ -520,7 +520,7 @@ scalar
     #[test]
     fn test_wisp_complex_filter_logical_or() {
         let code = r#"
--> (read-csv "data1.csv")
+-> (read-csv "tests/data1.csv")
     filter : or (> $age 28) (= $city "London")
     sort $id
     select $name $city
@@ -563,7 +563,7 @@ scalar
     #[test]
     fn test_wisp_complex_filter_logical_or2() {
         let code = r#"
--> (read-csv "data1.csv")
+-> (read-csv "tests/data1.csv")
     filter 
         or 
             > $age 28
@@ -609,7 +609,7 @@ scalar
     #[test]
     fn test_wisp_slice_pagination() {
         let code = r#"
--> (read-csv "data1.csv")
+-> (read-csv "tests/data1.csv")
     sort $age
     slice 1 3
     select $name $age
@@ -652,7 +652,7 @@ scalar
     #[test]
     fn test_wisp_regex_extract() {
         let code = r#"
--> (read-csv "data1.csv")
+-> (read-csv "tests/data1.csv")
     with-column $code 
         str-extract $city "^([A-Za-z]{3})" 1
     sort $id
@@ -696,7 +696,7 @@ scalar
     #[test]
     fn test_wisp_cumulative_sum() {
         let code = r#"
--> (read-csv "data1.csv")
+-> (read-csv "tests/data1.csv")
     sort $id
     with-column $running_age : cum-sum $age
     select $name $running_age
@@ -739,7 +739,7 @@ scalar
     #[test]
     fn test_wisp_cumulative_sum2() {
         let code = r#"
--> (read-csv "data1.csv")
+-> (read-csv "tests/data1.csv")
     sort $id
     with-column $running_age 
         cum-sum $age
@@ -783,7 +783,7 @@ scalar
     #[test]
     fn test_wisp_cast_and_arithmetic() {
         let code = r#"
--> (read-csv "data1.csv")
+-> (read-csv "tests/data1.csv")
     filter : = $id 1
     with-column $half_age : / (cast $age :float) 2.0
     select $name $half_age
@@ -826,7 +826,7 @@ scalar
     #[test]
     fn test_wisp_cast_and_arithmetic2() {
         let code = r#"
--> (read-csv "data1.csv")
+-> (read-csv "tests/data1.csv")
     filter : = $id 1
     with-column $half_age 
         / (cast $age :float) 2.0
@@ -870,7 +870,7 @@ scalar
     #[test]
     fn test_wisp_cast_and_arithmetic3() {
         let code = r#"
--> (read-csv "data1.csv")
+-> (read-csv "tests/data1.csv")
     filter : = $id 1
     with-column $half_age 
         /

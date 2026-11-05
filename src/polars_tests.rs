@@ -27,7 +27,7 @@ mod tests {
         };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (= $age 30))
+            (filter (read-csv "tests/data1.csv") (= $age 30))
         "#
         .to_string();
 
@@ -58,7 +58,7 @@ mod tests {
         };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (!= $age 30))
+            (filter (read-csv "tests/data1.csv") (!= $age 30))
         "#
         .to_string();
 
@@ -89,7 +89,7 @@ mod tests {
         };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (> $age 25))
+            (filter (read-csv "tests/data1.csv") (> $age 25))
         "#
         .to_string();
 
@@ -120,7 +120,7 @@ mod tests {
         };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (< $age 28))
+            (filter (read-csv "tests/data1.csv") (< $age 28))
         "#
         .to_string();
 
@@ -151,7 +151,7 @@ mod tests {
         };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (>= $age 28))
+            (filter (read-csv "tests/data1.csv") (>= $age 28))
         "#
         .to_string();
 
@@ -182,7 +182,7 @@ mod tests {
         };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (<= $age 28))
+            (filter (read-csv "tests/data1.csv") (<= $age 28))
         "#
         .to_string();
 
@@ -213,7 +213,7 @@ mod tests {
         };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (and (> $age 22) (< $age 35)))
+            (filter (read-csv "tests/data1.csv") (and (> $age 22) (< $age 35)))
         "#
         .to_string();
 
@@ -244,7 +244,7 @@ mod tests {
         };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (or (< $age 25) (>= $age 35)))
+            (filter (read-csv "tests/data1.csv") (or (< $age 25) (>= $age 35)))
         "#
         .to_string();
 
@@ -275,7 +275,7 @@ mod tests {
         };
 
         let code = r#"
-            (filter (read-csv "data1.csv") (not (> $age 25)))
+            (filter (read-csv "tests/data1.csv") (not (> $age 25)))
         "#
         .to_string();
 
@@ -306,7 +306,7 @@ mod tests {
         };
 
         let code = r#"
-            (select (read-csv "data1.csv") (sum $age))
+            (select (read-csv "tests/data1.csv") (sum $age))
         "#
         .to_string();
 
@@ -334,7 +334,7 @@ mod tests {
         };
 
         let code = r#"
-            (select (read-csv "data1.csv") (mean $age))
+            (select (read-csv "tests/data1.csv") (mean $age))
         "#
         .to_string();
 
@@ -362,7 +362,7 @@ mod tests {
         };
 
         let code = r#"
-            (select (read-csv "data1.csv") (median $age))
+            (select (read-csv "tests/data1.csv") (median $age))
         "#
         .to_string();
 
@@ -390,7 +390,7 @@ mod tests {
         };
 
         let code = r#"
-            (with-column (read-csv "data1.csv") $is_over_25 (> $age 25))
+            (with-column (read-csv "tests/data1.csv") $is_over_25 (> $age 25))
         "#
         .to_string();
 
@@ -422,7 +422,7 @@ mod tests {
         };
 
         let code = r#"
-            (sort (read-csv "data1.csv") $age)
+            (sort (read-csv "tests/data1.csv") $age)
         "#
         .to_string();
 
@@ -458,7 +458,7 @@ mod tests {
 
         // Group by city and compute mean age, then sort by city to ensure deterministic order
         let code = r#"
-            (sort (group-by (read-csv "data1.csv") $city (mean $age)) $city)
+            (sort (group-by (read-csv "tests/data1.csv") $city (mean $age)) $city)
         "#
         .to_string();
 
@@ -487,7 +487,7 @@ mod tests {
         };
 
         let code = r#"
-            (agg (read-csv "data1.csv") 
+            (agg (read-csv "tests/data1.csv") 
                 (alias (sum $age) "total_age") 
                 (alias (mean $age) "mean_age"))
         "#
@@ -518,7 +518,7 @@ mod tests {
         };
 
         let code = r#"
-            (sort (join (read-csv "data1.csv") (read-csv "data2.csv") $id $id :inner) $id)
+            (sort (join (read-csv "tests/data1.csv") (read-csv "tests/data2.csv") $id $id :inner) $id)
         "#
         .to_string();
 
@@ -634,7 +634,7 @@ mod tests {
         };
 
         let code = r#"
-            (with-column (select (read-csv "data1.csv") $id $age) $age_plus_5 (+ $age 5))
+            (with-column (select (read-csv "tests/data1.csv") $id $age) $age_plus_5 (+ $age 5))
         "#
         .to_string();
 
@@ -664,7 +664,7 @@ mod tests {
         };
 
         let code = r#"
-            (with-column (select (read-csv "data1.csv") $id $age) $age_minus_2 (- $age 2))
+            (with-column (select (read-csv "tests/data1.csv") $id $age) $age_minus_2 (- $age 2))
         "#
         .to_string();
 
@@ -694,7 +694,7 @@ mod tests {
         };
 
         let code = r#"
-            (with-column (select (read-csv "data1.csv") $id $age) $age_double (* $age 2))
+            (with-column (select (read-csv "tests/data1.csv") $id $age) $age_double (* $age 2))
         "#
         .to_string();
 
@@ -724,7 +724,7 @@ mod tests {
         };
 
         let code = r#"
-            (with-column (select (read-csv "data1.csv") $id $age) $age_half (/ $age 2))
+            (with-column (select (read-csv "tests/data1.csv") $id $age) $age_half (/ $age 2))
         "#
         .to_string();
 
@@ -754,7 +754,7 @@ mod tests {
         };
 
         let code = r#"
-            (filter (read-csv "data3.csv") (null? $age))
+            (filter (read-csv "tests/data3.csv") (null? $age))
         "#
         .to_string();
 
@@ -785,7 +785,7 @@ mod tests {
         };
 
         let code = r#"
-            (filter (read-csv "data3.csv") (not-null? $city))
+            (filter (read-csv "tests/data3.csv") (not-null? $city))
         "#
         .to_string();
 
@@ -816,7 +816,7 @@ mod tests {
         };
 
         let code = r#"
-            (with-column (read-csv "data3.csv") $age (fill-null $age 0))
+            (with-column (read-csv "tests/data3.csv") $age (fill-null $age 0))
         "#
         .to_string();
 
@@ -847,7 +847,7 @@ mod tests {
         };
 
         let code = r#"
-            (drop-nulls (read-csv "data3.csv"))
+            (drop-nulls (read-csv "tests/data3.csv"))
         "#
         .to_string();
 
@@ -878,7 +878,7 @@ mod tests {
         };
 
         let code = r#"
-            (drop-nulls (read-csv "data3.csv") $name $age)
+            (drop-nulls (read-csv "tests/data3.csv") $name $age)
         "#
         .to_string();
 
@@ -909,7 +909,7 @@ mod tests {
         };
 
         let code = r#"
-            (with-column (read-csv "data1.csv") $category (when (>= $age 30) "senior" "junior"))
+            (with-column (read-csv "tests/data1.csv") $category (when (>= $age 30) "senior" "junior"))
         "#
         .to_string();
 
@@ -941,7 +941,7 @@ mod tests {
         };
 
         let code = r#"
-            (with-column (read-csv "data1.csv") $status (when (>= $age 30) "senior"))
+            (with-column (read-csv "tests/data1.csv") $status (when (>= $age 30) "senior"))
         "#
         .to_string();
 
@@ -973,7 +973,7 @@ mod tests {
         };
 
         let code = r#"
-            (agg (read-csv "data1.csv")
+            (agg (read-csv "tests/data1.csv")
                 (alias (min $age) "min_age")
                 (alias (max $age) "max_age")
                 (alias (count $age) "count_age")
@@ -1010,7 +1010,7 @@ mod tests {
 
         // Filter and write to CSV
         let write_code = format!(
-            r#"(write-csv (filter (read-csv "data1.csv") (= $age 30)) "{}")"#,
+            r#"(write-csv (filter (read-csv "tests/data1.csv") (= $age 30)) "{}")"#,
             temp_output
         );
 
@@ -1049,7 +1049,7 @@ mod tests {
 
         // Use a single backslash inside r#"..."#
         let code = r#"
-            (filter (read-csv "data4.csv") (str-contains $email "@example\.com$"))
+            (filter (read-csv "tests/data4.csv") (str-contains $email "@example\.com$"))
         "#
         .to_string();
 
@@ -1081,7 +1081,7 @@ mod tests {
 
         // Mask the numbers in the SKU column with "XXX"
         let code = r#"
-            (with-column (read-csv "data4.csv") $masked_sku (str-replace $sku "[0-9]+" "XXX"))
+            (with-column (read-csv "tests/data4.csv") $masked_sku (str-replace $sku "[0-9]+" "XXX"))
         "#
         .to_string();
 
@@ -1131,7 +1131,7 @@ mod tests {
 
         // Extract the numeric portion (capture group 1) from SKU
         let code = r#"
-            (with-column (read-csv "data4.csv") $sku_code (str-extract $sku ".*-([0-9]+)-.*" 1))
+            (with-column (read-csv "tests/data4.csv") $sku_code (str-extract $sku ".*-([0-9]+)-.*" 1))
         "#
         .to_string();
 
@@ -1181,7 +1181,7 @@ mod tests {
 
         // Compute average age per city over the dataset without grouping
         let code = r#"
-            (with-column (read-csv "data1.csv") $city_mean_age (over (mean $age) $city))
+            (with-column (read-csv "tests/data1.csv") $city_mean_age (over (mean $age) $city))
         "#
         .to_string();
 
@@ -1213,7 +1213,7 @@ mod tests {
         };
 
         let code = r#"
-            (-> (read-csv "data1.csv")
+            (-> (read-csv "tests/data1.csv")
                 (with-column $prev_age (shift $age 1))
                 (with-column $running_age (cum-sum $age)))
         "#
@@ -1249,7 +1249,7 @@ mod tests {
 
         // Parse date and extract year, month, and day components
         let code = r#"
-            (-> (read-csv "data5.csv")
+            (-> (read-csv "tests/data5.csv")
                 (with-column $date (to-date $date_str "%Y-%m-%d"))
                 (with-column $year (dt-year $date))
                 (with-column $month (dt-month $date))
@@ -1286,7 +1286,7 @@ mod tests {
 
         // Parse datetime and extract hour component
         let code = r#"
-            (-> (read-csv "data5.csv")
+            (-> (read-csv "tests/data5.csv")
                 (with-column $dt (to-datetime $datetime_str "%Y-%m-%d %H:%M:%S"))
                 (with-column $hour (dt-hour $dt))
                 (select $id $hour))
@@ -1319,7 +1319,7 @@ mod tests {
 
         // Parse date and reformat to custom display string
         let code = r#"
-            (-> (read-csv "data5.csv")
+            (-> (read-csv "tests/data5.csv")
                 (with-column $date (to-date $date_str "%Y-%m-%d"))
                 (with-column $formatted_date (dt-format $date "%d/%m/%Y"))
                 (select $id $formatted_date))
@@ -1352,7 +1352,7 @@ mod tests {
 
         // Filter rows where year is greater than or equal to 2025
         let code = r#"
-            (-> (read-csv "data5.csv")
+            (-> (read-csv "tests/data5.csv")
                 (with-column $date (to-date $date_str "%Y-%m-%d"))
                 (filter (>= (dt-year $date) 2025))
                 (select $id $date_str))
@@ -1386,7 +1386,7 @@ mod tests {
 
         // 1. Filter CSV data and write to Parquet
         let write_code = format!(
-            r#"(write-parquet (filter (read-csv "data1.csv") (= $city "Paris")) "{}")"#,
+            r#"(write-parquet (filter (read-csv "tests/data1.csv") (= $city "Paris")) "{}")"#,
             temp_parquet
         );
 
@@ -1474,7 +1474,7 @@ mod tests {
 
         // Stream filtered lazy plan directly to CSV
         let sink_code = format!(
-            r#"(sink (filter (read-csv "data1.csv") (= $city "Paris")) "{}")"#,
+            r#"(sink (filter (read-csv "tests/data1.csv") (= $city "Paris")) "{}")"#,
             temp_output
         );
 
@@ -1513,7 +1513,7 @@ mod tests {
 
         // Stream filtered lazy plan directly to Parquet
         let sink_code = format!(
-            r#"(sink (filter (read-csv "data1.csv") (> $age 28)) "{}")"#,
+            r#"(sink (filter (read-csv "tests/data1.csv") (> $age 28)) "{}")"#,
             temp_output
         );
 
@@ -1550,7 +1550,7 @@ mod tests {
         };
 
         let code = r#"
-            (sort (pivot (read-csv "data1.csv") $city $name $age) $name)
+            (sort (pivot (read-csv "tests/data1.csv") $city $name $age) $name)
         "#
         .to_string();
 
@@ -1583,7 +1583,7 @@ mod tests {
         };
 
         let code = r#"
-            (sort (pivot (read-csv "data1.csv") $city $name $age :sum) $name)
+            (sort (pivot (read-csv "tests/data1.csv") $city $name $age :sum) $name)
         "#
         .to_string();
 
@@ -1618,7 +1618,7 @@ mod tests {
 
         // Column names can be strings, but the subsequent sort must use a column expression $name
         let code = r#"
-            (sort (pivot (read-csv "data1.csv") "city" "name" "age" :first) $name)
+            (sort (pivot (read-csv "tests/data1.csv") "city" "name" "age" :first) $name)
         "#
         .to_string();
 
@@ -1651,7 +1651,7 @@ mod tests {
         };
 
         let code = r#"
-            (-> (read-csv "data1.csv")
+            (-> (read-csv "tests/data1.csv")
                 (pivot $city $id $age :max)
                 (sort $id))
         "#
@@ -1686,7 +1686,7 @@ mod tests {
         };
 
         let code = r#"
-            (melt (read-csv "data1.csv") (list $id) (list $name $city))
+            (melt (read-csv "tests/data1.csv") (list $id) (list $name $city))
         "#
         .to_string();
 
@@ -1722,7 +1722,7 @@ mod tests {
         };
 
         let code = r#"
-            (melt (read-csv "data1.csv") (list $id $name) (list $age) "metric" "val")
+            (melt (read-csv "tests/data1.csv") (list $id $name) (list $age) "metric" "val")
         "#
         .to_string();
 
@@ -1753,7 +1753,7 @@ mod tests {
         };
 
         let code = r#"
-            (melt (read-csv "data1.csv") (list "id") (list "name" "city"))
+            (melt (read-csv "tests/data1.csv") (list "id") (list "name" "city"))
         "#
         .to_string();
 
@@ -1789,7 +1789,7 @@ mod tests {
         };
 
         let code = r#"
-            (-> (read-csv "data1.csv")
+            (-> (read-csv "tests/data1.csv")
                 (unpivot (list $id) (list $name $city) "attr" "val")
                 (filter (= $attr "city"))
                 (sort $id))
@@ -1824,8 +1824,8 @@ mod tests {
         // Concatenate two filtered LazyFrames vertically via direct arguments
         let code = r#"
             (concat 
-                (filter (read-csv "data1.csv") (< $age 25))
-                (filter (read-csv "data1.csv") (> $age 30)))
+                (filter (read-csv "tests/data1.csv") (< $age 25))
+                (filter (read-csv "tests/data1.csv") (> $age 30)))
         "#
         .to_string();
 
@@ -1858,8 +1858,8 @@ mod tests {
         // Concatenate a list of LazyFrames vertically
         let code = r#"
             (concat (list 
-                (filter (read-csv "data1.csv") (= $id 1))
-                (filter (read-csv "data1.csv") (= $id 2))))
+                (filter (read-csv "tests/data1.csv") (= $id 1))
+                (filter (read-csv "tests/data1.csv") (= $id 2))))
         "#
         .to_string();
 
@@ -1892,8 +1892,8 @@ mod tests {
         // Concatenate columns horizontally using the :horizontal strategy
         let code = r#"
             (concat 
-                (select (read-csv "data1.csv") $id $name)
-                (select (read-csv "data1.csv") $age $city)
+                (select (read-csv "tests/data1.csv") $id $name)
+                (select (read-csv "tests/data1.csv") $age $city)
                 :horizontal)
         "#
         .to_string();
@@ -1927,8 +1927,8 @@ mod tests {
         // Diagonal concatenation of frames with non-matching schemas
         let code = r#"
             (concat 
-                (select (read-csv "data1.csv") $id $name)
-                (select (read-csv "data1.csv") $id $age)
+                (select (read-csv "tests/data1.csv") $id $name)
+                (select (read-csv "tests/data1.csv") $id $age)
                 :diagonal)
         "#
         .to_string();
@@ -1966,7 +1966,7 @@ mod tests {
 
         // Aggregate to a 1x1 LazyFrame containing the sum of ages (140)
         let code = r#"
-            (scalar (agg (read-csv "data1.csv") (sum $age)))
+            (scalar (agg (read-csv "tests/data1.csv") (sum $age)))
         "#
         .to_string();
 
@@ -1988,7 +1988,7 @@ mod tests {
 
         // Aggregate to a 1x1 LazyFrame containing the mean age (28.0)
         let code = r#"
-            (scalar (agg (read-csv "data1.csv") (mean $age)))
+            (scalar (agg (read-csv "tests/data1.csv") (mean $age)))
         "#
         .to_string();
 
@@ -2010,7 +2010,7 @@ mod tests {
 
         // Filter to a single row and select 1 column to get a 1x1 String
         let code = r#"
-            (scalar (select (filter (read-csv "data1.csv") (= $id 1)) $name))
+            (scalar (select (filter (read-csv "tests/data1.csv") (= $id 1)) $name))
         "#
         .to_string();
 
@@ -2032,7 +2032,7 @@ mod tests {
 
         // Materialize a 1x1 boolean expression
         let code = r#"
-            (scalar (select (filter (read-csv "data1.csv") (= $id 1)) (= $name "Alice")))
+            (scalar (select (filter (read-csv "tests/data1.csv") (= $id 1)) (= $name "Alice")))
         "#
         .to_string();
 
@@ -2054,7 +2054,7 @@ mod tests {
 
         // Attempting scalar conversion on a non-1x1 LazyFrame should fail with ScalarShapeError
         let code = r#"
-            (scalar (read-csv "data1.csv"))
+            (scalar (read-csv "tests/data1.csv"))
         "#
         .to_string();
 
@@ -2071,7 +2071,7 @@ mod tests {
         };
 
         let code = r#"
-            (with-column (select (read-csv "data1.csv") $id $age) $roll_mean (rolling-mean $age 2))
+            (with-column (select (read-csv "tests/data1.csv") $id $age) $roll_mean (rolling-mean $age 2))
         "#
         .to_string();
 
@@ -2101,7 +2101,7 @@ mod tests {
         };
 
         let code = r#"
-            (with-column (select (read-csv "data1.csv") $id $age) $roll_sum (rolling-sum $age 2))
+            (with-column (select (read-csv "tests/data1.csv") $id $age) $roll_sum (rolling-sum $age 2))
         "#
         .to_string();
 
@@ -2131,7 +2131,7 @@ mod tests {
         };
 
         let code = r#"
-            (-> (select (read-csv "data1.csv") $id $age)
+            (-> (select (read-csv "tests/data1.csv") $id $age)
                 (with-column $roll_min (rolling-min $age 2))
                 (with-column $roll_max (rolling-max $age 2)))
         "#
@@ -2164,7 +2164,7 @@ mod tests {
         };
 
         let code = r#"
-            (with-column (select (read-csv "data1.csv") $id $age) $roll_median (rolling-median $age 3))
+            (with-column (select (read-csv "tests/data1.csv") $id $age) $roll_median (rolling-median $age 3))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -2194,7 +2194,7 @@ mod tests {
 
         // Split sku into list of parts separated by "-"
         let code = r#"
-            (with-column (read-csv "data4.csv") $sku_parts (str-split $sku "-"))
+            (with-column (read-csv "tests/data4.csv") $sku_parts (str-split $sku "-"))
         "#
         .to_string();
 
@@ -2249,7 +2249,7 @@ mod tests {
 
         // Extract first 4 characters of the SKU column
         let code = r#"
-            (with-column (read-csv "data4.csv") $prefix (str-slice $sku 0 4))
+            (with-column (read-csv "tests/data4.csv") $prefix (str-slice $sku 0 4))
         "#
         .to_string();
 
@@ -2299,7 +2299,7 @@ mod tests {
 
         // Strip character set ("PRODLATAMUS-") from both ends of sku
         let code = r#"
-            (with-column (read-csv "data4.csv") $stripped (str-strip $sku "PRODLATAMUS-"))
+            (with-column (read-csv "tests/data4.csv") $stripped (str-strip $sku "PRODLATAMUS-"))
         "#
         .to_string();
 
@@ -2348,7 +2348,7 @@ mod tests {
         };
 
         let code = r#"
-            (-> (read-csv "data4.csv")
+            (-> (read-csv "tests/data4.csv")
                 (with-column $no_lead (str-strip-start $sku "PRODEV-"))
                 (with-column $no_trail (str-strip-end $sku "-USEUAPACLATAM")))
         "#
@@ -2407,7 +2407,7 @@ mod tests {
 
         // Extract named capture groups from SKU: env, code, and region
         let code = r#"
-            (with-column (read-csv "data4.csv") $sku_info 
+            (with-column (read-csv "tests/data4.csv") $sku_info 
                         (str-extract-groups $sku "^(?<env>[A-Z]+)-(?<code>[0-9]+)-(?<region>[A-Z]+)$"))
         "#.to_string();
 
@@ -2472,7 +2472,7 @@ mod tests {
 
         // Pass list expressions for columns and ordering symbols
         let code = r#"
-            (sort (read-csv "data1.csv") (list $city $age) '(:asc :desc))
+            (sort (read-csv "tests/data1.csv") (list $city $age) '(:asc :desc))
         "#
         .to_string();
 
@@ -2504,7 +2504,7 @@ mod tests {
 
         // Pass list expression for columns and :desc symbol
         let code = r#"
-            (sort (read-csv "data1.csv") (list $age $id) :desc)
+            (sort (read-csv "tests/data1.csv") (list $age $id) :desc)
         "#
         .to_string();
 
@@ -2536,7 +2536,7 @@ mod tests {
 
         // Explicit slice on column expression: start at offset 1, take 3 items
         let code = r#"
-            (select (read-csv "data1.csv") (slice-expr $name 1 3))
+            (select (read-csv "tests/data1.csv") (slice-expr $name 1 3))
         "#
         .to_string();
 
@@ -2565,7 +2565,7 @@ mod tests {
 
         // Index specific elements (first: 0, last: -1) using get
         let code = r#"
-            (select (read-csv "data1.csv")
+            (select (read-csv "tests/data1.csv")
                     (alias (get $name 0) "first_name")
                     (alias (get $name -1) "last_name"))
         "#
@@ -2597,7 +2597,7 @@ mod tests {
 
         // Sample variance with default ddof=1 (24.5) and population variance ddof=0 (19.6)
         let code = r#"
-            (select (read-csv "data1.csv") 
+            (select (read-csv "tests/data1.csv") 
                     (alias (var $age) "sample_var")
                     (alias (var $age 0) "pop_var"))
         "#
@@ -2629,7 +2629,7 @@ mod tests {
 
         // 50th percentile (median) and 75th percentile with :linear interpolation
         let code = r#"
-            (select (read-csv "data1.csv") 
+            (select (read-csv "tests/data1.csv") 
                     (alias (quantile $age 0.5) "q50")
                     (alias (quantile $age 0.75 :linear) "q75"))
         "#
@@ -2661,7 +2661,7 @@ mod tests {
 
         // Covariance between id and age
         let code = r#"
-            (select (read-csv "data1.csv") 
+            (select (read-csv "tests/data1.csv") 
                     (alias (cov $id $age) "cov_id_age"))
         "#
         .to_string();
@@ -2691,7 +2691,7 @@ mod tests {
 
         // Pearson correlation between id and age
         let code = r#"
-            (select (read-csv "data1.csv") 
+            (select (read-csv "tests/data1.csv") 
                     (alias (corr $id $age) "corr_id_age"))
         "#
         .to_string();
@@ -2724,7 +2724,7 @@ mod tests {
         };
 
         let code = r#"
-            (describe (read-csv "data1.csv"))
+            (describe (read-csv "tests/data1.csv"))
         "#
         .to_string();
 
@@ -2753,7 +2753,7 @@ mod tests {
 
         // Test `and` with 3 conditions: age > 22, age < 35, and city != "Rome"
         let code = r#"
-            (filter (read-csv "data1.csv") (and (> $age 22) (< $age 35) (!= $city "Rome")))
+            (filter (read-csv "tests/data1.csv") (and (> $age 22) (< $age 35) (!= $city "Rome")))
         "#
         .to_string();
 
@@ -2785,7 +2785,7 @@ mod tests {
 
         // Test `or` with 3 conditions: city is Berlin, city is Madrid, or name is Bob
         let code = r#"
-            (filter (read-csv "data1.csv") (or (= $city "Berlin") (= $city "Madrid") (= $name "Bob")))
+            (filter (read-csv "tests/data1.csv") (or (= $city "Berlin") (= $city "Madrid") (= $name "Bob")))
         "#.to_string();
 
         let res = eval_string(code, &env, &mut state)
@@ -2818,7 +2818,7 @@ mod tests {
         // Rows matching the inner AND: Bob (30, Paris), Diana (28, Rome), Evan (35, Madrid)
         // Negated result returns Alice (London) and Charlie (age 22)
         let code = r#"
-            (filter (read-csv "data1.csv") (not (> $age 24) (!= $city "London")))
+            (filter (read-csv "tests/data1.csv") (not (> $age 24) (!= $city "London")))
         "#
         .to_string();
 
@@ -2878,7 +2878,7 @@ mod tests {
 
         // Test passing 2 separate predicate arguments directly to filter: (> $age 22) and (< $age 35)
         let code = r#"
-            (filter (read-csv "data1.csv") (> $age 22) (< $age 35))
+            (filter (read-csv "tests/data1.csv") (> $age 22) (< $age 35))
         "#
         .to_string();
 
@@ -2910,7 +2910,7 @@ mod tests {
 
         // Test passing 3 predicates across multiple columns: (> $age 22), (< $age 35), and (!= $city "Rome")
         let code = r#"
-            (filter (read-csv "data1.csv") (> $age 22) (< $age 35) (!= $city "Rome"))
+            (filter (read-csv "tests/data1.csv") (> $age 22) (< $age 35) (!= $city "Rome"))
         "#
         .to_string();
 
@@ -2942,7 +2942,7 @@ mod tests {
 
         // Test multiple predicates inside the threading macro (->)
         let code = r#"
-            (-> (read-csv "data1.csv")
+            (-> (read-csv "tests/data1.csv")
                 (filter (>= $age 25) (!= $name "Evan"))
                 (select $name $city))
         "#
@@ -2974,7 +2974,7 @@ mod tests {
 
         // Predicates that contradict/match no rows
         let code = r#"
-            (filter (read-csv "data1.csv") (>= $age 30) (= $city "London"))
+            (filter (read-csv "tests/data1.csv") (>= $age 30) (= $city "London"))
         "#
         .to_string();
 
@@ -3005,7 +3005,7 @@ mod tests {
         };
 
         let code = r#"
-            (with-column (read-csv "data1.csv")
+            (with-column (read-csv "tests/data1.csv")
                         $age_in_months (* $age 12)
                         $is_over_25 (> $age 25))
         "#
@@ -3041,7 +3041,7 @@ mod tests {
 
         // Test that later column assignments can reference previously created columns in the same call
         let code = r#"
-            (with-column (read-csv "data1.csv")
+            (with-column (read-csv "tests/data1.csv")
                         $age_plus_10 (+ $age 10)
                         $double_new_age (* $age_plus_10 2)
                         $is_senior (>= $double_new_age 80))
@@ -3078,7 +3078,7 @@ mod tests {
         };
 
         let code = r#"
-            (-> (read-csv "data1.csv")
+            (-> (read-csv "tests/data1.csv")
                 (with-column $status (when (>= $age 30) "Senior" "Junior")
                             $is_paris (= $city "Paris"))
                 (filter $is_paris)
@@ -3112,7 +3112,7 @@ mod tests {
 
         // Passing an incomplete pair (df $col1 expr1 $col2) should return WrongNumberOfArguments
         let code = r#"
-            (with-column (read-csv "data1.csv") $col1 (+ $age 1) $col2)
+            (with-column (read-csv "tests/data1.csv") $col1 (+ $age 1) $col2)
         "#
         .to_string();
 
@@ -3129,7 +3129,7 @@ mod tests {
         };
 
         let code = r#"
-            (with-column (read-csv "data1.csv") $tier 
+            (with-column (read-csv "tests/data1.csv") $tier 
                         (when (> $age 30) "Senior" 
                                 (> $age 25) "Mid" 
                                 :default "Junior"))
@@ -3164,7 +3164,7 @@ mod tests {
         };
 
         let code = r#"
-            (with-column (read-csv "data1.csv") $status 
+            (with-column (read-csv "tests/data1.csv") $status 
                         (when (>= $age 35) "Veteran" 
                             (< $age 25) "Youth"))
         "#
@@ -3198,7 +3198,7 @@ mod tests {
         };
 
         let code = r#"
-            (with-column (read-csv "data1.csv") $country 
+            (with-column (read-csv "tests/data1.csv") $country 
                         (when (= $city "London") "UK" 
                                 (= $city "Paris") "FR" 
                                 (= $city "Berlin") "DE" 
@@ -3234,7 +3234,7 @@ mod tests {
         };
 
         let code = r#"
-            (-> (read-csv "data1.csv")
+            (-> (read-csv "tests/data1.csv")
                 (with-column $tier (when (> $age 30) "Senior"
                                         (> $age 25) "Mid"
                                         :default "Junior"))
@@ -3270,7 +3270,7 @@ mod tests {
         // Define a named function and apply it to a numeric column
         let code = r#"
             (defun double_plus_one (x) (+ (* x 2) 1))
-            (with-column (read-csv "data1.csv") 
+            (with-column (read-csv "tests/data1.csv") 
                         $custom_age (apply-udf $age double_plus_one :int))
         "#
         .to_string();
@@ -3304,7 +3304,7 @@ mod tests {
 
         // Use an anonymous lambda to create a boolean column, then filter on it
         let code = r#"
-            (-> (read-csv "data1.csv")
+            (-> (read-csv "tests/data1.csv")
                 (with-column $is_senior (apply-udf $age (lambda (a) (>= a 28)) :bool))
                 (filter $is_senior)
                 (select $name $age $is_senior))
@@ -3338,7 +3338,7 @@ mod tests {
 
         let code = r#"
             (defun prefix_city (c) (str-concat "City: " c))
-            (-> (read-csv "data1.csv")
+            (-> (read-csv "tests/data1.csv")
                 (with-column $city_labeled (apply-udf $city prefix_city :string))
                 (select $name $city_labeled))
         "#
@@ -3379,7 +3379,7 @@ mod tests {
 defun compute_score (age)
     / (* age 3) 2.0
 
--> (read-csv "data1.csv")
+-> (read-csv "tests/data1.csv")
     with-column $score (apply-udf $age compute_score :float)
     sort $score :desc
     select $name $score
@@ -3412,7 +3412,7 @@ defun compute_score (age)
         };
 
         let code = r#"
-            (-> (read-csv "data1.csv")
+            (-> (read-csv "tests/data1.csv")
                 (unique $city)
                 (sort $id)
                 (select $city))
@@ -3443,7 +3443,7 @@ defun compute_score (age)
         };
 
         let code = r#"
-            (-> (read-csv "data1.csv")
+            (-> (read-csv "tests/data1.csv")
                 (unique (list $city) :first)
                 (sort $id)
                 (select $id $name $city))
@@ -3477,7 +3477,7 @@ defun compute_score (age)
 
         // Test dropping multiple columns via varargs
         let code = r#"
-            (-> (read-csv "data1.csv")
+            (-> (read-csv "tests/data1.csv")
                 (drop $age $city)
                 (sort $id))
         "#
@@ -3509,7 +3509,7 @@ defun compute_score (age)
 
         // Test dropping columns passed inside a list
         let code = r#"
-            (-> (read-csv "data1.csv")
+            (-> (read-csv "tests/data1.csv")
                 (drop (list $id $age $city))
                 (sort $name))
         "#
@@ -3539,7 +3539,7 @@ defun compute_score (age)
         };
 
         let code = r#"
-            (-> (read-csv "data1.csv")
+            (-> (read-csv "tests/data1.csv")
                 (rename $name "full_name")
                 (sort $id)
                 (select $id $full_name))
@@ -3571,7 +3571,7 @@ defun compute_score (age)
         };
 
         let code = r#"
-            (-> (read-csv "data1.csv")
+            (-> (read-csv "tests/data1.csv")
                 (rename (list $id $name $city) (list "user_id" "username" "location"))
                 (sort $user_id)
                 (select $user_id $username $location))
@@ -3605,7 +3605,7 @@ defun compute_score (age)
 
         // Attempting to rename 2 columns with 1 target name should return an error
         let code = r#"
-            (rename (read-csv "data1.csv") (list $id $name) (list "identifier"))
+            (rename (read-csv "tests/data1.csv") (list $id $name) (list "identifier"))
         "#
         .to_string();
 
@@ -3623,7 +3623,7 @@ defun compute_score (age)
 
         // Combined test in indentation-based Wisp syntax
         let code = r#"
--> (read-csv "data1.csv")
+-> (read-csv "tests/data1.csv")
     filter : > $age 23
     drop $age
     rename $name "person"
@@ -3657,7 +3657,7 @@ defun compute_score (age)
         };
 
         let code = r#"
-            (-> (read-csv "data1.csv")
+            (-> (read-csv "tests/data1.csv")
                 (with-column $abs_diff (abs (- $age 30))
                             $age_sq   (pow $age 2))
                 (select $id $abs_diff $age_sq))
@@ -3691,7 +3691,7 @@ defun compute_score (age)
 
         // Filter to Alice (age = 25) to test exact sqrt
         let code = r#"
-            (-> (read-csv "data1.csv")
+            (-> (read-csv "tests/data1.csv")
                 (filter (= $id 1))
                 (with-column $sqrt_age (sqrt (cast $age :float)))
                 (select $name $sqrt_age))
@@ -3724,7 +3724,7 @@ defun compute_score (age)
 
         // Dividing ages (25, 30, 22, 28, 35) by 4 gives (6.25, 7.5, 5.5, 7.0, 8.75)
         let code = r#"
-            (-> (read-csv "data1.csv")
+            (-> (read-csv "tests/data1.csv")
                 (with-column $quarter (/ (cast $age :float) 4.0))
                 (with-column $fl (floor $quarter)
                             $cl (ceil $quarter))
@@ -3760,7 +3760,7 @@ defun compute_score (age)
         // Dividing ages by 4 gives: [6.25, 7.5, 5.5, 7.0, 8.75]
         // HalfToEven rounding to 1 decimal gives: [6.2, 7.5, 5.5, 7.0, 8.8]
         let code = r#"
-            (-> (read-csv "data1.csv")
+            (-> (read-csv "tests/data1.csv")
                 (with-column $quarter (/ (cast $age :float) 4.0))
                 (with-column $rounded (round $quarter 1))
                 (select $id $rounded))
@@ -3793,7 +3793,7 @@ defun compute_score (age)
 
         // ln(exp(x)) = x
         let code = r#"
-            (-> (read-csv "data1.csv")
+            (-> (read-csv "tests/data1.csv")
                 (with-column $normalized (/ (cast $age :float) 10.0))
                 (with-column $round_trip (round (log (exp $normalized)) 1))
                 (select $id $round_trip))
@@ -3826,7 +3826,7 @@ defun compute_score (age)
 
         // Verify sin^2(x) + cos^2(x) = 1.0 for all age entries
         let code = r#"
-            (-> (read-csv "data1.csv")
+            (-> (read-csv "tests/data1.csv")
                 (with-column $rad (cast $age :float))
                 (with-column $identity (round (+ (pow (sin $rad) 2) (pow (cos $rad) 2)) 4))
                 (select $id $identity))

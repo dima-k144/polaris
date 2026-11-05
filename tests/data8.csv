@@ -1,0 +1,7 @@
+order_id,customer_name,city,category,price,discount,internal_comment
+1,Alice,Kyiv,Electronics,1200,100,call before delivery
+2,Bob,Lviv,Furniture,450,0,fragile
+3,Charlie,Kyiv,Books,80,10,leave at door
+4,Diana,Kyiv,Electronics,2500,200,vip client
+5,Evan,Odesa,Electronics,1500,50,express
+6,Fiona,Kyiv,Electronics,900,0,gift wrap
