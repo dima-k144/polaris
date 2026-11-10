@@ -23,27 +23,78 @@ Polaris combines indentation-based syntax with traditional Lisp expressions. It 
 - Scatter, line, bar, pie, histogram, box, and time-series plots through Plotlars.
 - An interactive REPL with command history, plus `.lsp` script execution.
 
-## Build and run
+## Installation
 
-You need Rust, Cargo, and a native build toolchain. From the repository root:
+Download a prebuilt executable from this repository's **Releases** page (available in the repository's right sidebar). Open the release and expand **Assets**, then download the archive for your operating system. The automatically generated **Source code** archives contain source files, not prebuilt executables.
+
+Rust and Cargo are not required to run the prebuilt executable. Download only builds provided by the release; macOS binaries may not be available.
+
+### Linux (x86-64)
+
+Download `polaris-linux-x86_64.tar.gz`, open a terminal in the download directory, and run:
+
+```bash
+tar -xzf polaris-linux-x86_64.tar.gz
+chmod +x polaris
+./polaris
+```
+
+To run Polaris from any directory, install it for your user and add its directory to your current shell's `PATH`:
+
+```bash
+mkdir -p "$HOME/.local/bin"
+install -m 755 polaris "$HOME/.local/bin/polaris"
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+To keep this `PATH` setting in future Bash sessions, add the `export` line to `~/.bashrc` (or the corresponding configuration file for your shell).
+
+Run a script from the directory containing it:
+
+```bash
+polaris analysis.lsp
+```
+
+Linux builds use system libraries, so compatibility with every distribution or older Linux version is not guaranteed.
+
+### Windows (x86-64)
+
+Download `polaris-windows-x86_64.zip` and extract the entire archive. Keep any included DLLs alongside `polaris.exe`.
+
+Open PowerShell in the extracted directory and start the REPL:
+
+```powershell
+.\polaris.exe
+```
+
+To run a script, place it in that directory and use:
+
+```powershell
+.\polaris.exe analysis.lsp
+```
+
+Alternatively, pass the script's full path in quotes. If Windows reports a missing DLL, check that you extracted all files supplied with the release.
+
+## Build from source
+
+You need Rust, Cargo, and a native build toolchain. The enabled Polars `nightly` feature requires a nightly Rust toolchain. Use the repository's Rust toolchain configuration if one is provided. Dependency versions and enabled Polars features are defined in `Cargo.toml`.
+
+From the repository root:
 
 ```bash
 cargo build --release
 ```
 
-Use the repository's Rust toolchain configuration if one is provided. Dependency versions and enabled Polars features are defined in `Cargo.toml`.
+The executable is written to `target/release/polaris` on Linux/macOS or `target/release/polaris.exe` on Windows.
 
-Start the REPL:
+Start the REPL or run a script through Cargo:
 
 ```bash
 cargo run --release
-```
-
-Run a script:
-
-```bash
 cargo run --release -- analysis.lsp
 ```
+
+## Usage
 
 The interpreter recognizes script arguments ending in `.lsp`. Multiple scripts can be passed in one command; each runs in a fresh environment. Use `(load "helpers.lsp")` to evaluate another file in the current environment.
 
@@ -79,11 +130,13 @@ print summary
 write-csv summary "summary.csv"
 ```
 
-Run it from that directory:
+Run it from that directory using the installed Linux executable:
 
 ```bash
-cargo run --release -- analysis.lsp
+polaris analysis.lsp
 ```
+
+On Windows, with `polaris.exe` in the same directory, use `.\polaris.exe analysis.lsp` in PowerShell. When building from source, use `cargo run --release -- analysis.lsp` from the repository root, with the example files in that directory.
 
 The script displays revenue by category and writes `summary.csv`:
 
