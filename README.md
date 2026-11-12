@@ -140,10 +140,7 @@ On Windows, with `polaris.exe` in the same directory, use `.\polaris.exe analysi
 
 The script displays revenue by category and writes `summary.csv`:
 
-| category | total_revenue |
-| --- | ---: |
-| Food | 450 |
-| Stationery | 330 |
+![Quick Start result: revenue by category](examples/result1.png)
 
 ## Syntax
 
