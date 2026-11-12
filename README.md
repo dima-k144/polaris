@@ -98,7 +98,7 @@ cargo run --release -- analysis.lsp
 
 The interpreter recognizes script arguments ending in `.lsp`. Multiple scripts can be passed in one command; each runs in a fresh environment. Use `(load "helpers.lsp")` to evaluate another file in the current environment.
 
-The REPL prints the result of each submitted expression. Script execution prints the final result; use `print` for intermediate output. REPL history is stored in `~/.polaris_history`. Press **Ctrl+D** to exit.
+The REPL displays the final result of each submission. When a submission contains multiple expressions, only the last result is displayed automatically. Script execution prints the final result; use `print` for intermediate output. REPL history is stored in `~/.polaris_history`. Press **Ctrl+D** to exit.
 
 `print` returns its last argument, or `nil` when called without arguments. Since the REPL also displays the returned value, entering `(print 5)` prints `5` twice. A script ending with `print` likewise displays its returned value again.
 
@@ -143,6 +143,8 @@ On Windows, with `polaris.exe` in the same directory, use `.\polaris.exe analysi
 The script displays revenue by category and writes `summary.csv`:
 
 ![Quick Start result: revenue by category](examples/result1.png)
+
+After writing the file, the interpreter also displays `nil`, the return value of the final `write-csv` call.
 
 ## Syntax
 
@@ -235,9 +237,9 @@ Operators inside braces evaluate **left to right**, without conventional arithme
     (print item))
 ```
 
-`#name` looks up a function or another binding, making function references explicit in calls such as `map` and `reduce`. Functions can contain multiple body expressions and return the last result.
+`#name` explicitly looks up a function or another binding. Ordinary function names can also be passed directly: `(map square '(1 2 3))` works just like `(map #square '(1 2 3))`. Functions can contain multiple body expressions and return the last result.
 
-`let` takes a flat list of name/value pairs. Binding values are evaluated in the surrounding environment. `if` requires a boolean condition. `for` excludes its end value and accepts an optional integer step after the bounds.
+`let` takes a flat list of name/value pairs. Binding values are evaluated in the surrounding environment. `if` requires a boolean condition. `for` excludes its end value and accepts an optional integer literal step after the bounds, such as `(for i 0 10 2 (print i))`. The step is not evaluated, so a variable or expression cannot currently supply it. When omitted, the step defaults to `1` for ascending bounds and `-1` for descending bounds.
 
 ### Pipelines
 
