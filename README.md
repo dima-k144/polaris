@@ -100,6 +100,8 @@ The interpreter recognizes script arguments ending in `.lsp`. Multiple scripts c
 
 The REPL prints the result of each submitted expression. Script execution prints the final result; use `print` for intermediate output. REPL history is stored in `~/.polaris_history`. Press **Ctrl+D** to exit.
 
+`print` returns its last argument, or `nil` when called without arguments. Since the REPL also displays the returned value, entering `(print 5)` prints `5` twice. A script ending with `print` likewise displays its returned value again.
+
 For multiline REPL input, use explicit parentheses, brackets, or braces. Indentation alone does not keep the prompt open for more lines.
 
 ## Quick start: analyze a CSV file
@@ -285,7 +287,11 @@ Dataframe transformations generally build a Polars lazy query plan. Displaying a
 (write-parquet people "people.parquet")
 ```
 
-`collect` currently executes a query and returns `nil`; it does not return a materialized dataframe. `scalar` requires a result containing exactly one row and one column. Displaying or writing the same LazyFrame again may execute its plan again.
+Displaying a LazyFrame executes its full query and prints only the first 10 rows. This display limit does not limit query execution.
+
+`collect` currently executes a query and returns `nil`; it does not return a materialized dataframe. `write-csv`, `write-parquet`, and `sink` also return `nil`. Displaying, writing, or plotting the same LazyFrame again may execute its plan again.
+
+`scalar` extracts a supported scalar value from a result containing exactly one row and one column. It supports numbers, booleans, strings, and null (returned as `nil`). Unsupported types, including dates, datetimes, and lists, produce an error.
 
 ### Available operations
 
@@ -306,7 +312,15 @@ The standard library exposes a subset of Polars through language-level functions
 | Reshaping | `pivot`, `melt`, `unpivot`, `concat` |
 | Expressions and execution | `col`, `lit`, `slice-expr`, `get`, `apply-udf`, `collect`, `scalar` |
 
-For example, `with-column` takes a frame followed by column-name/expression pairs, while `head` and `tail` each take only a frame. Use `slice` for an explicit offset and row count.
+`with-column` takes a frame followed by column-name/expression pairs, using column references such as `$revenue` for the names. Pairs are processed sequentially, so a later expression can reference a column created by an earlier pair:
+
+```lisp
+with-column sales
+    . $revenue {$quantity * $price}
+    . $double_revenue {$revenue * 2}
+```
+
+`head` and `tail` each take only a frame and select the first or last 10 rows, respectively. Use `slice` for an explicit offset and row count.
 
 ## Visualization
 
@@ -317,6 +331,19 @@ bar-plot summary :x "category" :y "total_revenue" :title "Revenue by category"
 ```
 
 Available functions: `scatter-plot`, `line-plot`, `bar-plot`, `pie-plot`, `histogram`, `box-plot`, and `time-series-plot`.
+
+Plots are saved as temporary HTML files and opened in the default web browser. On Linux, opening a plot requires `xdg-open`.
+
+Every plotting function executes the query to draw the chart and returns its input LazyFrame, allowing further pipeline steps. `print` can also be used in a pipeline because it returns its last argument:
+
+```lisp
+-> summary
+    print
+    bar-plot :x "category" :y "total_revenue" :title "Revenue by category"
+    write-csv "summary.csv"
+```
+
+If a plot is the final expression in a script or REPL submission, the returned LazyFrame is also displayed, which executes its query again.
 
 ## Core library
 
